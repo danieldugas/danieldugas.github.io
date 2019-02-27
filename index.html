@@ -55,7 +55,29 @@ h1 {letter-spacing: 6px}
 <footer class="w3-container w3-padding-64 w3-light-grey w3-center w3-large">
   <!-- Font awesome logos: fa fa-something-something -->
   <i class="fa fa-frown-o w3-hover-opacity"></i>
-  <p>Powered by <a href="http://beesbeesbees.com/" target="_blank" class="w3-hover-text-green">bees</a></p>
+  <p>Powered by <a  id="powered_by_link" href="http://beesbeesbees.com/" target="_blank" class="w3-hover-text-green">bees</a></p>
+
+  <script>
+  var powerSources = [
+    "bees",
+    "eels",
+    "koalas",
+    "circuits",
+    "logic",
+    "a chihuaha",
+    ];
+  var powerLinks = [
+    "http://beesbeesbees.com/",
+    "http://eelslap.com",
+    "http://koalastothemax.com",
+    "http://electricboogiewoogie.com",
+    "http://www.visual6502.org/JSSim/index.html",
+    "http://chihuahuaspin.com/"
+    ];
+  var randomIndex = Math.floor(Math.random()*powerSources.length);
+  document.getElementById("powered_by_link").href = powerLinks[randomIndex];
+  document.getElementById("powered_by_link").innerHTML = powerSources[randomIndex];
+  </script>
 </footer>
 
 </body>
