@@ -3,7 +3,7 @@
 <title>Dugas.ch</title>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="../../styles.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
 <style>
@@ -17,36 +17,106 @@ h1 {letter-spacing: 6px}
 <div class="w3-content" style="max-width:1500px">
 
 <!-- Header -->
-<header class="w3-panel w3-center w3-opacity" style="padding:128px 16px">
+<header class="w3-panel w3-center w3-opacity" style="padding:28px 16px">
   <h1 class="w3-xlarge">FUN, MODELS & PEDANTRY</h1>
   <h1>The Funderstanding Series</h1>
 
   <div class="w3-padding-32">
     <div class="w3-bar w3-border">
-      <a href="#" class="w3-bar-item w3-button w3-light-grey">Projects</a>
-      <a href="./contact.html" class="w3-bar-item w3-button">Contact</a>
-      <a href="#" class="w3-bar-item w3-button">Curriculum Vitae</a>
+      <a href="../../index.html" class="w3-bar-item w3-button">dugas.ch</a>
+      <a href="./the_funderstanding_series.html" class="w3-bar-item w3-button">/ Funderstanding</a>
+      <a href="#" class="w3-bar-item w3-button w3-light-grey">/ If The Earth Was Flat</a>
     </div>
   </div>
 </header>
 
 <!-- Photo Grid -->
-<div class="w3-row-padding" style="margin-bottom:128px">
+<div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
   <h1>If The Earth Was Flat...</h1>
   <p>
     Some time ago, I was told that the model in my head,
     which represents our beautiful planet as a spheroid, was a dirty, naive lie.
     The earth is flat! And <i>they</i> don't want us to find the edge. Undeniable. Fascinating!
+  </p>
   <p>
     Well, maybe not so fascinating.
     The arguments presented didn't exactly manage to shake the foundations of our world, and sadly enough, my earth stays round.
     But a pretty interesting question did linger: what would it <i>feel</i> like to live on a disc-world?
   </p>
+  <p>
     The first troubles appeared along with Newton's theory of gravity:
     reading disc world texts, one would think that falling off the edge of the world is a real and terrifying possibility.
-    But we pedants know that the gravity field at the edge of a disc-shaped mass would pull you towards the disc.. 
+    But we <i>pedants</i> know that the gravity field at the edge of a disc-shaped mass would pull you towards the disc.. 
     Which means you would be able to stand proudly on the edge, and even jump over to the other side.
+  </p>
+  <img src="./stand_on_the_edge.svg" style="width:30%">
   <p>
+    But that's not all: imagine standing at some arbitrary point on the disc, say, somewhere between the middle and the edge.
+    Disc-world literature foolishly paints this as a perfectly normal experience, with gravity pulling adventurous traveller straight down,
+    towards the disc soil under his feet, like gravity does to you right now.
+    But it turns out that, as you walk towards the edge, the mass in the center of the disk does not release its grip on you.
+    And so, the same effect which allowed you to stand on the edge of the disc also means that,
+    as you get closer to the edge regions, you would feel as though you were climbing an increasingly steeper hill.
+    But looking back, the downhill slope would be the <i>previously flat</i> surface you had walked on.
+    It would feel like the whole disc is tilting under your feet, making progress more and more difficult.
+    By the time you reached the edge, you would basically be rock-climbing,
+    the straight wall in front of you extending straight down for miles, all the way to the disc's other edge.
+  </p>
+<!--   TODO draw the experience of the traveller, where the ground is tilted as he moves. -->
+<!--   left: house, ground, tree, flat. Middle: house, ground, tree, tilted. Person is puzzled -->
+  <p>
+    In fact, if at that point you accidentally dropped, say, a rubber ball from your pocket,
+    it would roll and roll straight down, past the center of the disc, slow down, and roll back the other way,
+    this would repeat, slower and slower due to friction, until it would stop, smack in the middle of the disc.
+    In other words it would feel like being on the inside of a gigantic half pipe, which simultaneously looked totally flat.
+    Of course at an extremely large scale, forests, hills, rivers would get in the way.
+    And on most of the disc, this effect of gravity seemingly pulling you sideways would be relatively small.
+    Or would it?
+  </p>
+  <img src="./weak_or_strong.svg" style="width:30%">
+  <p>
+    At this point, I realized that I had no clue how strong this effect would be for most of the disc inhabitant.
+    Would this side-force be mere thousandth of a g, almost imperceptible to inhabitants almost all the way to the edge,
+    or quite strong, relatively to the main <i>down</i> component of the <i>force de pesanteur</i> ?
+    In other words: what would be the angle of the gravity field vector along the disc surface?
+  </p>
+  <p>
+    Of course, a physicist or mathematician would look at the formal theory,
+    find the right theorem, identify the important terms in the equation, then provide us with a beautiful answer.
+    But when your hammer is numerical simulation, this problem looks eerily similar to a virtual, discretized nail.
+  </p>
+  <img src="./flat_disc_g_field.svg" style="width:100%">
+  <p>
+    It turns out that this effect is quite significant!
+    Inhabitants living halfway to the edge of the ring from the middle would already have to stand tilted to stay up.
+    And what's more, this tilt angle is not dependent on the gravitational constant. Only the disc geometry.
+    And you can't make it go away by building a bigger disc.
+    A person living halfway to the disc edge from center will always be tilted by the same angle,
+    <i>no matter the disc radius.</i> (as long as it remains a disc, i.e. much thinner than it is wide)
+  </p>
+<!--   TODO howdy neighbor tilted inhabitant -->
+  <p>
+    This also has interesting implications for geography and geology of our disc world: rivers will tend to flow towards the middle.
+    Of course, exceptions could exist in the case of local mountains or hills. 
+    Still, the trend of water flowing towards the middle means that a sea there would be very likely.
+    On top of that, a large sea in the middle of our disc-world would naturally have to bulge up, due to the sideways forces of gravity.
+    Then there's the fact matter on the disc's edge would tend move towards the center, through erosion,
+    rolling stones, wind, or whatever else. Over millions of years, unless it was made of some formidable material,
+    the disc would get thicker in the middle, and erode at the ends, eventually turning into a sphere.
+  </p>
+<!--   TODO draw this weird world -->
+  <p>
+    And of course, since we built a strange-world gravity field calculator, it would be a shame not to put it to use.
+    Here are the gravity fields for cube-world, square-disc-world, and line-world.
+  </p>
+<!--   TODO gravity fields -->
+  <p>
+    The strange physics of these imaginary worlds could inspire fantastic stories. Imagine a fortress
+    at the edge of the disc-world, almost impossible to reach, as it would require climbing an increasingly steeper hill
+    for miles and miles. It would take a several-year-long, arduous trip and the challenges along the way would be numerous,
+    through increasingly strange landscapes and improbable settlements. The narrative almost writes itself.
+    (in this genre, check out <i>La Horde du Contrevent</i> by Alain Damasio.)
+  </p>
 </div>
 
 <!-- End Page Content -->
