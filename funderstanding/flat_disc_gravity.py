@@ -84,3 +84,9 @@ plt.ylabel('y')
 
 fig.delaxes(ax=axes[1,1])
 plt.show()
+
+# slant angle at mid-latitude
+equator_slant = np.arctan2(fx[27,20,21], fz[27,20,21]) * 180 / np.pi + 180
+
+# slant angle at mid-latitude
+edge_slant = np.arctan2(fx[35,20,21], fz[35,20,21]) * 180 / np.pi + 180
