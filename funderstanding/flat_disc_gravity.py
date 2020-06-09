@@ -62,6 +62,7 @@ fz = np.sum(fz, axis=-1)
 
 fig, axes = plt.subplots(2,2)
 plt.sca(axes[0,0])
+plt.title("Front")
 # 2D front (X-Z) section
 gridshow(occ[:,N,:], extent=[x[0], x[-1], z[0],z[-1]])
 plt.quiver(xx[:,N,:], zz[:,N,:], fx[:,N,:], fz[:,N,:])
@@ -69,6 +70,7 @@ plt.xlabel('x')
 plt.ylabel('z')
 
 plt.sca(axes[0,1])
+plt.title("Right")
 # 2D right (Y-Z) section
 gridshow(occ[N,:,:], extent=[y[0], y[-1], z[0],z[-1]])
 plt.quiver(yy[N,:,:], zz[N,:,:], fy[N,:,:], fz[N,:,:])
@@ -76,6 +78,7 @@ plt.xlabel('y')
 plt.ylabel('z')
 
 plt.sca(axes[1,0])
+plt.title("Top")
 # 2D top (X-Y) section
 gridshow(occ[:,:,N], extent=[x[0], x[-1], y[0], y[-1]])
 plt.quiver(xx[:,:,N], yy[:,:,N], fx[:,:,N], fy[:,:,N])

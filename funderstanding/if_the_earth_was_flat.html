@@ -35,7 +35,7 @@ h1 {letter-spacing: 6px}
   <h1>If The Earth Was Flat...</h1>
   <p>
     Some time ago, I was told that the model in my head,
-    which represents our beautiful planet as a spheroid, was a dirty, naive lie.
+    which represents our beautiful planet as a spheroid, was a naive, dirty lie.
     The earth is flat! And <i>they</i> don't want us to find the edge. Undeniable. Fascinating!
   </p>
   <p>
@@ -54,36 +54,36 @@ h1 {letter-spacing: 6px}
     But that's not all: imagine standing at some arbitrary point on the disc, say, somewhere between the middle and the edge.
     Disc-world literature foolishly paints this as a perfectly normal experience, with gravity pulling adventurous traveller straight down,
     towards the disc soil under his feet, like gravity does to you right now.
-    But it turns out that, as you walk towards the edge, the mass in the center of the disk does not release its grip on you.
-    And so, the same effect which allowed you to stand on the edge of the disc also means that,
-    as you get closer to the edge regions, you would feel as though you were climbing an increasingly steeper hill.
-    But looking back, the downhill slope would be the <i>previously flat</i> surface you had walked on.
-    It would feel like the whole disc is tilting under your feet, making progress more and more difficult.
-    By the time you reached the edge, you would basically be rock-climbing,
-    the straight wall in front of you extending straight down for miles, all the way to the disc's other edge.
+    But gravity typically pulls you towards <i>where there is a lot of mass</i>, and when you're not in the center of disc-world,
+    there's a lot more mass on one side than on the other.
+  </p>
+  <p>
+    This is troubling, because it means that at least in theory, everywhere on disc-world except its center,
+    there should be a component of the gravity force which pulls you <i>sideways</i>.
+    This makes sense, intuitively: remember our brave hero standing on the edge of the disc world?
+    Well, on his way there, gravity couldn't just have switched from <i>straight down</i> to <i>fully sideways</i> all at once.
+    Which means, at some point, before going over the edge, he had to feel like he was climbing a very steep slope.
+    But this weird effect should only be felt very close to the edge of the disc, right?
+    Surely on most of the disc, folk are safely pulled straight down, with the small sideways force almost imperceptible,
+    like disc-world texts imply.
+    After all, it is reasonable to stand up straight, and it is said that disc world folk are very reasonable people.
+    Or... are they?
   </p>
 <!--   TODO draw the experience of the traveller, where the ground is tilted as he moves. -->
 <!--   left: house, ground, tree, flat. Middle: house, ground, tree, tilted. Person is puzzled -->
-  <p>
-    In fact, if at that point you accidentally dropped, say, a rubber ball from your pocket,
-    it would roll and roll straight down, past the center of the disc, slow down, and roll back the other way,
-    this would repeat, slower and slower due to friction, until it would stop, smack in the middle of the disc.
-    In other words it would feel like being on the inside of a gigantic half pipe, which simultaneously looked totally flat.
-    Of course at an extremely large scale, forests, hills, rivers would get in the way.
-    And on most of the disc, this effect of gravity seemingly pulling you sideways would be relatively small.
-    Or would it?
-  </p>
   <img src="./weak_or_strong.svg" style="width:30%">
   <p>
     At this point, I realized that I had no clue how strong this effect would be for most of the disc inhabitant.
-    Would this side-force be mere thousandth of a g, almost imperceptible to inhabitants almost all the way to the edge,
-    or quite strong, relatively to the main <i>down</i> component of the <i>force de pesanteur</i> ?
-    In other words: what would be the angle of the gravity field vector along the disc surface?
+    Would this side-force be mere thousandth of a g, almost imperceptible to inhabitants almost all the way to the edge?
+    Or would it be quite strong, relatively to the main <i>down</i> component of the <i>force de pesanteur</i> ?
+    In other words, would the world feel flat pretty much everywhere, or would it feel like a steep slope?
+    To answer this question, we need to figure out the angle of the gravity field vector along the disc surface.
   </p>
   <p>
     Of course, a physicist or mathematician would look at the formal theory,
     find the right theorem, identify the important terms in the equation, then provide us with a beautiful answer.
     But when your hammer is numerical simulation, this problem looks eerily similar to a virtual, discretized nail.
+    Before we jump into the theory, some results:
   </p>
   <img src="./flat_disc_g_field.svg" style="width:100%">
   <p>
@@ -94,10 +94,18 @@ h1 {letter-spacing: 6px}
     A person living halfway to the disc edge from center will always be tilted by the same angle,
     <i>no matter the disc radius.</i> (as long as it remains a disc, i.e. much thinner than it is wide)
   </p>
+  <p>
+    It would feel like the whole disc is tilting under your feet, like an undending steep slope.
+    And looking back, the downhill slope would be the <i>previously flat</i> surface you had walked on.
+    By the time you reached the edge, you would basically be rock-climbing,
+    the straight wall in front of you extending straight down for miles, all the way to the disc's other edge.
+    In fact, if at that point you accidentally dropped, say, a rubber ball from your pocket,
+    it would roll and roll straight down, past the center of the disc, slow down, and roll back the other way,
+    this would repeat, slower and slower due to friction, until it would stop, smack in the middle of the disc.
+    In other words it would feel like being on the inside of a gigantic half pipe, which simultaneously looked totally flat.
+    (Except, of course for forests, hills, rivers, mountains.)
+  </p>
 <!--   TODO howdy neighbor tilted inhabitant. 15deg slant. Note that this is a 25-30% grade, about as much as a ski slope -->
-<!--   According to Guiness World Record, the steepest road in the world has a 34% grade -->
-<!--   The steepest railway line in the world is 13.5%, which means that disc-world pretty quickly -->
-<!--   requires s shaped railway, or funicular for public transport as we travel away from the center. -->
   <p>
     This also has interesting implications for geography and geology of our disc world: rivers will tend to flow towards the middle.
     Of course, exceptions could exist in the case of local mountains or hills. 
@@ -109,6 +117,14 @@ h1 {letter-spacing: 6px}
   </p>
 <!--   TODO draw this weird world -->
   <p>
+    And it doesn't stop there,
+    According to Guiness World Record, the steepest road in the world has a 34% grade
+    The steepest railway line in the world is 13.5%, which means that as we move away from the center,
+    disc-world pretty quickly requires s shaped railway, funiculars, and mountain-like roads.
+    Edge regions would be almost uninhabitable without advanced industry, and transportation there
+    would look more like cable-cars and ladders than roads and stairways.
+  </p>
+  <p>
     And of course, since we built a strange-world gravity field calculator, it would be a shame not to put it to use.
     Here are the gravity fields for cube-world, square-disc-world, and line-world.
   </p>
@@ -119,6 +135,23 @@ h1 {letter-spacing: 6px}
     for miles and miles. It would take a several-year-long, arduous trip and the challenges along the way would be numerous,
     through increasingly strange landscapes and improbable settlements. The narrative almost writes itself.
     (in this genre, check out <i>La Horde du Contrevent</i> by Alain Damasio.)
+  </p>
+  <h3>Simulating Gravity Fields</h3>
+  <p>
+    You might be wondering about the details of the gravity field simulation which produces the results shown above.
+    It turns out, it's quite simple, and fits on a single page of python code.
+    This is thanks to the Newtonian theory of gravity, which states that the gravity felt by an object in space,
+    is the sum of its gravity interaction with all other objects.
+    And a single gravity interaction is easy to calculate: F = G m1 m2 / d^2
+    Of course, in the real world, things are continuous, and solving this means going through double, even triple integrals.
+    Here comes discretization to the rescue. Given a high enough resolution, if we model our space and disc
+    as a bunch of voxels (that is, 3d pixels), then we can treat each voxel as a constant-mass-and-density
+    object, and easily sum up their interactions. This gives a rather good approximation of the continuous field.
+  </p>
+  <p>
+    Thanks to this, it's easy to quickly write a discretized gravity-field simulator using numpy,
+    which can calculate the gravity field for any weirdly shaped planet we can imagine.
+    This implementation is not memory-efficient at all, but it's good enough.
   </p>
 </div>
 
