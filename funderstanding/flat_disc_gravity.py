@@ -40,6 +40,11 @@ elif shape == "flat disc":
 elif shape == "line strip":
     L = 15
     occ = np.logical_and(abs(yy) + abs(zz) == 0, np.abs(xx) < L)
+elif shape == "hollow sphere":
+    r = 13
+    R = 15
+    rr = np.sqrt(xx**2 + yy**2 + zz**2)
+    occ = np.logical_and(rr < R, rr >= r)
 
 oi, oj, ok = np.where(occ)
 ox = x[oi]
