@@ -45,6 +45,11 @@ elif shape == "hollow sphere":
     R = 15
     rr = np.sqrt(xx**2 + yy**2 + zz**2)
     occ = np.logical_and(rr < R, rr >= r)
+elif shape == "hollow cube":
+    S = 10
+    s = 8
+    nn = np.maximum.reduce([np.abs(xx), np.abs(yy), np.abs(zz)])
+    occ = np.logical_and(nn < S, nn >= s)
 
 oi, oj, ok = np.where(occ)
 ox = x[oi]

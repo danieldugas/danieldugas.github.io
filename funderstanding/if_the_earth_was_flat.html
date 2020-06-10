@@ -153,6 +153,117 @@ h1 {letter-spacing: 6px}
     which can calculate the gravity field for any weirdly shaped planet we can imagine.
     This implementation is not memory-efficient at all, but it's good enough.
   </p>
+
+  <!-- Code snippet -->
+  <div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><pre style="margin: 0; line-height: 125%"><span style="color: #008800; font-weight: bold">from</span> <span style="color: #0e84b5; font-weight: bold">__future__</span> <span style="color: #008800; font-weight: bold">import</span> print_function
+
+  <span style="color: #008800; font-weight: bold">import</span> <span style="color: #0e84b5; font-weight: bold">numpy</span> <span style="color: #008800; font-weight: bold">as</span> <span style="color: #0e84b5; font-weight: bold">np</span>
+  <span style="color: #008800; font-weight: bold">from</span> <span style="color: #0e84b5; font-weight: bold">matplotlib</span> <span style="color: #008800; font-weight: bold">import</span> pyplot <span style="color: #008800; font-weight: bold">as</span> plt
+  <span style="color: #008800; font-weight: bold">from</span> <span style="color: #0e84b5; font-weight: bold">pyniel.pyplot_tools.plot</span> <span style="color: #008800; font-weight: bold">import</span> gridshow
+
+  <span style="color: #DD4422">&quot;&quot;&quot; Visualizing 3D gravity fields for arbitrary voxel shapes</span>
+
+  <span style="color: #DD4422">What does the gravity field on a flat disc look like?</span>
+  <span style="color: #DD4422">am I attracted to the disc C.O.G wherever I go?</span>
+  <span style="color: #DD4422">Or to the disc surface, like if I was wearing magnetic boots?</span>
+  <span style="color: #DD4422">Which one and why?</span>
+  <span style="color: #DD4422">&quot;&quot;&quot;</span>
+
+  shape <span style="color: #333333">=</span> <span style="background-color: #fff0f0">&quot;flat disc&quot;</span>
+
+  <span style="color: #888888"># create space</span>
+  N <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">20</span>
+  x <span style="color: #333333">=</span> np<span style="color: #333333">.</span>arange(<span style="color: #333333">-</span>N, N)
+  y <span style="color: #333333">=</span> np<span style="color: #333333">.</span>arange(<span style="color: #333333">-</span>N, N)
+  z <span style="color: #333333">=</span> np<span style="color: #333333">.</span>arange(<span style="color: #333333">-</span>N, N)
+  yy, xx, zz <span style="color: #333333">=</span> np<span style="color: #333333">.</span>meshgrid(y, x, z)
+
+  <span style="color: #888888"># cosmological constants</span>
+  G <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">1</span>
+  <span style="color: #888888"># all pixel weights = 1</span>
+
+  <span style="color: #888888"># occupied pixels</span>
+  <span style="color: #008800; font-weight: bold">if</span> shape <span style="color: #333333">==</span> <span style="background-color: #fff0f0">&quot;cube&quot;</span>:
+      L <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">5</span>
+      occ <span style="color: #333333">=</span> np<span style="color: #333333">.</span>logical_and<span style="color: #333333">.</span>reduce([np<span style="color: #333333">.</span>abs(xx) <span style="color: #333333">&lt;</span> L, np<span style="color: #333333">.</span>abs(yy) <span style="color: #333333">&lt;</span> L, np<span style="color: #333333">.</span>abs(zz) <span style="color: #333333">&lt;</span> L])
+  <span style="color: #008800; font-weight: bold">elif</span> shape <span style="color: #333333">==</span> <span style="background-color: #fff0f0">&quot;flat square&quot;</span>:
+      L <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">15</span>
+      H <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">1</span>
+      occ <span style="color: #333333">=</span> np<span style="color: #333333">.</span>logical_and<span style="color: #333333">.</span>reduce([np<span style="color: #333333">.</span>abs(xx) <span style="color: #333333">&lt;</span> L, np<span style="color: #333333">.</span>abs(yy) <span style="color: #333333">&lt;</span> L, np<span style="color: #333333">.</span>abs(zz) <span style="color: #333333">&lt;</span> H])
+  <span style="color: #008800; font-weight: bold">elif</span> shape <span style="color: #333333">==</span> <span style="background-color: #fff0f0">&quot;flat disc&quot;</span>:
+      R <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">15</span>
+      H <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">1</span>
+      occ <span style="color: #333333">=</span> np<span style="color: #333333">.</span>logical_and(np<span style="color: #333333">.</span>sqrt(xx<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span> <span style="color: #333333">+</span> yy<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span>) <span style="color: #333333">&lt;</span> R, np<span style="color: #333333">.</span>abs(zz) <span style="color: #333333">&lt;</span> H)
+  <span style="color: #008800; font-weight: bold">elif</span> shape <span style="color: #333333">==</span> <span style="background-color: #fff0f0">&quot;line strip&quot;</span>:
+      L <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">15</span>
+      occ <span style="color: #333333">=</span> np<span style="color: #333333">.</span>logical_and(<span style="color: #007020">abs</span>(yy) <span style="color: #333333">+</span> <span style="color: #007020">abs</span>(zz) <span style="color: #333333">==</span> <span style="color: #0000DD; font-weight: bold">0</span>, np<span style="color: #333333">.</span>abs(xx) <span style="color: #333333">&lt;</span> L)
+  <span style="color: #008800; font-weight: bold">elif</span> shape <span style="color: #333333">==</span> <span style="background-color: #fff0f0">&quot;hollow sphere&quot;</span>:
+      r <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">13</span>
+      R <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">15</span>
+      rr <span style="color: #333333">=</span> np<span style="color: #333333">.</span>sqrt(xx<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span> <span style="color: #333333">+</span> yy<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span> <span style="color: #333333">+</span> zz<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span>)
+      occ <span style="color: #333333">=</span> np<span style="color: #333333">.</span>logical_and(rr <span style="color: #333333">&lt;</span> R, rr <span style="color: #333333">&gt;=</span> r)
+  <span style="color: #008800; font-weight: bold">elif</span> shape <span style="color: #333333">==</span> <span style="background-color: #fff0f0">&quot;hollow cube&quot;</span>:
+      S <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">10</span>
+      s <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">8</span>
+      nn <span style="color: #333333">=</span> np<span style="color: #333333">.</span>maximum<span style="color: #333333">.</span>reduce([np<span style="color: #333333">.</span>abs(xx), np<span style="color: #333333">.</span>abs(yy), np<span style="color: #333333">.</span>abs(zz)])
+      occ <span style="color: #333333">=</span> np<span style="color: #333333">.</span>logical_and(nn <span style="color: #333333">&lt;</span> S, nn <span style="color: #333333">&gt;=</span> s)
+
+  oi, oj, ok <span style="color: #333333">=</span> np<span style="color: #333333">.</span>where(occ)
+  ox <span style="color: #333333">=</span> x[oi]
+  oy <span style="color: #333333">=</span> y[oj]
+  oz <span style="color: #333333">=</span> z[ok]
+
+
+  <span style="color: #888888"># force from each pixel to each other pixel</span>
+  dx <span style="color: #333333">=</span> ox[<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,:] <span style="color: #333333">-</span> xx[:,:,:,<span style="color: #007020">None</span>]
+  dy <span style="color: #333333">=</span> oy[<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,:] <span style="color: #333333">-</span> yy[:,:,:,<span style="color: #007020">None</span>]
+  dz <span style="color: #333333">=</span> oz[<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,:] <span style="color: #333333">-</span> zz[:,:,:,<span style="color: #007020">None</span>]
+  d <span style="color: #333333">=</span> np<span style="color: #333333">.</span>sqrt(dx <span style="color: #333333">*</span> dx <span style="color: #333333">+</span> dy <span style="color: #333333">*</span> dy <span style="color: #333333">+</span> dz <span style="color: #333333">*</span> dz)
+  d[d <span style="color: #333333">==</span> <span style="color: #0000DD; font-weight: bold">0</span>] <span style="color: #333333">=</span> np<span style="color: #333333">.</span>inf
+  fx <span style="color: #333333">=</span> dx <span style="color: #333333">/</span> d <span style="color: #333333">*</span> G <span style="color: #333333">/</span> d<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span>
+  fy <span style="color: #333333">=</span> dy <span style="color: #333333">/</span> d <span style="color: #333333">*</span> G <span style="color: #333333">/</span> d<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span>
+  fz <span style="color: #333333">=</span> dz <span style="color: #333333">/</span> d <span style="color: #333333">*</span> G <span style="color: #333333">/</span> d<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span>
+  fx <span style="color: #333333">=</span> np<span style="color: #333333">.</span>sum(fx, axis<span style="color: #333333">=-</span><span style="color: #0000DD; font-weight: bold">1</span>)
+  fy <span style="color: #333333">=</span> np<span style="color: #333333">.</span>sum(fy, axis<span style="color: #333333">=-</span><span style="color: #0000DD; font-weight: bold">1</span>)
+  fz <span style="color: #333333">=</span> np<span style="color: #333333">.</span>sum(fz, axis<span style="color: #333333">=-</span><span style="color: #0000DD; font-weight: bold">1</span>)
+
+  fig, axes <span style="color: #333333">=</span> plt<span style="color: #333333">.</span>subplots(<span style="color: #0000DD; font-weight: bold">2</span>,<span style="color: #0000DD; font-weight: bold">2</span>)
+  plt<span style="color: #333333">.</span>sca(axes[<span style="color: #0000DD; font-weight: bold">0</span>,<span style="color: #0000DD; font-weight: bold">0</span>])
+  plt<span style="color: #333333">.</span>title(<span style="background-color: #fff0f0">&quot;Front&quot;</span>)
+  <span style="color: #888888"># 2D front (X-Z) section</span>
+  gridshow(occ[:,N,:], extent<span style="color: #333333">=</span>[x[<span style="color: #0000DD; font-weight: bold">0</span>], x[<span style="color: #333333">-</span><span style="color: #0000DD; font-weight: bold">1</span>], z[<span style="color: #0000DD; font-weight: bold">0</span>],z[<span style="color: #333333">-</span><span style="color: #0000DD; font-weight: bold">1</span>]])
+  plt<span style="color: #333333">.</span>quiver(xx[:,N,:], zz[:,N,:], fx[:,N,:], fz[:,N,:])
+  plt<span style="color: #333333">.</span>xlabel(<span style="background-color: #fff0f0">&#39;x&#39;</span>)
+  plt<span style="color: #333333">.</span>ylabel(<span style="background-color: #fff0f0">&#39;z&#39;</span>)
+
+  plt<span style="color: #333333">.</span>sca(axes[<span style="color: #0000DD; font-weight: bold">0</span>,<span style="color: #0000DD; font-weight: bold">1</span>])
+  plt<span style="color: #333333">.</span>title(<span style="background-color: #fff0f0">&quot;Right&quot;</span>)
+  <span style="color: #888888"># 2D right (Y-Z) section</span>
+  gridshow(occ[N,:,:], extent<span style="color: #333333">=</span>[y[<span style="color: #0000DD; font-weight: bold">0</span>], y[<span style="color: #333333">-</span><span style="color: #0000DD; font-weight: bold">1</span>], z[<span style="color: #0000DD; font-weight: bold">0</span>],z[<span style="color: #333333">-</span><span style="color: #0000DD; font-weight: bold">1</span>]])
+  plt<span style="color: #333333">.</span>quiver(yy[N,:,:], zz[N,:,:], fy[N,:,:], fz[N,:,:])
+  plt<span style="color: #333333">.</span>xlabel(<span style="background-color: #fff0f0">&#39;y&#39;</span>)
+  plt<span style="color: #333333">.</span>ylabel(<span style="background-color: #fff0f0">&#39;z&#39;</span>)
+
+  plt<span style="color: #333333">.</span>sca(axes[<span style="color: #0000DD; font-weight: bold">1</span>,<span style="color: #0000DD; font-weight: bold">0</span>])
+  plt<span style="color: #333333">.</span>title(<span style="background-color: #fff0f0">&quot;Top&quot;</span>)
+  <span style="color: #888888"># 2D top (X-Y) section</span>
+  gridshow(occ[:,:,N], extent<span style="color: #333333">=</span>[x[<span style="color: #0000DD; font-weight: bold">0</span>], x[<span style="color: #333333">-</span><span style="color: #0000DD; font-weight: bold">1</span>], y[<span style="color: #0000DD; font-weight: bold">0</span>], y[<span style="color: #333333">-</span><span style="color: #0000DD; font-weight: bold">1</span>]])
+  plt<span style="color: #333333">.</span>quiver(xx[:,:,N], yy[:,:,N], fx[:,:,N], fy[:,:,N])
+  plt<span style="color: #333333">.</span>xlabel(<span style="background-color: #fff0f0">&#39;x&#39;</span>)
+  plt<span style="color: #333333">.</span>ylabel(<span style="background-color: #fff0f0">&#39;y&#39;</span>)
+
+  fig<span style="color: #333333">.</span>delaxes(ax<span style="color: #333333">=</span>axes[<span style="color: #0000DD; font-weight: bold">1</span>,<span style="color: #0000DD; font-weight: bold">1</span>])
+  plt<span style="color: #333333">.</span>show()
+
+  <span style="color: #888888"># slant angle at mid-latitude</span>
+  equator_slant <span style="color: #333333">=</span> np<span style="color: #333333">.</span>arctan2(fx[<span style="color: #0000DD; font-weight: bold">27</span>,<span style="color: #0000DD; font-weight: bold">20</span>,<span style="color: #0000DD; font-weight: bold">21</span>], fz[<span style="color: #0000DD; font-weight: bold">27</span>,<span style="color: #0000DD; font-weight: bold">20</span>,<span style="color: #0000DD; font-weight: bold">21</span>]) <span style="color: #333333">*</span> <span style="color: #0000DD; font-weight: bold">180</span> <span style="color: #333333">/</span> np<span style="color: #333333">.</span>pi <span style="color: #333333">+</span> <span style="color: #0000DD; font-weight: bold">180</span>
+
+  <span style="color: #888888"># slant angle at mid-latitude</span>
+  edge_slant <span style="color: #333333">=</span> np<span style="color: #333333">.</span>arctan2(fx[<span style="color: #0000DD; font-weight: bold">35</span>,<span style="color: #0000DD; font-weight: bold">20</span>,<span style="color: #0000DD; font-weight: bold">21</span>], fz[<span style="color: #0000DD; font-weight: bold">35</span>,<span style="color: #0000DD; font-weight: bold">20</span>,<span style="color: #0000DD; font-weight: bold">21</span>]) <span style="color: #333333">*</span> <span style="color: #0000DD; font-weight: bold">180</span> <span style="color: #333333">/</span> np<span style="color: #333333">.</span>pi <span style="color: #333333">+</span> <span style="color: #0000DD; font-weight: bold">180</span>
+  </pre></div>
+  <!--   Code snippet end -->
+
+
 </div>
 
 <!-- End Page Content -->
