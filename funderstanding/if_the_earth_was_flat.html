@@ -32,6 +32,10 @@ h1 {letter-spacing: 6px}
 
 <!-- Photo Grid -->
 <div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
+  <p style="font-size:130%;background-color: LightGrey">
+    <b>Note</b>
+    This is still a draft. Pretty equations, illustrations, and formatting are on their way.
+  </p>
   <h1>If The Earth Was Flat...</h1>
   <p style="font-size:130%;">
     Some time ago, I was told that the model in my head,
@@ -40,13 +44,14 @@ h1 {letter-spacing: 6px}
   </p>
   <p style="font-size:130%;">
     Well, maybe not so fascinating.
-    The arguments presented didn't exactly manage to shake the foundations of our world, and sadly enough, my earth stays round.
+    The arguments presented didn't exactly manage to shake the foundations of my world, and sadly enough, my earth stays round.
     But a pretty interesting question did linger: what would it <i>feel</i> like to live on a disc-world?
   </p>
   <p style="font-size:130%;">
     The first troubles appeared along with Newton's theory of gravity:
     reading disc world texts, one would think that falling off the edge of the world is a real and terrifying possibility.
-    But we <i>pedants</i> know that the gravity field at the edge of a disc-shaped mass would pull you towards the disc.. 
+    But we <i>pedants</i> know that the gravity field at the edge of a disc-shaped mass would pull you towards the disc.
+    This is because gravity pulls you towards mass (the disc) and not just <i>down</i>.
     Which means you would be able to stand proudly on the edge, and even jump over to the other side.
   </p>
   <img src="./stand_on_the_edge.svg" style="width:30%">
@@ -79,11 +84,60 @@ h1 {letter-spacing: 6px}
     In other words, would the world feel flat pretty much everywhere, or would it feel like a steep slope?
     To answer this question, we need to figure out the angle of the gravity field vector along the disc surface.
   </p>
+  <h3>Newtonian Gravity on A Flat Disc</h3>
   <p style="font-size:130%;">
-    Of course, a physicist or mathematician would look at the formal theory,
-    find the right theorem, identify the important terms in the equation, then provide us with a beautiful answer.
-    But when your hammer is numerical simulation, this problem looks eerily similar to a virtual, discretized nail.
-    Before we jump into the theory, some results:
+    First, let's recall the Newtonian theory of gravity:
+    the gravitational force exerted by a point-like object on another point-like object is
+    ||F|| = G m1 m2 / ||d||^2
+    where m1 and m2 are the two object masses, G is a cosmological constant,
+    and d is the distance between the two objects.
+    (By point-like, we mean that the two are far enough apart that ||d|| is much bigger than the object sizes.)
+  </p>
+  <p style="font-size:130%;">
+    To make simulation simple, we will want to see if we can separate components in the x, y, and z dimensions.
+    After all, the force F can be described as the combination of F_x, F_y, and F_z, its x, y, and z components.
+    F = [F_x, F_y, F_z]
+    And the distance d between an object pair can be written as
+    ||d|| = sqrt(dx^2, dy^2, dz^2)
+    We also know that the force F points in the same direction as the vector d, which means that
+    dx / ||d|| = F_x / ||F||
+    therefore
+    F_x = dx / ||d|| * ||F|| = dx / ||d|| * G m1 m2 / ||d||^2 = G m1 m2 dx / ||d||^3
+    the same holds for F_y, F_z.
+  </p>
+  <p style="font-size:130%;">
+    What's more, the gravitation force adds up nicely when there are more objects present.
+    Of course, in the real world, things are continuous, and solving this means going through double, even triple integrals.
+    Here comes discretization to the rescue. Given a high enough resolution, if we model our space and disc
+    as a bunch of voxels (that is, 3d pixels), then we can treat each voxel as a constant-mass-and-density
+    object, and easily sum up their interactions. This gives a rather good approximation of the continuous field.
+    F_x = G m_o m_1 dx_o_1 / ||d_o_1||^3 + G m_o m_2 dx_o_2 / ||d_o_2||^3 + ...
+    given the constant-mass-and-density approximation, m_1, m_2, ... are all equal to some mass m_vox
+    thus we can write F_x as
+    F_x = G m_o m_vox SUM( dx_o_i / ||d_o_i||^3 )
+  </p>
+  <p style="font-size:130%;background-color: LightGrey">
+    <b>Note</b>
+    given these simplifications, we can already notice an interesting peculiarity about the angle of the gravity field
+    around some massive object.
+    For example, let's fix the y coordinate, taking a cross-cut in the middle of our object,
+    which implies F_y = 0
+    Now say we care about the angle theta of gravity at an arbitrary point on this cross-cut.
+    According to trigonometry,
+    tan(theta) = F_z / F_x
+    which is
+    tan(theta) = G m_o m_vox SUM( dz_o_i / ||d_o_i||^3)
+                 G m_o m_vox SUM( dx_o_i / ||d_o_i||^3)
+    the constant terms outside the sum cancel out, which leads us to our first discovery:
+    Given constant density throughout the disc, the angle of gravity at some latitude on our disc
+    depends <b>only on the geometric shape</b>, not the scale (bigger disc, same result), nor the mass (denser soil everywhere, same result),
+    nor the constant of gravity G.
+    Pretty neat!
+  </p>
+  <p style="font-size:130%;">
+    Thankfully, it was easier than it seemed to write a discretized gravity-field simulator using numpy,
+    and what's more, it can calculate the gravity field for any arbitratry 3d shape! For the details, scroll to the bottom.
+    Going back to our question, here are the results of simulation for the flat disc case:
   </p>
   <img src="./flat_disc_g_field.svg" style="width:100%">
   <p style="font-size:130%;">
@@ -129,28 +183,19 @@ h1 {letter-spacing: 6px}
     Here are the gravity fields for cube-world, square-disc-world, and line-world.
   </p>
 <!--   TODO gravity fields -->
+  <p style="font-size:130%;">
+    Notice that for uniform hollow objects, the simulated gravity field on the inside is 0.
+    This result is predicted by Gauss' law for gravity, and it's reassuring to see that the simulator produces the predicted result.
+  </p>
 <p style="font-size:130%;">
     The strange physics of these imaginary worlds could inspire fantastic stories. Imagine a fortress
     at the edge of the disc-world, almost impossible to reach, as it would require climbing an increasingly steeper hill
     for miles and miles. It would take a several-year-long, arduous trip and the challenges along the way would be numerous,
     through increasingly strange landscapes and improbable settlements. The narrative almost writes itself.
-    (in this genre, check out <i>La Horde du Contrevent</i> by Alain Damasio.)
+    (typing this out, I am reminded of a book I really enjoyed: <i>La Horde du Contrevent</i> by Alain Damasio)
   </p>
-  <h3>Simulating Gravity Fields</h3>
+  <h3>Gravity Field Simulator</h3>
   <p style="font-size:130%;">
-    You might be wondering about the details of the gravity field simulation which produces the results shown above.
-    It turns out, it's quite simple, and fits on a single page of python code.
-    This is thanks to the Newtonian theory of gravity, which states that the gravity felt by an object in space,
-    is the sum of its gravity interaction with all other objects.
-    And a single gravity interaction is easy to calculate: F = G m1 m2 / d^2
-    Of course, in the real world, things are continuous, and solving this means going through double, even triple integrals.
-    Here comes discretization to the rescue. Given a high enough resolution, if we model our space and disc
-    as a bunch of voxels (that is, 3d pixels), then we can treat each voxel as a constant-mass-and-density
-    object, and easily sum up their interactions. This gives a rather good approximation of the continuous field.
-  </p>
-  <p style="font-size:130%;">
-    Thanks to this, it's easy to quickly write a discretized gravity-field simulator using numpy,
-    which can calculate the gravity field for any weirdly shaped planet we can imagine.
     This implementation is not memory-efficient at all, but it's good enough.
   </p>
 
