@@ -57,8 +57,8 @@ h1 {letter-spacing: 6px}
   <img src="./img/flat_earth/onedge.png" style="width:30%">
   <p style="font-size:130%;">
     But that's not all: imagine standing at some arbitrary point on the disc, say, somewhere between the middle and the edge.
-    Disc-world literature foolishly paints this as a perfectly normal experience, with gravity pulling adventurous traveller straight down,
-    towards the disc soil under his feet, like gravity does to you right now.
+    Disc-world literature foolishly paints this as a perfectly normal experience, with gravity pulling adventurous travellers straight down,
+    towards the disc soil under their feet, like gravity does to you right now.
     But gravity typically pulls you towards <i>where there is a lot of mass</i>, and when you're not in the center of disc-world,
     there's a lot more mass on one side than on the other.
   </p>
@@ -92,21 +92,33 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
     First, let's recall the Newtonian theory of gravity:
     the gravitational force exerted by a point-like object on another point-like object is
-    ||F|| = G m1 m2 / ||d||^2
-    where m1 and m2 are the two object masses, G is a cosmological constant,
+  </p>
+  <img src="./img/flat_earth/math_f_gravity.png">
+  <p style="font-size:130%;">
+    where m1 and m2 are the two object masses,
+    G is a cosmological constant,
     and d is the distance between the two objects.
     (By point-like, we mean that the two are far enough apart that ||d|| is much bigger than the object sizes.)
   </p>
   <p style="font-size:130%;">
     To make simulation simple, we will want to see if we can separate components in the x, y, and z dimensions.
     After all, the force F can be described as the combination of F_x, F_y, and F_z, its x, y, and z components.
-    F = [F_x, F_y, F_z]
+  </p>
+  <img src="./img/flat_earth/math_f_vector.png">
+  <p style="font-size:130%;">
     And the distance d between an object pair can be written as
-    ||d|| = sqrt(dx^2, dy^2, dz^2)
+  </p>
+  <img src="./img/flat_earth/math_d_norm.png">
+  <p style="font-size:130%;">
     We also know that the force F points in the same direction as the vector d, which means that
-    dx / ||d|| = F_x / ||F||
+  </p>
+  <img src="./img/flat_earth/math_dx_d_eq_fx_f.png">
+  <p style="font-size:130%;">
     therefore
-    F_x = dx / ||d|| * ||F|| = dx / ||d|| * G m1 m2 / ||d||^2 = G m1 m2 dx / ||d||^3
+  </p>
+  <img src="./img/flat_earth/math_fx.png">
+<!--   F_x = \frac{d_x}{||\overrightarrow{d}||} * ||\overrightarrow{F}|| = \frac{d_x}{||\overrightarrow{d}||} * \frac{G m_1 m_2}{||\overrightarrow{d}||^2} = G m_1 m_2 \frac{d_x}{||\overrightarrow{d}||^3} -->
+  <p style="font-size:130%;">
     the same holds for F_y, F_z.
   </p>
   <p style="font-size:130%;">
@@ -115,12 +127,18 @@ h1 {letter-spacing: 6px}
     Here comes discretization to the rescue. Given a high enough resolution, if we model our space and disc
     as a bunch of voxels (that is, 3d pixels), then we can treat each voxel as a constant-mass-and-density
     object, and easily sum up their interactions. This gives a rather good approximation of the continuous field.
-    F_x = G m_o m_1 dx_o_1 / ||d_o_1||^3 + G m_o m_2 dx_o_2 / ||d_o_2||^3 + ...
+  </p>
+<!-- F^o_x = F^{o,v1}_x + F^{o,v2}_x + ... = G m_o m_{v1} \frac{d_x^{o,v1}}{||\overrightarrow{d}^{o,v1}||^3} + G m_o m_{v2} \frac{d_x^{o,v2}}{||\overrightarrow{d}^{o,v2}||^3} + ... -->
+  <img src="./img/flat_earth/math_f_vox_sum.png">
+  <p style="font-size:130%;">
     given the constant-mass-and-density approximation, m_1, m_2, ... are all equal to some mass m_vox
     thus we can write F_x as
-    F_x = G m_o m_vox SUM( dx_o_i / ||d_o_i||^3 )
   </p>
-  <p style="font-size:130%;background-color: LightGrey">
+  <img src="./img/flat_earth/math_f_sum_nvox.png">
+  <p style="font-size:130%;">
+  </p>
+  <div style="background-color: LightGrey">
+  <p style="font-size:130%;">
     <b>Note</b>
     given these simplifications, we can already notice an interesting peculiarity about the angle of the gravity field
     around some massive object.
@@ -128,16 +146,21 @@ h1 {letter-spacing: 6px}
     which implies F_y = 0
     Now say we care about the angle theta of gravity at an arbitrary point on this cross-cut.
     According to trigonometry,
-    tan(theta) = F_z / F_x
+  </p>
+<!--     tan(theta) = F_z / F_x -->
+  <p style="font-size:130%;">
     which is
-    tan(theta) = G m_o m_vox SUM( dz_o_i / ||d_o_i||^3)
-                 G m_o m_vox SUM( dx_o_i / ||d_o_i||^3)
+  </p>
+<!-- \tan{\theta} = \frac{ F^o_z }{ F^o_x} = \frac{ G m_o m_{v}  \sum_{i}^{n_{voxels}} \frac{d^{o,vi}_z}{||\overrightarrow{d}^{o,vi}||^3} }{ G m_o m_{v}  \sum_{i}^{n_{voxels}} \frac{d^{o,vi}_x}{||\overrightarrow{d}^{o,vi}||^3} } -->
+  <img src="./img/flat_earth/math_tan_theta.png">
+  <p style="font-size:130%;">
     the constant terms outside the sum cancel out, which leads us to our first discovery:
     Given constant density throughout the disc, the angle of gravity at some latitude on our disc
     depends <b>only on the geometric shape</b>, not the scale (bigger disc, same result), nor the mass (denser soil everywhere, same result),
     nor the constant of gravity G.
     Pretty neat!
   </p>
+  </div>
   <p style="font-size:130%;">
     Thankfully, it was easier than it seemed to write a discretized gravity-field simulator using numpy,
     and what's more, it can calculate the gravity field for any arbitratry 3d shape! For the details, scroll to the bottom.
