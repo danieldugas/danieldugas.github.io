@@ -37,6 +37,10 @@ elif shape == "flat disc":
     R = 15
     H = 1
     occ = np.logical_and(np.sqrt(xx**2 + yy**2) < R, np.abs(zz) < H)
+elif shape == "flat donut":
+    R = 15
+    H = 1
+    occ = np.logical_and.reduce([np.sqrt(xx**2 + yy**2) > 10, np.sqrt(xx**2 + yy**2) < R, np.abs(zz) < H])
 elif shape == "line strip":
     L = 15
     occ = np.logical_and(abs(yy) + abs(zz) == 0, np.abs(xx) < L)

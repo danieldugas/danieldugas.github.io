@@ -32,10 +32,6 @@ h1 {letter-spacing: 6px}
 
 <!-- Photo Grid -->
 <div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
-  <p style="font-size:130%;background-color: LightGrey">
-    <b>Note</b>
-    This is still a draft. Pretty equations, illustrations, and formatting are on their way.
-  </p>
   <h1>If The Earth Was Flat...</h1>
   <p style="font-size:130%;">
     Some time ago, I was told that the model in my head,
@@ -90,77 +86,119 @@ h1 {letter-spacing: 6px}
   </p>
   <h3>Newtonian Gravity on A Flat Disc</h3>
   <p style="font-size:130%;">
-    First, let's recall the Newtonian theory of gravity:
-    the gravitational force exerted by a point-like object on another point-like object is
+    <i>This section is mostly theory and math. In a hurry? Skip it and go straight to the results.</i>
   </p>
-  <img src="./img/flat_earth/math_f_gravity.png">
-  <p style="font-size:130%;">
-    where m1 and m2 are the two object masses,
-    G is a cosmological constant,
-    and d is the distance between the two objects.
-    (By point-like, we mean that the two are far enough apart that ||d|| is much bigger than the object sizes.)
-  </p>
-  <p style="font-size:130%;">
-    To make simulation simple, we will want to see if we can separate components in the x, y, and z dimensions.
-    After all, the force F can be described as the combination of F_x, F_y, and F_z, its x, y, and z components.
-  </p>
-  <img src="./img/flat_earth/math_f_vector.png">
-  <p style="font-size:130%;">
-    And the distance d between an object pair can be written as
-  </p>
-  <img src="./img/flat_earth/math_d_norm.png">
-  <p style="font-size:130%;">
-    We also know that the force F points in the same direction as the vector d, which means that
-  </p>
-  <img src="./img/flat_earth/math_dx_d_eq_fx_f.png">
-  <p style="font-size:130%;">
-    therefore
-  </p>
-  <img src="./img/flat_earth/math_fx.png">
+  <button type="button" class="collapsible">Show me the math!</button>
+  <div class="content">
+    <p style="font-size:130%;">
+      First, let's recall the Newtonian theory of gravity:
+      the gravitational force exerted by a point-like object on another point-like object is
+    </p>
+    <img src="./img/flat_earth/math_f_gravity.png">
+    <p style="font-size:130%;">
+      where m1 and m2 are the two object masses,
+      G is a cosmological constant,
+      and d is the distance between the two objects.
+      (By point-like, we mean that the two are far enough apart that ||d|| is much bigger than the object sizes.)
+    </p>
+    <p style="font-size:130%;">
+      To make simulation simpler, it would be nice to separate the x, y, and z dimensions.
+      After all, the force F can be described as the combination of its x, y, and z components.
+    </p>
+    <img src="./img/flat_earth/math_f_vector.png">
+    <p style="font-size:130%;">
+      And the distance d between an object pair can be written as
+    </p>
+    <img src="./img/flat_earth/math_d_norm.png">
+    <p style="font-size:130%;">
+      We also know that the force F points in the same direction as the vector d, which means that
+    </p>
+    <img src="./img/flat_earth/math_dx_d_eq_fx_f.png">
+    <p style="font-size:130%;">
+      therefore
+    </p>
+    <img src="./img/flat_earth/math_fx.png">
 <!--   F_x = \frac{d_x}{||\overrightarrow{d}||} * ||\overrightarrow{F}|| = \frac{d_x}{||\overrightarrow{d}||} * \frac{G m_1 m_2}{||\overrightarrow{d}||^2} = G m_1 m_2 \frac{d_x}{||\overrightarrow{d}||^3} -->
-  <p style="font-size:130%;">
-    the same holds for F_y, F_z.
-  </p>
-  <p style="font-size:130%;">
-    What's more, the gravitation force adds up nicely when there are more objects present.
-    Of course, in the real world, things are continuous, and solving this means going through double, even triple integrals.
-    Here comes discretization to the rescue. Given a high enough resolution, if we model our space and disc
-    as a bunch of voxels (that is, 3d pixels), then we can treat each voxel as a constant-mass-and-density
-    object, and easily sum up their interactions. This gives a rather good approximation of the continuous field.
-  </p>
+    <p style="font-size:130%;">
+      (The same holds true for F<sub>y</sub>, F<sub>z</sub>.)
+    </p>
+    <p style="font-size:130%;">
+      What's more, the gravitation force adds up nicely when there are more objects present.
+      Of course, in the real world, things are continuous, and solving this means going through double, even triple integrals.
+      Here comes discretization to the rescue. Given a high enough resolution, if we model our space and disc
+      as a bunch of voxels (that is, 3d pixels), then we can treat each voxel as a constant-mass-and-density
+      object, and easily sum up their interactions. This gives a rather good approximation of the continuous field.
+    </p>
 <!-- F^o_x = F^{o,v1}_x + F^{o,v2}_x + ... = G m_o m_{v1} \frac{d_x^{o,v1}}{||\overrightarrow{d}^{o,v1}||^3} + G m_o m_{v2} \frac{d_x^{o,v2}}{||\overrightarrow{d}^{o,v2}||^3} + ... -->
-  <img src="./img/flat_earth/math_f_vox_sum.png">
-  <p style="font-size:130%;">
-    given the constant-mass-and-density approximation, m_1, m_2, ... are all equal to some mass m_vox
-    thus we can write F_x as
-  </p>
-  <img src="./img/flat_earth/math_f_sum_nvox.png">
-  <p style="font-size:130%;">
-  </p>
-  <div style="background-color: LightGrey">
-  <p style="font-size:130%;">
-    <b>Note</b>
-    given these simplifications, we can already notice an interesting peculiarity about the angle of the gravity field
-    around some massive object.
-    For example, let's fix the y coordinate, taking a cross-cut in the middle of our object,
-    which implies F_y = 0
-    Now say we care about the angle theta of gravity at an arbitrary point on this cross-cut.
-    According to trigonometry,
-  </p>
+    <img src="./img/flat_earth/math_f_vox_sum.png">
+    <p style="font-size:130%;">
+      here, the force felt by our observer (o) is the sum of forces exerted by each voxel (v1, v2, ..., vn),
+      d<sup>o,v1</sup> is the distance vector from the observer to the voxel v1,
+      m<sub>v1</sub>, m<sub>v2</sub>, etc... are the masses of each voxel.
+    </p>
+    <p style="font-size:130%;">
+      given the constant-mass-and-density approximation, m<sub>v1</sub>, m<sub>v2</sub>, etc... are all equal to some mass m<sub>vox</sub>
+      thus we can write F<sub>x</sub> as
+    </p>
+    <img src="./img/flat_earth/math_f_sum_nvox.png">
+    <p style="font-size:130%;">
+      Perfect! This equation makes it easy to simulate the force felt by any observer, at any point:
+      calculate d<sub>x</sub> d<sub>y</sub>, d<sub>z</sub> between every point in the simulation grid and every occupied voxels.
+    </p>
+    <div style="background: #ffffff; overflow:auto;width:auto;padding:.2em .6em;"><pre style="margin: 0; line-height: 125%">
+    dx <span style="color: #333333">=</span> ox[<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,:] <span style="color: #333333">-</span> xx[:,:,:,<span style="color: #007020">None</span>]
+    dy <span style="color: #333333">=</span> oy[<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,:] <span style="color: #333333">-</span> yy[:,:,:,<span style="color: #007020">None</span>]
+    dz <span style="color: #333333">=</span> oz[<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,<span style="color: #007020">None</span>,:] <span style="color: #333333">-</span> zz[:,:,:,<span style="color: #007020">None</span>]
+    </div>
+    <p style="font-size:130%;">
+      this gives you three big arrays, of shape (X, Y, Z, N<sub>occupied voxels</sub>)
+      We can combine them to get the norm of d at every point.
+    </p>
+    <div style="background: #ffffff; overflow:auto;width:auto;padding:.2em .6em;"><pre style="margin: 0; line-height: 125%">
+    d <span style="color: #333333">=</span> np<span style="color: #333333">.</span>sqrt(dx <span style="color: #333333">*</span> dx <span style="color: #333333">+</span> dy <span style="color: #333333">*</span> dy <span style="color: #333333">+</span> dz <span style="color: #333333">*</span> dz)
+    </div>
+    <p style="font-size:130%;">
+      Now we can obtain the force at every point caused by every voxel by using the equation.
+    </p>
+    <div style="background: #ffffff; overflow:auto;width:auto;padding:.2em .6em;"><pre style="margin: 0; line-height: 125%">
+    fx <span style="color: #333333">=</span> dx <span style="color: #333333">/</span> d <span style="color: #333333">*</span> G <span style="color: #333333">/</span> d<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span>
+    fy <span style="color: #333333">=</span> dy <span style="color: #333333">/</span> d <span style="color: #333333">*</span> G <span style="color: #333333">/</span> d<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span>
+    fz <span style="color: #333333">=</span> dz <span style="color: #333333">/</span> d <span style="color: #333333">*</span> G <span style="color: #333333">/</span> d<span style="color: #333333">**</span><span style="color: #0000DD; font-weight: bold">2</span>
+    </div>
+    <p style="font-size:130%;">
+      Finally, we sum over the occupied voxels to get the total force experienced at every point.
+    </p>
+    <div style="background: #ffffff; overflow:auto;width:auto;padding:.2em .6em;"><pre style="margin: 0; line-height: 125%">
+    fx <span style="color: #333333">=</span> np<span style="color: #333333">.</span>sum(fx, axis<span style="color: #333333">=-</span><span style="color: #0000DD; font-weight: bold">1</span>)
+    fy <span style="color: #333333">=</span> np<span style="color: #333333">.</span>sum(fy, axis<span style="color: #333333">=-</span><span style="color: #0000DD; font-weight: bold">1</span>)
+    fz <span style="color: #333333">=</span> np<span style="color: #333333">.</span>sum(fz, axis<span style="color: #333333">=-</span><span style="color: #0000DD; font-weight: bold">1</span>)
+    </div>
+    <div style="background-color: LightGrey">
+    <p style="font-size:130%;">
+      <b>Note</b>
+      given these simplifications, we can already notice an interesting peculiarity about the angle of the gravity field
+      around some massive object.
+      For example, let's fix the y coordinate, taking a cross-cut in the middle of our object,
+      which implies F<sub>y</sub> = 0.
+      Now say we care about the angle theta of gravity at an arbitrary point on this cross-cut.
+      According to trigonometry,
+    </p>
 <!--     tan(theta) = F_z / F_x -->
-  <p style="font-size:130%;">
-    which is
-  </p>
+    <p style="font-size:130%;">
+      which is
+    </p>
 <!-- \tan{\theta} = \frac{ F^o_z }{ F^o_x} = \frac{ G m_o m_{v}  \sum_{i}^{n_{voxels}} \frac{d^{o,vi}_z}{||\overrightarrow{d}^{o,vi}||^3} }{ G m_o m_{v}  \sum_{i}^{n_{voxels}} \frac{d^{o,vi}_x}{||\overrightarrow{d}^{o,vi}||^3} } -->
-  <img src="./img/flat_earth/math_tan_theta.png">
-  <p style="font-size:130%;">
-    the constant terms outside the sum cancel out, which leads us to our first discovery:
-    Given constant density throughout the disc, the angle of gravity at some latitude on our disc
-    depends <b>only on the geometric shape</b>, not the scale (bigger disc, same result), nor the mass (denser soil everywhere, same result),
-    nor the constant of gravity G.
-    Pretty neat!
-  </p>
-  </div>
+    <img src="./img/flat_earth/math_tan_theta.png">
+    <p style="font-size:130%;">
+      We see that the constant terms outside the sum cancel out! This leads us to our first discovery:
+      Given constant density throughout the disc, the angle of gravity at some latitude on our disc
+      depends <b>only on the geometric shape</b>, not the scale (bigger disc, same result), nor the mass (denser soil everywhere, same result),
+      nor the constant of gravity G.
+      Pretty neat!
+    </p>
+    </div>
+  </div> 
+  <h3>Results</h3>
   <p style="font-size:130%;">
     Thankfully, it was easier than it seemed to write a discretized gravity-field simulator using numpy,
     and what's more, it can calculate the gravity field for any arbitratry 3d shape! For the details, scroll to the bottom.
@@ -170,13 +208,22 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
     It turns out that this effect is quite significant!
     Inhabitants living halfway to the edge of the ring from the middle would already have to stand tilted to stay up.
-    And what's more, this tilt angle is not dependent on the gravitational constant. Only the disc geometry.
-    And you can't make it go away by building a bigger disc.
-    A person living halfway to the disc edge from center will always be tilted by the same angle,
+  </p>
+  <h4>
+    <i>The angle at the disc equator is ~15 degrees.</i>
+  </h4>
+  <p style="font-size:130%;">
+    As we showed in the math section above, this tilt angle is not dependent on the gravitational constant. Only the disc geometry.
+    The density is also not a factor: you can't make the effect go away by building a bigger disc.
+    So, a person living halfway to the disc edge from center will always be tilted by the same angle,
     <i>no matter the disc radius.</i> (as long as it remains a disc, i.e. much thinner than it is wide)
   </p>
+  <h3>Living on a Flat Disc</h3>
   <p style="font-size:130%;">
-    It would feel like the whole disc is tilting under your feet, like an undending steep slope.
+    <i>What would everyday life be like, on this gravitationally accurate disc world?</i>
+  </p>
+  <p style="font-size:130%;">
+    First, it would feel like the whole disc is tilting under your feet, like an undending steep slope.
     And looking back, the downhill slope would be the <i>previously flat</i> surface you had walked on.
     By the time you reached the edge, you would basically be rock-climbing,
     the straight wall in front of you extending straight down for miles, all the way to the disc's other edge.
@@ -221,13 +268,22 @@ h1 {letter-spacing: 6px}
     through increasingly strange landscapes and improbable settlements. The narrative almost writes itself.
     (typing this out, I am reminded of a book I really enjoyed: <i>La Horde du Contrevent</i> by Alain Damasio)
   </p>
+  <h4>
+    <i>"But what if the disc was denser in the middle? They say the earth has a dense iron core. Wouldn't this break our constant-density assumption? The simulation would be wrong?"</i>
+  </h4>
+  <p style="font-size:130%;">
+    Well, yes. Here's what's neat about it, though: the constant density model actually gives us a 'best case', compared to a denser-in-the-middle disc.
+    Think about it: a disc which is denser in the middle means that the side force, pulling you towards the center is <i>even stronger</i>.
+    The tilt angle would be even worse throughout!
+  </p>
   <h3>Gravity Field Simulator</h3>
   <p style="font-size:130%;">
     This implementation is not memory-efficient at all, but it's good enough.
   </p>
 
   <!-- Code snippet -->
-  <div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><pre style="margin: 0; line-height: 125%"><span style="color: #008800; font-weight: bold">from</span> <span style="color: #0e84b5; font-weight: bold">__future__</span> <span style="color: #008800; font-weight: bold">import</span> print_function
+  <div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><pre style="margin: 0; line-height: 125%">
+  <span style="color: #008800; font-weight: bold">from</span> <span style="color: #0e84b5; font-weight: bold">__future__</span> <span style="color: #008800; font-weight: bold">import</span> print_function
 
   <span style="color: #008800; font-weight: bold">import</span> <span style="color: #0e84b5; font-weight: bold">numpy</span> <span style="color: #008800; font-weight: bold">as</span> <span style="color: #0e84b5; font-weight: bold">np</span>
   <span style="color: #008800; font-weight: bold">from</span> <span style="color: #0e84b5; font-weight: bold">matplotlib</span> <span style="color: #008800; font-weight: bold">import</span> pyplot <span style="color: #008800; font-weight: bold">as</span> plt
@@ -340,6 +396,34 @@ h1 {letter-spacing: 6px}
 
 <!-- End Page Content -->
 </div>
+
+
+<!-- Javascript -->
+<style>
+.content {
+  padding: 0 18px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+</style>
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+}
+</script>
 
 <!-- Footer -->
 <footer class="w3-container w3-padding-64 w3-light-grey w3-center w3-large">
