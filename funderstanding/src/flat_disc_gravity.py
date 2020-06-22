@@ -74,8 +74,14 @@ fx = np.sum(fx, axis=-1)
 fy = np.sum(fy, axis=-1)
 fz = np.sum(fz, axis=-1)
 
-fig, axes = plt.subplots(2,2)
-plt.sca(axes[0,0])
+# fig, axes = plt.subplots(2,2)
+plt.figure()
+axes = []
+axes.append(plt.subplot(221))
+axes.append(plt.subplot(222))
+axes.append(plt.subplot(223))
+axes.append(plt.subplot(224, projection='3d'))
+plt.sca(axes[0])
 plt.title("Front")
 # 2D front (X-Z) section
 gridshow(occ[:,N,:], extent=[x[0], x[-1], z[0],z[-1]])
@@ -83,7 +89,7 @@ plt.quiver(xx[:,N,:], zz[:,N,:], fx[:,N,:], fz[:,N,:])
 plt.xlabel('x')
 plt.ylabel('z')
 
-plt.sca(axes[0,1])
+plt.sca(axes[1])
 plt.title("Right")
 # 2D right (Y-Z) section
 gridshow(occ[N,:,:], extent=[y[0], y[-1], z[0],z[-1]])
@@ -91,7 +97,7 @@ plt.quiver(yy[N,:,:], zz[N,:,:], fy[N,:,:], fz[N,:,:])
 plt.xlabel('y')
 plt.ylabel('z')
 
-plt.sca(axes[1,0])
+plt.sca(axes[2])
 plt.title("Top")
 # 2D top (X-Y) section
 gridshow(occ[:,:,N], extent=[x[0], x[-1], y[0], y[-1]])
@@ -99,7 +105,10 @@ plt.quiver(xx[:,:,N], yy[:,:,N], fx[:,:,N], fy[:,:,N])
 plt.xlabel('x')
 plt.ylabel('y')
 
-fig.delaxes(ax=axes[1,1])
+plt.sca(axes[3])
+# 2D top (X-Y) section
+axes[3].voxels(occ, facecolors='w', edgecolor='k')
+
 plt.show()
 
 # slant angle at mid-latitude
