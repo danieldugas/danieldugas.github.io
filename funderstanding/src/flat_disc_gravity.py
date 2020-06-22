@@ -103,7 +103,107 @@ fig.delaxes(ax=axes[1,1])
 plt.show()
 
 # slant angle at mid-latitude
-equator_slant = np.arctan2(fx[27,20,21], fz[27,20,21]) * 180 / np.pi + 180
+theta = np.abs(np.rad2deg(np.arctan2(np.sqrt(fx**2+fy**2), np.abs(fz))))
+equator_slant = theta[27,20,21]
 
 # slant angle at mid-latitude
-edge_slant = np.arctan2(fx[35,20,21], fz[35,20,21]) * 180 / np.pi + 180
+edge_slant = theta[35,20,21]
+
+fig, ax = plt.subplots()
+gridshow(occ[:,:,N], extent=[x[0], x[-1], y[0], y[-1]], alpha=0.1)
+CS = ax.contour(xx[:,:,21], yy[:,:,21], theta[:,:,21])
+ax.clabel(CS, inline=1, fontsize=10)
+plt.axis('equal')
+plt.show()
+
+
+# occupied pixels
+fig, axes = plt.subplots(1,3)
+for shape, ax in zip(["cube", "flat donut", "hollow cube"], axes):
+    if shape == "cube":
+        L = 5
+        occ = np.logical_and.reduce([np.abs(xx) < L, np.abs(yy) < L, np.abs(zz) < L])
+    elif shape == "flat square":
+        L = 15
+        H = 1
+        occ = np.logical_and.reduce([np.abs(xx) < L, np.abs(yy) < L, np.abs(zz) < H])
+    elif shape == "flat disc":
+        R = 15
+        H = 1
+        occ = np.logical_and(np.sqrt(xx**2 + yy**2) < R, np.abs(zz) < H)
+    elif shape == "flat donut":
+        R = 15
+        H = 1
+        occ = np.logical_and.reduce([np.sqrt(xx**2 + yy**2) > 10, np.sqrt(xx**2 + yy**2) < R, np.abs(zz) < H])
+    elif shape == "line strip":
+        L = 15
+        occ = np.logical_and(abs(yy) + abs(zz) == 0, np.abs(xx) < L)
+    elif shape == "hollow sphere":
+        r = 13
+        R = 15
+        rr = np.sqrt(xx**2 + yy**2 + zz**2)
+        occ = np.logical_and(rr < R, rr >= r)
+    elif shape == "hollow cube":
+        S = 10
+        s = 8
+        nn = np.maximum.reduce([np.abs(xx), np.abs(yy), np.abs(zz)])
+        occ = np.logical_and(nn < S, nn >= s)
+
+    oi, oj, ok = np.where(occ)
+    ox = x[oi]
+    oy = y[oj]
+    oz = z[ok]
+
+    # force from each pixel to each other pixel
+    dx = ox[None,None,None,:] - xx[:,:,:,None]
+    dy = oy[None,None,None,:] - yy[:,:,:,None]
+    dz = oz[None,None,None,:] - zz[:,:,:,None]
+    d = np.sqrt(dx * dx + dy * dy + dz * dz)
+    d[d == 0] = np.inf
+    fx = dx / d * G / d**2
+    fy = dy / d * G / d**2
+    fz = dz / d * G / d**2
+    fx = np.sum(fx, axis=-1)
+    fy = np.sum(fy, axis=-1)
+    fz = np.sum(fz, axis=-1)
+
+    plt.sca(ax)
+    # 2D front (X-Z) section
+    gridshow(occ[:,N,:], extent=[x[0], x[-1], z[0],z[-1]])
+    plt.quiver(xx[:,N,:], zz[:,N,:], fx[:,N,:], fz[:,N,:])
+    plt.xlabel('x')
+    plt.ylabel('z')
+plt.show()
+
+fig, axes = plt.subplots(1,3, subplot_kw=dict(projection="3d"))
+for shape, ax in zip(["cube", "flat donut", "hollow cube"], axes):
+    if shape == "cube":
+        L = 5
+        occ = np.logical_and.reduce([np.abs(xx) < L, np.abs(yy) < L, np.abs(zz) < L])
+    elif shape == "flat square":
+        L = 15
+        H = 1
+        occ = np.logical_and.reduce([np.abs(xx) < L, np.abs(yy) < L, np.abs(zz) < H])
+    elif shape == "flat disc":
+        R = 15
+        H = 1
+        occ = np.logical_and(np.sqrt(xx**2 + yy**2) < R, np.abs(zz) < H)
+    elif shape == "flat donut":
+        R = 15
+        H = 1
+        occ = np.logical_and.reduce([np.sqrt(xx**2 + yy**2) > 10, np.sqrt(xx**2 + yy**2) < R, np.abs(zz) < H])
+    elif shape == "line strip":
+        L = 15
+        occ = np.logical_and(abs(yy) + abs(zz) == 0, np.abs(xx) < L)
+    elif shape == "hollow sphere":
+        r = 13
+        R = 15
+        rr = np.sqrt(xx**2 + yy**2 + zz**2)
+        occ = np.logical_and(rr < R, rr >= r)
+    elif shape == "hollow cube":
+        S = 10
+        s = 8
+        nn = np.maximum.reduce([np.abs(xx), np.abs(yy), np.abs(zz)])
+        occ = np.logical_and(nn < S, nn >= s)
+    ax.voxels(occ, facecolors='w', edgecolor='k')
+plt.show()
