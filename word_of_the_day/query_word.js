@@ -93,7 +93,7 @@ function updateElements() {
   }
 }
 
-function advanceDay() {
-  days_since_epoch = days_since_epoch + 1
+function previousDay() {
+  days_since_epoch = days_since_epoch - 1
   myFunction()
 }
