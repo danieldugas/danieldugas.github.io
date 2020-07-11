@@ -17,17 +17,17 @@ function getRandomRowOfTheDay(allRows, days) {
 
 function fillKanjiElements(csvRow){
   document.getElementById("kanjiword_container").innerHTML = csvRow[1];
-  document.getElementById("kanjisentence_container").innerHTML = csvRow[8];
+  document.getElementById("kanjisentence_container").innerHTML = csvRow[8] + "<br \\>" + "<br \\>";
 }
 
 function fillEnglishElements(csvRow){
   document.getElementById("englishword_container").innerHTML = csvRow[4];
-  document.getElementById("englishsentence_container").innerHTML = csvRow[11];
+  document.getElementById("englishsentence_container").innerHTML = csvRow[11] + "<br \\>" + "<br \\>";
 }
 
 function fillFuriganaElements(csvRow){
   document.getElementById("furiganaword_container").innerHTML = csvRow[3];
-  document.getElementById("furiganasentence_container").innerHTML = csvRow[10];
+  document.getElementById("furiganasentence_container").innerHTML = csvRow[10] + "<br \\>" + "<br \\>";
 }
 
 function clearEnglishElements(){
@@ -40,6 +40,18 @@ function clearFuriganaElements(){
   document.getElementById("furiganasentence_container").innerHTML = "";
 }
 
+function fillFullDate() {
+  var day = new Date(days_since_epoch * 86400 * 1000)
+  var monthNames = [ "January", "February", "March", "April", "May", "June", 
+                         "July", "August", "September", "October", "November", "December" ];
+  var weekdayNames = [ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
+                         "Saturday" ];
+  var month = monthNames[day.getMonth()];
+  var date = day.getDate();
+  var weekday = weekdayNames[day.getDay()];
+  document.getElementById("fulldate_container").innerHTML = weekday + ", " + month + " " + String(date);
+}
+
 function myFunction(){
   // some random csv I found...
   var uri = "./japanese_core_2000.csv";
@@ -48,7 +60,8 @@ function myFunction(){
   $.get(uri, function(data){
     csvRows = data.split("\n")
     csvRows.pop()
-    csvRow = getRandomRowOfTheDay(csvRows, days_since_epoch);
+    // add the timezone offset to get a number which switches at 00:00 in the current zone
+    csvRow = getRandomRowOfTheDay(csvRows, days_since_epoch - (now.getTimezoneOffset() / 60 / 24));
     updateElements()
   });
 
@@ -72,6 +85,7 @@ function revealTranslation(){
 }
 
 function updateElements() {
+  fillFullDate();
   fillKanjiElements(csvRow);
   clearEnglishElements();
   clearFuriganaElements();
@@ -97,3 +111,4 @@ function previousDay() {
   days_since_epoch = days_since_epoch - 1
   myFunction()
 }
+
