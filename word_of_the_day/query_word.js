@@ -108,7 +108,8 @@ function updateElements() {
 }
 
 function previousDay() {
-  days_since_epoch = days_since_epoch - 1
-  myFunction()
+  days_since_epoch = days_since_epoch - 1;
+  revealLevel = 0;
+  myFunction();
 }
 
