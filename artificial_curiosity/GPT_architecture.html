@@ -84,13 +84,13 @@ h1 {letter-spacing: 6px}
     repeat as much as desired, and you end up with long generated texts. 
   </p>
   <p style="font-size:130%;">
-    Actually, to be precise, I need to correct the above in two aspects.
+    Actually, to be precise, we need to correct the above in two aspects.
   </p>
   <p style="font-size:130%;">
     1. The input sequence is actually fixed to 2048 words (for GPT-3). We can still pass short sequences as input: we simply fill all extra positions with "empty" values.
   </p>
   <p style="font-size:130%;">
-    2. The GPT output is not just a single guess, it's a sequence of guesses (of size 2048). One for each 'next' position in the sequence. But when generating text, we typically only look at the guess for the last word of the sequence. 
+    2. The GPT output is not just a single guess, it's a sequence (length 2048) of guesses (a probability for each likely word). One for each 'next' position in the sequence. But when generating text, we typically only look at the guess for the last word of the sequence. 
   </p>
   <img src="./img/GPT_architecture/in_out_2.png" style="width:50%" title="">
   <p style="font-size:130%;">
@@ -244,6 +244,10 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
     Of course, doing this won't give us ones and zeroes like we started with, but that's a good thing: after a quick softmax,
     we can treat the resulting values as probabilities for each word.
+  </p>
+  <p style="font-size:130%;">
+    In addition, the GPT papers mention the parameter top-k, which limits the amount of possible words to sample in the output to the k most likely predicted words.
+    For example, with a top-k parameter of 1, we always pick the most likely word.
   </p>
   <img src="./img/GPT_architecture/unembedding2.png" style="width:50%" title="">
   <h3>Full Architecture</h3>
