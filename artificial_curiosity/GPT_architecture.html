@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<title>Artificial Curiosity</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<style>
+body,h1 {font-family: "Raleway", Arial, sans-serif}
+h1 {letter-spacing: 6px}
+.w3-row-padding img {margin-bottom: 12px}
+</style>
+<body>
+
+<!-- !PAGE CONTENT! -->
+<div class="w3-content" style="max-width:1500px">
+
+<!-- Header -->
+<header class="w3-panel w3-center w3-opacity" style="padding:28px 16px">
+  <h1 class="w3-xlarge">How deep is the machine?</h1>
+  <h1>The Artificial Curiosity Series</h1>
+
+  <div class="w3-padding-32">
+    <div class="w3-bar w3-border">
+      <a href="../index.html" class="w3-bar-item w3-button">dugas.ch</a>
+      <a href="./index.html" class="w3-bar-item w3-button">/ Artificial Curiosity</a>
+      <a href="#" class="w3-bar-item w3-button w3-light-grey">/ The GPT Architecture, on a Napkin</a>
+    </div>
+  </div>
+</header>
+
+<!-- Photo Grid -->
+<div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
+  <h1>The GPT-3 Architecture, on a Napkin</h1>
+  <p style="font-size:130%;">
+    The goal for this page is simple: build a detailed understanding of the GPT architecture.
+    As a starting point, the original transformer and GPT papers provide us with the following diagrams:
+  </p>
+  <img src="./img/GPT_architecture/GPT1.png" style="width:30%" title="">
+  <img src="./img/GPT_architecture/Transformer.png" style="width:30%" title="">
+  <p style="font-size:130%;">
+    Not bad as far as diagrams go, but if you're like me, not enough to understand the full picture. So let's dig in!
+  </p>
+  <h3>In / Out</h3>
+  <p style="font-size:130%;">
+    Before we can understand anything else, we need to know:  what are the inputs and outputs of GPT? 
+  </p>
+  <img src="./img/GPT_architecture/in_out.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    The input is a sequence of N words (a.k.a tokens). 
+    The output is a guess for the word most likely to be put at the end of the input sequence. 
+  </p>
+  <p style="font-size:130%;">
+    That's it! All the impressive GPT dialogues, stories and examples you see posted around are made with this simple input-output scheme:  give it an input sequence – get the next word. 
+  </p>
+  <p style="font-size:130%;">
+    <b>Not all heroes wear</b> -> <i>capes</i> 
+  </p>
+  <p style="font-size:130%;">
+    Of course, we often want to get more than one word, but that's not a problem:  after we get the next word, we add it to the sequence, and get the following word. 
+  </p>
+  <p style="font-size:130%;">
+    <b>Not all heroes wear capes</b> -> <i>but</i><br>
+    <b>Not all heroes wear capes but</b> -> <i>all</i> <br>
+    <b>Not all heroes wear capes but all </b> -> <i>villans</i> <br>
+    <b>Not all heroes wear capes but all villans</b> -> <i>do</i>
+  </p>
+  <p style="font-size:130%;">
+    repeat as much as desired, and you end up with long generated texts. 
+  </p>
+  <p style="font-size:130%;">
+    Actually, to be precise, I need to correct the above in two aspects.
+  </p>
+  <p style="font-size:130%;">
+    1. The input sequence is actually fixed to 2048 words (for GPT-3). We can still pass short sequences as input: we simply fill all extra positions with "empty" values.
+  </p>
+  <p style="font-size:130%;">
+    2. The GPT output is not just a single guess, it's a sequence of guesses (of size 2048). One for each 'next' position in the sequence. But when generating text, we typically only look at the guess for the last word of the sequence. 
+  </p>
+  <img src="./img/GPT_architecture/in_out_2.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    That's it! Sequence in, sequence out.
+  </p>
+  <h3>Encoding</h3>
+  <p style="font-size:130%;">
+    But wait a second, GPT can't actually understand words.
+    Being a machine-learning algorithm, it operates on vectors of numbers. So how do we turn words into vectors? 
+  </p>
+  <p style="font-size:130%;">
+    The first step is to keep a vocabulary of all words, which allows us to give each word a value. Aardvark is 0, aaron is 1, and so on. 
+    (GPT has a vocabulary of 50257 words). 
+  </p>
+  <p style="font-size:130%;">
+    As a result, we can turn each word into a one-hot encoding vector of size 50257, where only the dimension at index i (the word's value) is 1, and all others are 0. 
+  </p>
+  <img src="./img/GPT_architecture/encoding1.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    Of course, we do this for every word in the sequence,
+  </p>
+  <img src="./img/GPT_architecture/encoding2.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+   Which results in a 2048 x 50257 matrix of ones and zeroes.
+  </p>
+  <h3>Embedding</h3>
+  <p style="font-size:130%;">
+    50257 is pretty big for a vector, and it's mostly filled with zeroes. That's a lot of wasted space.  
+  </p>
+  <p style="font-size:130%;">
+    To solve this, we learn an embedding function: a neural network that takes a 50257-length vector of ones and zeroes, and outputs a n-length vector of numbers. 
+    Here, we are trying to store (or project) the information of the word's meaning to a smaller dimensional space.
+  </p>
+  <p style="font-size:130%;">
+    For example, if the embedding dimension is 2, it would be like storing each word at a particular coordinate in 2D space.
+  </p>
+  <img src="./img/GPT_architecture/embedding1.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    Another intuitive way to think about it is that each dimension is a made-up property, like "softness", or "shmlorbness", and given a value for each property we can know exactly which word is meant. 
+  </p>
+  <p style="font-size:130%;">
+    Of course, the embedding dimensions are typically larger than 2: GPT uses 12288 dimensions.  
+  </p>
+  <p style="font-size:130%;">
+    In practice, each word one-hot vector gets  multiplied with the learned embedding network weights, and ends up as a 12288 dimension embedding vector.
+  </p>
+  <p style="font-size:130%;">
+    In arithmetic terms, we multiply the 2048 x 50257 sequence-encodings matrix with the 50257 x 12288 embedding-weights matrix (learned) and end up with a 2048 x 12288 sequence-embeddings matrix. 
+  </p>
+  <img src="./img/GPT_architecture/embedding2.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    From now on, I will draw 2D matrices as small little blocks with the dimensions written next to them.
+    When applicable, I separate the matrix lines to make it clear that each line corresponds to a word in the sequence.
+  </p>
+  <p style="font-size:130%;">
+    Also note that due to how matrix multiplication works, the embedding function (a.k.a the embedding weight matrix) is applied to each word encoding (a.k.a row in the sequence-encodings matrix) separately.
+    In other words, the result is the same as passing each word encoding vector separately to the embedding function, and concatenating all the results at the end. 
+    So: this far in the process, there is no information flowing across the sequence.
+  </p>
+  <h3>Positional Encoding</h3>
+  <img src="./img/GPT_architecture/pos1.png" style="width:50%" title="">
+  <img src="./img/GPT_architecture/pos2.png" style="width:50%" title="">
+  <img src="./img/GPT_architecture/posadd.png" style="width:50%" title="">
+  <h3>Attention (Simplified)</h3>
+  <img src="./img/GPT_architecture/attention1.png" style="width:50%" title="">
+  <img src="./img/GPT_architecture/attention2.png" style="width:50%" title="">
+  <img src="./img/GPT_architecture/attention3.png" style="width:50%" title="">
+  <img src="./img/GPT_architecture/attention4.png" style="width:50%" title="">
+  <h3>Multi-Head Attention</h3>
+  <img src="./img/GPT_architecture/multiheaded.png" style="width:100%" title="">
+  <h3>Add & Norm</h3>
+  <img src="./img/GPT_architecture/addnnorm.png" style="width:50%" title="">
+  <h3>Feed Forward</h3>
+  <img src="./img/GPT_architecture/ff.png" style="width:50%" title="">
+  <h3>Decoding</h3>
+  <img src="./img/GPT_architecture/unembedding1.png" style="width:50%" title="">
+  <img src="./img/GPT_architecture/unembedding2.png" style="width:50%" title="">
+  <h3>Full Architecture</h3>
+  <a href="./img/GPT_architecture/fullarch.png">
+  <img src="./img/GPT_architecture/fullarch.png" style="width:100%" title="">
+  </a>
+</div>
+
+<!-- End Page Content -->
+</div>
+
+
+<!-- Javascript -->
+<style>
+.content {
+  padding: 0 18px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+</style>
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+}
+</script>
+
+<!-- Footer -->
+<footer class="w3-container w3-padding-64 w3-light-grey w3-center w3-large">
+  <!-- Font awesome logos: fa fa-something-something -->
+  <i class="fab fa-pied-piper-alt w3-hover-opacity"></i>
+  <p>Powered by <a  id="powered_by_link" href="http://beesbeesbees.com/" target="_blank" class="w3-hover-text-green">bees</a></p>
+
+  <script>
+  var powerSources = [
+    "bees",
+    "eels",
+    "koalas",
+    "circuits",
+    "logic",
+    "a chihuaha",
+    ];
+  var powerLinks = [
+    "http://beesbeesbees.com/",
+    "http://eelslap.com",
+    "http://koalastothemax.com",
+    "http://electricboogiewoogie.com",
+    "http://www.visual6502.org/JSSim/index.html",
+    "http://chihuahuaspin.com/"
+    ];
+  var randomIndex = Math.floor(Math.random()*powerSources.length);
+  document.getElementById("powered_by_link").href = powerLinks[randomIndex];
+  document.getElementById("powered_by_link").innerHTML = powerSources[randomIndex];
+  </script>
+</footer>
+
+</body>
+</html>
