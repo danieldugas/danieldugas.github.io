@@ -34,7 +34,21 @@ h1 {letter-spacing: 6px}
 <div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
   <h1>The GPT-3 Architecture, on a Napkin</h1>
   <p style="font-size:130%;">
-    The goal for this page is simple: build a detailed understanding of the GPT architecture.
+    There are so many brilliant posts on GPT-3, 
+    <a href="https://www.gwern.net/GPT-3">demonstrating what it can do</a>,
+    <a href="https://leogao.dev/2020/05/29/GPT-3-A-Brief-Summary/">pondering its</a>
+    <a href="https://maraoz.com/2020/07/18/openai-gpt3/">consequences</a>,
+    <a href="http://jalammar.github.io/illustrated-gpt2/">vizualizing how it works</a>.
+    With all these out there, it still took a crawl through several papers and blogs before I was confident that I had grasped the architecture.
+  </p>
+  <p style="font-size:130%;">
+    So the goal for this page is humble, but simple: help others build an <i>as detailed as possible</i> understanding of the GPT-3 architecture.
+  </p>
+  <p style="font-size:130%;">
+    Or if you're impatient, jump straight to the <a href="./img/GPT_architecture/fullarch.png">full-architecture sketch</a>.
+  </p>
+  <h3>Original Diagrams</h3>
+  <p style="font-size:130%;">
     As a starting point, the original transformer and GPT papers provide us with the following diagrams:
   </p>
   <img src="./img/GPT_architecture/GPT1.png" style="width:30%" title="">
@@ -133,31 +147,116 @@ h1 {letter-spacing: 6px}
   </p>
   <p style="font-size:130%;">
     Also note that due to how matrix multiplication works, the embedding function (a.k.a the embedding weight matrix) is applied to each word encoding (a.k.a row in the sequence-encodings matrix) separately.
-    In other words, the result is the same as passing each word encoding vector separately to the embedding function, and concatenating all the results at the end. 
-    So: this far in the process, there is no information flowing across the sequence.
+    In other words, the result is the same as passing each word encoding vector separately to the embedding function, and concatenating all the results at the end.
+    What this means: this far in the process, there is no information flowing across the sequence, and no information on the absolute or relative position of tokens.
   </p>
   <h3>Positional Encoding</h3>
+  <p style="font-size:130%;">
+    To encode the position of the current token in the sequence, the authors take the token's position (a scalar i, in [0-2047])
+    and pass it through 12288 sinusoidal functions, each with a different frequency.
+  </p>
   <img src="./img/GPT_architecture/pos1.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    The exact reason for why this works is not entirely clear to me. The authors explain it as yielding many relative-position encodings, which is useful for the model.
+    For other possible mental models to analyze this choice: consider the way signals are often represented as sums of periodic samples (see fourier transforms, or SIREN network architecture),
+    or the possibility that language naturally presents cycles of various lengths (for example, poetry).
+  </p>
+  <p style="font-size:130%;">
+    The result is, for each token, a 12288 vector of numbers. Just as with the embeddings, we combine those vectors into a single matrix with 2048 rows,
+    where each row is the 12288-column positional-encoding of a token in the sequence.
+  </p>
   <img src="./img/GPT_architecture/pos2.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    Finally, this sequence-positional-encodings matrix, having the same shape as the sequence-embeddings matrix, can simply be added to it.
+  </p>
   <img src="./img/GPT_architecture/posadd.png" style="width:50%" title="">
   <h3>Attention (Simplified)</h3>
+  <p style="font-size:130%;">
+    Simply put, the purpose of attention is to assign to each token in the sequence
+    Here, imagine a sequence of 3 tokens, each represented with a 512-values embedding.
+  </p>
+  <p style="font-size:130%;">
+    The model learns 3 linear projections, all of which are applied to the sequence embeddings.
+    In other words, 3 weight matrices are learned which transform our sequence embeddings into three separate 3x64 matrices, each purposed for a different task.
+  </p>
   <img src="./img/GPT_architecture/attention1.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    The first two matrices ("queries" and "keys") are multiplied together (QK<sup>T</sup>), which yields a 3x3 matrix.
+    This matrix (normalized through softmax) represents the importance of each token to each other tokens.
+  </p>
   <img src="./img/GPT_architecture/attention2.png" style="width:50%" title="">
   <img src="./img/GPT_architecture/attention3.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    The third matrix ("values") is multiplied with this importance matrix, resulting in, for each token, a mix of all other token values weighted by the importance of their respective tokens.
+  </p>
   <img src="./img/GPT_architecture/attention4.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    For example, if the importance matrix is only ones and zeroes (each token has only one other token which is of importance), the result is like selecting rows in the values matrix based on which token is most important.
+  </p>
+  <p style="font-size:130%;">
+    I hope that this helped, if not with the intuitive understanding of the attention process, at least with understanding the exact algebra which is used.
+  </p>
   <h3>Multi-Head Attention</h3>
+  <p style="font-size:130%;">
+    Now, in the GPT model presented by the authors, they use multi-head attention.
+    All this means is that the above process is repeated many times (96x in GPT-3), each with a different learned query, key, value projection weights.
+  </p>
+  <p style="font-size:130%;">
+    The result of each attention head (a single 2048 x 128 matrix) are concatenated together, yielding a 2048 x 12288 matrix,
+    which is then multiplied with a linear projection (which doesn't change the matrix shape), for good measure.
+  </p>
   <img src="./img/GPT_architecture/multiheaded.png" style="width:100%" title="">
-  <h3>Add & Norm</h3>
-  <img src="./img/GPT_architecture/addnnorm.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    <b>Note</b>: the paper mentions that GPT-3 uses <a href="https://openai.com/blog/sparse-transformer/">sparse attention</a>, which allows more efficient computation.
+    Honestly, I haven't taken the time to understand exactly how it's implemented. You're on your own, good luck!
+  </p>
   <h3>Feed Forward</h3>
+  <p style="font-size:130%;">
+    The feed forward block is a good-old multi-layer-perceptron with 1 hidden layer.
+    Take input, multiply with learned weights, add learned bias, do it again, get result.
+  </p>
+  <p style="font-size:130%;">
+    Here, both input and output shapes are the same ( 2048 x 12288 ), but the hidden layer has a size 4*12288.
+  </p>
   <img src="./img/GPT_architecture/ff.png" style="width:50%" title="">
+  <h3>Add & Norm</h3>
+  <p style="font-size:130%;">
+    After both the Multi-Head attention and the Feed Forward blocks, the input of the block is added to it's output, and the result is normalized.
+    This is common in deep learning models (since ResNet).
+  </p>
+  <img src="./img/GPT_architecture/addnnorm.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    <b>Note</b>: Not reflected in any of my sketches is the fact that since GPT-2,
+   "Layer normalization was  moved  to  the  input  of  each  sub-block,  similar  to  a pre-activation residual network and an additional layer normalization was added after the final self-attention block"
+  </p>
   <h3>Decoding</h3>
+  <p style="font-size:130%;">
+    We're almost there! Having passed through all 96 layers of GPT-3's attention/neural net machinery, 
+    the input has been processed into a 2048 x 12288 matrix. This matrix is supposed to contain, for each of the 2048 output positions in the sequence,
+    a 12288-vector of information about which word should appear. But how do we extract this information?
+  </p>
+  <p style="font-size:130%;">
+    If you remember in the Embedding section, we learned a mapping which transforms a given (one-hot encoding of a) word, into a 12288-vector embedding.
+    It turns out, we can just reverse this mapping to transform our output 12288-vector embedding back into a 50257-word-encoding.
+    The idea is, if we spent all this energy learning a good mapping from word to numbers, we might as well reuse it!
+  </p>
   <img src="./img/GPT_architecture/unembedding1.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    Of course, doing this won't give us ones and zeroes like we started with, but that's a good thing: after a quick softmax,
+    we can treat the resulting values as probabilities for each word.
+  </p>
   <img src="./img/GPT_architecture/unembedding2.png" style="width:50%" title="">
   <h3>Full Architecture</h3>
+  <p style="font-size:130%;">
+    And there you have it: a few matrix multiplications, some algebra, and we have ourselves a state-of-the-art, natural language processing monster.
+    I've drawn all of the parts together into a single schematic, click it to see the full-sized version.
+  </p>
   <a href="./img/GPT_architecture/fullarch.png">
   <img src="./img/GPT_architecture/fullarch.png" style="width:100%" title="">
   </a>
+  <p style="font-size:130%;">
+    <b>Note</b>: The operations which contain learnable weights are highlighted in red.
+  </p>
 </div>
 
 <!-- End Page Content -->
