@@ -222,6 +222,9 @@ h1 {letter-spacing: 6px}
     Here, both input and output shapes are the same ( 2048 x 12288 ), but the hidden layer has a size 4*12288.
   </p>
   <img src="./img/GPT_architecture/ff.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    To be clear: I also draw this operation as a circle, but unlike other learned projections in the architecture (embedding, query/key/value projections) this "circle" actually consists of two projections (learned-weight matrix multiplied with the input) in a row, with the learned biases added after each one, and finally a ReLU.
+  </p>
   <h3>Add & Norm</h3>
   <p style="font-size:130%;">
     After both the Multi-Head attention and the Feed Forward blocks, the input of the block is added to it's output, and the result is normalized.
