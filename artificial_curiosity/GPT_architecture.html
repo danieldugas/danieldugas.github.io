@@ -184,6 +184,9 @@ h1 {letter-spacing: 6px}
     The first two matrices ("queries" and "keys") are multiplied together (QK<sup>T</sup>), which yields a 3x3 matrix.
     This matrix (normalized through softmax) represents the importance of each token to each other tokens.
   </p>
+  <p style="font-size:130%;">
+    <b>Note</b>: This (QK<sup>T</sup>) is the only operation in GPT which operates <i>across</i> words in the sequence. It is the only operation where matrix rows interact.
+  </p>
   <img src="./img/GPT_architecture/attention2.png" style="width:50%" title="">
   <img src="./img/GPT_architecture/attention3.png" style="width:50%" title="">
   <p style="font-size:130%;">
@@ -259,7 +262,7 @@ h1 {letter-spacing: 6px}
   <img src="./img/GPT_architecture/fullarch.png" style="width:100%" title="">
   </a>
   <p style="font-size:130%;">
-    <b>Note</b>: The operations which contain learnable weights are highlighted in red.
+    The operations which contain learnable weights are highlighted in <span style="color: red;">red</span>.
   </p>
 </div>
 
