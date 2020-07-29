@@ -116,6 +116,11 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
    Which results in a 2048 x 50257 matrix of ones and zeroes.
   </p>
+  <p style="font-size:130%;">
+    <b>Note</b>: For efficiency, GPT-3 actually uses byte-level Byte Pair Encoding (BPE) tokenization. What this means is that "words" in the vocabulary are not full words, but groups of characters (for byte-level BPE, bytes) which occur often in text.
+    Using the GPT-3 Byte-level BPE tokenizer, "Not all heroes wear capes" is split into tokens "Not" "all" "heroes" "wear" "cap" "es", which have ids 3673, 477, 10281, 5806, 1451, 274 in the vocabulary.
+    <a href="https://huggingface.co/transformers/tokenizer_summary.html">Here</a> is a very good introduction to the subject, and a <a href="https://github.com/huggingface/tokenizers">github implementation</a> so you can try it yourself.
+  </p>
   <h3>Embedding</h3>
   <p style="font-size:130%;">
     50257 is pretty big for a vector, and it's mostly filled with zeroes. That's a lot of wasted space.  
