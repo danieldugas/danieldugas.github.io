@@ -13,6 +13,7 @@ Which one and why?
 """
 
 shape = "flat disc"
+CENTRIPETAL = False
 
 # create space
 N = 20
@@ -74,6 +75,19 @@ fx = np.sum(fx, axis=-1)
 fy = np.sum(fy, axis=-1)
 fz = np.sum(fz, axis=-1)
 
+# add centripetal force ( rot around z axis )
+rxy = np.sqrt(xx * xx + yy * yy)
+phixy = np.arctan2(yy, xx)
+omega2 = 0.25
+fcr = rxy * omega2
+fcx = fcr * np.cos(phixy)
+fcy = fcr * np.sin(phixy)
+fxfull = fx + fcx
+fyfull = fy + fcy
+if CENTRIPETAL:
+    fx = fxfull
+    fy = fyfull
+
 # fig, axes = plt.subplots(2,2)
 plt.figure()
 axes = []
@@ -126,6 +140,7 @@ plt.axis('equal')
 plt.show()
 
 
+# --------------------------  Other shapes -------------------
 # occupied pixels
 fig, axes = plt.subplots(1,3)
 for shape, ax in zip(["cube", "flat donut", "hollow cube"], axes):
