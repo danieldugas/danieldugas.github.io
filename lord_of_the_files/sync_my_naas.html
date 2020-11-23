@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<title>Sync My Nas! The Sad State of Cloud Sync, 2020.</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<style>
+body,h1 {font-family: "Raleway", Arial, sans-serif}
+h1 {letter-spacing: 6px}
+.w3-row-padding img {margin-bottom: 12px}
+</style>
+<body>
+
+<!-- !PAGE CONTENT! -->
+<div class="w3-content" style="max-width:1500px">
+
+<!-- Header -->
+<header class="w3-panel w3-center w3-opacity" style="padding:28px 16px">
+  <h1 class="w3-xlarge">Old man yells at cloud</h1>
+  <h1>Lord of the Files</h1>
+
+  <div class="w3-padding-32">
+    <div class="w3-bar w3-border">
+      <a href="../index.html" class="w3-bar-item w3-button">dugas.ch</a>
+      <a href="./index.html" class="w3-bar-item w3-button">/ Lord of The Files</a>
+      <a href="#" class="w3-bar-item w3-button w3-light-grey">/ Sync My Nas! The Sad State of The Cloud</a>
+    </div>
+  </div>
+</header>
+
+<!-- Photo Grid -->
+<div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
+  <h1>Sync My Nas! The Sad State of Cloud Sync, 2020</h1>
+  <p style="font-size:130%;">
+  <i>tl;dr: Every cloud storage solution I've used has an unstable, mysterious and user-unfriendly synchronization interface. Here's what professional sync solutions should look like in 2020.</i>
+
+  </p>
+  <p style="font-size:130%;">
+After being unhappy with OneDrive, then Dropbox, then Google Drive, I am now using Insync. Now, I'm unhappy with Insync, and I don't see a way up.
+  </p>
+  <p style="font-size:130%;">
+
+Reading the previous sentence, a pattern emerges. I'm unhappy with the state of consumer cloud synchronization in general. But why is that?
+  </p>
+  <p style="font-size:130%;">
+
+The first reason is cross-platform compatibility: For example, If I want a single folder on all my devices to be synced instantly. Android, linux, windows, I want the same files in that one folder, everywhere. which product should I buy in 2020 to do this? The answer, as far as I can tell, is none.
+  </p>
+  <p style="font-size:130%;">
+
+But the second reason is that in every product I've used, the user interface for sync is, in my opinion, terrible. In short, it is mysterious, unstable, and unsteerable:
+
+<ul>
+  <li style="font-size:130%;">
+I delete a file on my device. I also delete it online. The sync client whirrs to life: first, it downloads the file, then it deletes it.
+  </li>
+  <li style="font-size:130%;">
+
+Many simple operations feel like surgery. Initializing a new sync client with a partial copy of online files is actually scary.
+  </li>
+  <li style="font-size:130%;">
+
+The above lead to massive downloads, which would be fine except that there's no concept of priority.
+  </li>
+  <li style="font-size:130%;">
+
+Resolving sync issues is treated like an edge case, when it's super common and should be a main part of the UI
+  </li>
+  <li style="font-size:130%;">
+
+Syncing has two states: paused, and "f*ck my sh#t up".
+  </li>
+</ul>
+
+  </p>
+
+  <h2>Part I: State of the Cloud Sync App</h2>
+
+  <p style="font-size:130%;">
+Cloud sync apps have two modes today: paused, where nothing happens, and 'sync' where they download changes and delete unused files. If you're lucky, things just work. If not... [these] [guys]. 
+
+Below are some example of common situations, starting from a paused state. Will the unsteerable sync train destroy your life, or just download hundreds of gigabytes of files for no reason? Let's find out.
+
+  </p>
+  <h3>Example 1:</h3>
+  <p style="font-size:130%;">
+  For some reason (upgraded computer, app broke, etc..) you just reinstalled your cloud app. Luckily, you still have your cloud data (half a terabyte) on the hard drive, though it's a little outdated: most files are the same, but some files are new or modified online.
+
+You open the freshly installed app, expecting to pick up where you left off, but it's empty. Of course, it doesn't remember how it was configured! Okay, you should just point it to your local copy of the files and let it do its thing right? It should be fine! Unless...
+
+Press sync to destroy your life:
+
+[interactive directory / sync with a play button]
+
+  </p>
+  <h3>Example 2:</h3>
+  <p style="font-size:130%;">
+  In the online interface, you move a large folder. On your computer, you realize that the sync app is now downloading gigabytes of data, while deleting the same data somewhere else. It looks like it will take 8 hours. You made some changes to a document, and need to have them synced right now. Sorry, it's only possible to pause everything or nothing. 
+
+You think, okay, what if I shut down the app, manually move the files, and restart it? Makes sense!
+
+Press sync to have a bad day:
+
+[program is now deleting the online copy of the files it was downloading]
+  </p>
+  <p style="font-size:130%;">
+
+Essentially, all the problems above boil down to three things:
+
+- The two phases of sync are mixed together: 1) syncing differences, 2) applying them.
+- The UI  doesn't intuitively let you know what actions it's going to take when you press play, and how to change what those actions are.
+- The interface for understanding and dealing with merge conflicts doesn't reflect how common and tricky they are. (Insync merge window, Google drive copying behavior, etc)
+  </p>
+  <p style="font-size:130%;">
+
+I think the first point is the most important. Here's how a sane sync app would work:
+  </p>
+  <h2>A Sane Sync Interface</h2>
+  <p style="font-size:130%;">
+
+there is still a pause and a play mode. But in the pause mode, things still sync! All differences (tiny logs of what files have changed and how) are still downloaded, but not applied. Files deleted online are marked for deletion (small icon in your file explorer), Files modified online are marked 'modified online' even before their new data is downloaded. Files created online are 'marked for download' (phantom files/folders with an icon). Files deleted offline are 'marked for archiving' (phantom files).
+  </p>
+  <p style="font-size:130%;">
+
+All of the following can be done while the app is in 'pause' mode:
+  </p>
+  <p style="font-size:130%;">
+
+Because change logs are small, marking of files for download/deletion/modification is instantaneous. Forget 8 hours, think 8 seconds. And because its instantaneous, you can act on it easily. Delete a file online, its instantaneously marked for deletion on your laptop. Want to cancel the online deletion? Right-click, 'cancel deletion (will be undeleted online)'. The file appears online again. It doesn't matter how big the file is, your ability to act is permanent and instant.
+  </p>
+  <p style="font-size:130%;">
+
+For files modified online, this means that when you open them, before you even download the changes apps can already warn you 'you're changing a file which is already changed online. This will cause a merge conflict, solutions: 1) download the changes before you work 2) modify anyways (merge conflict will occur later)'
+  </p>
+  <p style="font-size:130%;">
+
+And when a merge conflict does occur, there is a need for a clear interface to pop up to deal with them. '3 files are drifting apart and can not be automatically synced. View the differences?' followed by a folder-tree diff, text diff, image diff, video diff, etc.
+  </p>
+  <p style="font-size:130%;">
+
+What if a file is marked to be downloaded, but you paste a copy from a local backup in that place? Diffs are checked instantly, if the file is the same, it is no longer marked for download: the local changes match the online changes, nothing needs to be done. If the local version is different, then it's a merge conflict: view the differences, decided which to keep, or both, or a mix.
+  </p>
+  <p style="font-size:130%;">
+
+You can do all this, and still not have downloaded/deleted a single byte of actual data, only when you press play will the marked changes happen, in the background. Of course, there needs to be another action: 'download/upload this file *now*'.  Some things can wait (downloading the 100GB photos backup folder), others can't (presentation_FINAL_v2_V3_due_now.pptx).
+  </p>
+  <p style="font-size:130%;">
+
+That's it: A 'review changes, update diffs' mode (pause), and an 'apply marked changes' mode (default). This means the apps works the same as all sync apps in the normal scenario, but as soon as things go a bit weird or wrong, you press pause, mark/unmark mistakes, save your work, prevent unnecessary downloads, and press play.
+  </p>
+  <p style="font-size:130%;">
+More importantly, you can know what's going to happen, and you can change what's going to happen and you can decide when it happens. These are two things which are essential to your sanity, but are somehow not a feature of normal sync apps.
+  </p>
+
+  <h2>Conclusion</h2>
+  <p style="font-size:130%;">
+
+In 2020, a good cloud storage solution is still a distant dream for many people.
+
+It even sometimes seems like many providers are going backwards: Insync upgrading to version 3 left many users wondering why an upgrade had to 
+<a href="https://forums.insynchq.com/t/zero-confidence-in-v3-0/15292/5">
+break existing functionality
+</a>
+. They also 'temporarily' 
+<a href="https://forums.insynchq.com/t/insync-for-android/3259">
+deprecated their android client
+</a>
+(even though the first feature they brag about on their website is being 'cross-plaftorm').
+  </p>
+
+</div>
+
+<!-- End Page Content -->
+</div>
+
+
+<!-- Javascript -->
+<style>
+.content {
+  padding: 0 18px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+</style>
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+}
+</script>
+
+<!-- Footer -->
+<footer class="w3-container w3-padding-64 w3-light-grey w3-center w3-large">
+  <!-- Font awesome logos: fa fa-something-something -->
+  <i class="fab fa-pied-piper-alt w3-hover-opacity"></i>
+  <p>Powered by <a  id="powered_by_link" href="http://beesbeesbees.com/" target="_blank" class="w3-hover-text-green">bees</a></p>
+
+  <script>
+  var powerSources = [
+    "bees",
+    "eels",
+    "koalas",
+    "circuits",
+    "logic",
+    "a chihuaha",
+    ];
+  var powerLinks = [
+    "http://beesbeesbees.com/",
+    "http://eelslap.com",
+    "http://koalastothemax.com",
+    "http://electricboogiewoogie.com",
+    "http://www.visual6502.org/JSSim/index.html",
+    "http://chihuahuaspin.com/"
+    ];
+  var randomIndex = Math.floor(Math.random()*powerSources.length);
+  document.getElementById("powered_by_link").href = powerLinks[randomIndex];
+  document.getElementById("powered_by_link").innerHTML = powerSources[randomIndex];
+  </script>
+</footer>
+
+</body>
+</html>
