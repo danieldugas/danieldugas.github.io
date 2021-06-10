@@ -13,31 +13,99 @@ h1 {letter-spacing: 6px}
 </style>
 <body>
 
-<!-- !PAGE CONTENT! -->
-<div class="w3-content" style="max-width:1500px">
-
 <!-- Header -->
-<header class="w3-panel w3-center w3-opacity" style="padding:128px 16px">
+<header class="w3-panel w3-center w3-opacity" style="padding:28px 16px">
   <h1 class="w3-xlarge">MECHANICAL & SOFTWARE ENGINEERING</h1>
   <h1>Daniel Dugas</h1>
 
   <div class="w3-padding-32">
     <div class="w3-bar w3-border">
-      <a href="#" class="w3-bar-item w3-button w3-light-grey">Projects</a>
+      <a href="#" class="w3-bar-item w3-button w3-light-grey">About me</a>
       <a href="./contact.html" class="w3-bar-item w3-button">Contact</a>
-      <a href="#" class="w3-bar-item w3-button">Curriculum Vitae</a>
+      <a href="./blog.html" class="w3-bar-item w3-button">Blog</a>
     </div>
   </div>
 </header>
 
-<header class="w3-panel w3-center w3-opacity" style="padding:16px 16px">
-<h2>This page is coming soon.</h2>
-</header>
+<!-- !PAGE CONTENT! -->
+<div class="w3-content" style="max-width:1800px">
 
-<!-- Photo Grid -->
+
+<!-- About me -->
+<div class="w3-content" style="max-width:800px">
+<div class="w3-row-padding" style="margin-bottom:128px">
+  <div class="w3-threequarter">
+    <p style="font-size:130%;">
+      I'm working on a PhD in Machine Learning and Robotics since February 2018 at the ETH Zürich, under Prof. Siegwart.
+    </p>
+    <p style="font-size:130%;">
+      I'm interested in how robotics can help us better understand how to develop AI.
+      My main research question is how algorithms can create powerful, predictive models of the world from unlabeled data,
+      and use them in decision making.
+    </p>
+  </div>
+  <div class="w3-quarter">
+    <p style="font-size:130%;">
+    <img src="/images/portrait.jpg" style="width:100%">
+    </p>
+  </div>
+</div>
+</div>
+
+<!-- Papers section -->
+<h1>Publications</h1>
+<div class="w3-content" style="max-width:1200px">
+  <!-- Paper -->
+  <a href="https://github.com/ethz-asl/navrep#readme">
+  <div class="w3-row-padding" style="margin-bottom:12px">
+    <div class="w3-quarter">
+      <p style="font-size:130%;">
+      <img src="/images/trainenv.gif" style="width:50%">
+      </p>
+    </div>
+    <div class="w3-threequarter">
+      <p style="font-size:130%;">
+        NavRep: Unsupervised Representations for Reinforcement Learning of Robot Navigation in Dynamic Human Environments
+      </p>
+      <p style="font-size:130%;">
+        Daniel Dugas, Juan Nieto, Roland Siegwart, Jen Jen Chung
+      </p>
+      <p>
+      IEEE International Conference on Robotics and Automation (ICRA), 2021
+      </p>
+    </div>
+  </div>
+  </a>
+  <!-- Paper -->
+  <a href="https://github.com/ethz-asl/interaction_actions_for_navigation#readme">
+  <div class="w3-row-padding" style="margin-bottom:12px">
+    <div class="w3-quarter">
+      <p style="font-size:130%;">
+      <img src="/images/pepper2.gif" style="width:50%">
+      </p>
+    </div>
+    <div class="w3-threequarter">
+      <p style="font-size:130%;">
+        IAN: Multi-Behavior Navigation Planning for Robots in Real, Crowded Environments
+      </p>
+      <p style="font-size:130%;">
+        Daniel Dugas, Juan Nieto, Roland Siegwart, Jen Jen Chung
+      </p>
+      <p>
+        IEEE International Conference on Intelligent Robots and Systems (IROS), 2020
+      </p>
+    </div>
+  </div>
+  </a>
+</div>
+
+<!-- Projects section -->
+<h1>Projects</h1>
+<div class="w3-content" style="max-width:1200px">
 <div class="w3-row-padding" style="margin-bottom:128px">
   <div class="w3-half">
-    <img src="/images/myimage.gif" style="width:100%">
+    <img src="/images/vrpeppersync.gif" style="width:100%">
+    <a href="https://www.youtube.com/watch?v=U9LsgCfXRXk"><img src="/images/cbox.png" style="width:100%"></a> <!-- TODO https://github.com/vincentdoerig/latex-css -->
     <img src="/images/sdf_gradient.png" style="width:100%">
     <img src="/images/ouch_pepper.png" style="width:100%">
     <a href="./evolutionary_dynamics_exercise1.html"><img src="/images/evolutionary_dynamics.png" style="width:100%"></a>
@@ -46,12 +114,14 @@ h1 {letter-spacing: 6px}
   </div>
 
   <div class="w3-half">
-    <img src="/images/segmap.png" style="width:100%">
+    <a href="https://github.com/danieldugas/CUBLI-Choreographer#readme"><img src="/images/cubli.gif" style="width:100%"></a>
+    <a href="https://www.youtube.com/watch?v=iddCgYbgpjE"><img src="/images/segmap.png" style="width:100%"></a>
     <img src="/images/sdf_planned_path.png" style="width:100%">
     <img src="/images/CAD.png" style="width:100%">
     <a href="./public/realite-mixte-app-evaluation-data.html"><img src="/images/realitemixtecover.png" style="width:100%"></a> <!-- TODO https://github.com/vincentdoerig/latex-css -->
    <!--  <img src="/images/image.png" style="width:100%"> -->
   </div>
+</div>
 </div>
 
 <!-- End Page Content -->
