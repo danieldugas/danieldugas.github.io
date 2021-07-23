@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<title>Run Your Unity ML Executable in the Cloud</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<style>
+body,h1 {font-family: "Raleway", Arial, sans-serif}
+h1 {letter-spacing: 6px}
+.w3-row-padding img {margin-bottom: 12px}
+</style>
+<body>
+
+<!-- !PAGE CONTENT! -->
+<div class="w3-content" style="max-width:1500px">
+
+<!-- Header -->
+<header class="w3-panel w3-center w3-opacity" style="padding:28px 16px">
+  <h1 class="w3-xlarge">OLD MAN YELLS AT CLOUD</h1>
+  <h1>Lord of the Files</h1>
+
+  <div class="w3-padding-32">
+    <div class="w3-bar w3-border">
+      <a href="../index.html" class="w3-bar-item w3-button">dugas.ch</a>
+      <a href="../blog.html" class="w3-bar-item w3-button">/ Blog</a>
+      <a href="./index.html" class="w3-bar-item w3-button">/ Lord of The Files</a>
+      <a href="#" class="w3-bar-item w3-button w3-light-grey">/ Sync My Nas!</a>
+    </div>
+  </div>
+</header>
+
+<!-- Photo Grid -->
+<div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
+  <h1>Run Your Unity ML Executable in the Cloud</h1>
+  <h3>Beginner's guide to Xvfb, x11vnc, Unity, OpenGL and friends.</h3>
+  <p style="font-size:130%;">
+  If, like me, you are trying to get your Unity executable to run in a cloud server like AWS EC2, or GCP, this guide is for you.
+  Unity is just an example here, this should work with pretty much any graphics based executable, or also just if you want a remote desktop.
+  </p>
+
+  <h2>Part I: Basics - Why Won't it Run?</h2>
+
+  <p style="font-size:130%;">
+  Since we're using Unity as an example, let's say that you have a compiled unity executable, which you use to render images for training ML models. Can you just run it headlessly in a cloud server with no display? Why don't we just try, we run the command..
+  </p>
+
+  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  Welcome to Ubuntu 20.04.2 LTS (GNU/Linux 5.8.0-1038-gcp x86_64) <br>
+  [this is running on a cpu-only GCP instance] <br>
+  <b>daniel@34.125.185.12:~$</b> cd unity-executable <br>
+  <b>daniel@34.125.185.12:~/unity-executable$</b> ./build.x86_64 <br>
+  Set current directory to /home/daniel/unity-executable <br>
+  Found path: /home/daniel/unity-executable/build.x86_64 <br>
+  </p>
+
+  <p style="font-size:130%;">
+  ... and it crashes.
+  <p>
+
+  <p style="font-size:130%;">
+  First, we should always try to find the reason for the crash.
+  In our Unity example, there's not much useful showing up in the console.
+  Turns out a useful argument is -logfile log.txt.
+  We can then read this log for clues, though those clues are sometimes not very explicit.
+  <p>
+
+  <p style="font-size:130%;">
+  Usually the reason our executable works on our computer but not on the server is because it requires three things:
+  1) An X server / graphical display
+  2) A graphics driver with sufficiently high OpenGL version
+  3) A desktop environment (sometimes)
+  </p>
+
+  <p style="font-size:130%;">
+  So our goal today will be to make sure we have these 3 things set up and working on our display-less server.
+  </p>
+
+  <p style="font-size:130%;">
+  Note: There are of course always other ways of reaching the same goal.
+  For example, one way is to modify the executable so that it runs without a display.
+  In the case of Unity you could in theory run the executable headless with the -batch and -headless arguments. But.. according to the developers doing that disables the rendering. Huh.
+  </p>
+
+  <a href="https://forum.unity.com/threads/linux-rendering-on-the-server.837832/">
+  <img src="./images/run-your-unity-dev-headless.png" style="width:50%">
+  </a>
+  
+  <p style="font-size:130%;">
+  I want to focus here on getting those 3 requirements instead, because it is quite useful in many cases.
+  </p>
+
+  <h2>1. Creating a Virtual Graphical Environment with Xvfb:</h2>
+
+  <p style="font-size:130%;">
+  First we need to make sure we've installed the dependencies.
+  </p>
+
+  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  sudo apt update   <br>
+  sudo apt install -y xorg-dev \ <br>
+  &emsp;          libglu1-mesa libglu1-mesa-dev libgl1-mesa-dev freeglut3-dev mesa-common-dev \ <br>
+  &emsp;          xvfb libxinerama1 libxcursor1 mesa-utils
+  </p>
+
+  <p style="font-size:130%;">
+  Now let's create a virtual screen on display ':0' (you can put any number here, :1, :2, etc., as long as you use the same one in later steps)
+  </p>
+
+  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  Xvfb :0 -screen 0 1024x768x24 +extension GLX +render -noreset >> xsession.log 2>&1 &
+  </p>
+
+  <p style="font-size:130%;">
+  Now, to run commands in this screen, just prepend that command with DISPLAY=:0 ("DISPLAY=:0 ./mycommand").
+  If you want everything to run in this display, you can also just add 
+  "export DISPLAY=:0" to your .bashrc, for example.
+  </p>
+
+  <p style="font-size:130%;">
+  So what exactly did this do? Basically, this starts an X server session running with a virtual screen.
+  If you could look at that screen, you would see that it is all black (there's no desktop environment yet).
+  I'll show you how you <i>can</i> look at that screen in part 4.
+  </p>
+
+  <h2>2. Graphics Drivers and OpenGL</h2>
+
+  <p style="font-size:130%;">
+  One nice thing about having this virtual screen running is that it makes using OpenGL possible.
+  Many graphical applications rely on OpenGL, and so this is quite important.
+  We can check that it is indeed usable, and the available version using the glxinfo command (installed with sudo apt install mesa-utils)
+  </p>
+
+  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  [On the server, before we ran Xvfb] <br>
+  $ glxinfo <br>
+  Error: unable to open display <br>
+  [after running Xvfb] <br>
+  $ DISPLAY=:0 glxinfo | grep version <br>
+  server glx version string: 1.4 <br>
+  client glx version string: 1.4 <br>
+  GLX version: 1.4 <br>
+  Max core profile version: 4.5 <br>
+  Max compat profile version: 3.1 <br>
+  Max GLES1 profile version: 1.1 <br>
+  Max GLES[23] profile version: 3.2 <br>
+  OpenGL core profile version string: 4.5 (Core Profile) Mesa 20.2.6 <br>
+  OpenGL core profile shading language version string: 4.50 <br>
+  OpenGL version string: 3.1 Mesa 20.2.6 <br>
+  OpenGL shading language version string: 1.40 <br>
+  OpenGL ES profile version string: OpenGL ES 3.2 Mesa 20.2.6 <br>
+  OpenGL ES profile shading language version string: OpenGL ES GLSL ES 3.20 <br>
+  GL_EXT_shader_implicit_conversions, GL_EXT_shader_integer_mix, <br>
+  </p>
+
+  <p style="font-size:130%;">
+  So now, we've made sure that we have a virtual display, and that OpenGL is usable, which is good.
+  However, a source of many problems is the OpenGL version.
+  Some programs require that OpenGL be at least a certain version, and will refuse to run otherwise (Unity, for example).
+  </p>
+
+  <p style="font-size:130%;">
+  The issue here is that the max OpenGL version is tied to the graphics driver being used, and hardware.
+  If you're on a GPU instance, the only way of increasing it is by updating the GPU drivers (the procedure depends on vendor - nvidia / intel).
+  If you're on a CPU-only instance, I found that using a later version of Ubuntu (20) also set OpenGL to a higher version (high enough to run Unity), though it might also be hardware dependent.
+  This is a tricky topic to find an answer to, your mileage may vary.
+  </p>
+
+  <h2>3. Desktop Environment</h2>
+
+  <p style="font-size:130%;">
+  A Desktop environment (abbreviated DE) is the thing that shows you a background, windows (through a window manager), a mouse pointer, and so on.
+  Some applications interact with the DE, and so it might be necessary to run one.
+  It can also be useful if you want to use the server as a remote desktop.
+  </p>
+
+  <p style="font-size:130%;">
+  There's several choices for DEs, popular ones include gnome (the default ubuntu one), xfce (a light DE), KDE, regolith, etc..
+  In this example, I'll use xfce to save on disk space, though you can easily switch to another
+  </p>
+
+  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  sudo apt install -y xfce4-session <br>
+  DISPLAY=:0 startxfce4
+  </p>
+
+  <p style="font-size:130%;">
+  That's it. If you could now look at the virtual display, you would see a background, icons and so on.
+  </p>
+
+  <h2>4. VNC, remote desktop</h2>
+
+  <p style="font-size:130%;">
+  One way to look at our virtual screen is to stream it to another computer using a vnc remote desktop application.
+  For this we will use x11vnc as the server (fetches the image on the virtual screen and streams it online),
+  and realvncviewer as the client (connects to the stream from another computer, and shows it).
+  </p>
+
+  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  sudo apt install -y x11vnc
+  x11vnc -display :0 -usepw -rfbport 5901
+  </p>
+
+  TODO
+  firewall rules
+  realvncviewer
+  images
+
+</div>
+
+<!-- End Page Content -->
+</div>
+
+
+<!-- Javascript -->
+<style>
+.content {
+  padding: 0 18px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+</style>
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+}
+</script>
+
+<!-- Footer -->
+<footer class="w3-container w3-padding-64 w3-light-grey w3-center w3-large">
+  <!-- Font awesome logos: fa fa-something-something -->
+  <i class="fab fa-pied-piper-alt w3-hover-opacity"></i>
+  <p>Powered by <a  id="powered_by_link" href="http://beesbeesbees.com/" target="_blank" class="w3-hover-text-green">bees</a></p>
+
+  <script>
+  var powerSources = [
+    "bees",
+    "eels",
+    "koalas",
+    "circuits",
+    "logic",
+    "a chihuaha",
+    "infinite zoom",
+    ];
+  var powerLinks = [
+    "http://beesbeesbees.com/",
+    "http://eelslap.com",
+    "http://koalastothemax.com",
+    "http://electricboogiewoogie.com",
+    "http://www.visual6502.org/JSSim/index.html",
+    "http://chihuahuaspin.com/",
+    "http://zoomquilt.org/",
+    ];
+  var randomIndex = Math.floor(Math.random()*powerSources.length);
+  document.getElementById("powered_by_link").href = powerLinks[randomIndex];
+  document.getElementById("powered_by_link").innerHTML = powerSources[randomIndex];
+  </script>
+</footer>
+
+</body>
+</html>
