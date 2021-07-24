@@ -39,38 +39,50 @@ h1 {letter-spacing: 6px}
   If, like me, you are trying to get your Unity executable to run in a cloud server like AWS EC2, or GCP, this guide is for you.
   Unity is just an example here, this should work with pretty much any graphics based executable, or also just if you want a remote desktop.
   </p>
+  
+  <!-- TODO:
+    photo crowdbotchallenge
+    schematic components
+  -->
 
   <h2>Part I: Basics - Why Won't it Run?</h2>
 
   <p style="font-size:130%;">
-  Since we're using Unity as an example, let's say that you have a compiled unity executable, which you use to render images for training ML models. Can you just run it headlessly in a cloud server with no display? Why don't we just try, we run the command..
+  Since we're using Unity as an example, let's say that you have a compiled unity executable,
+  which you use to render images for training ML models.
+  Can you just run it headlessly in a cloud server with no display?
+  Why don't we try to run the command:
   </p>
 
   <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
   Welcome to Ubuntu 20.04.2 LTS (GNU/Linux 5.8.0-1038-gcp x86_64) <br>
   [this is running on a cpu-only GCP instance] <br>
-  <b>daniel@34.125.185.12:~$</b> cd unity-executable <br>
-  <b>daniel@34.125.185.12:~/unity-executable$</b> ./build.x86_64 <br>
+  <b>daniel@34.126.185.12:~$</b> cd unity-executable <br>
+  <b>daniel@34.126.185.12:~/unity-executable$</b> ./build.x86_64 <br>
   Set current directory to /home/daniel/unity-executable <br>
   Found path: /home/daniel/unity-executable/build.x86_64 <br>
   </p>
 
   <p style="font-size:130%;">
-  ... and it crashes.
+  As expected, it crashes.
   <p>
 
   <p style="font-size:130%;">
-  First, we should always try to find the reason for the crash.
-  In our Unity example, there's not much useful showing up in the console.
-  Turns out a useful argument is -logfile log.txt.
-  We can then read this log for clues, though those clues are sometimes not very explicit.
+  It's always good to try and find the exact reason for the crash.
+  In our Unity example, there's not much useful showing up in the console,
+  but a useful argument is -logfile log.txt.
+  We can then read this log for clues, and figure out what is wrong.
+  In general, though, those clues can be unhelpful, or not very explicit.
+  If you can't find the exact reason, let's look at the most common ones.
   <p>
 
   <p style="font-size:130%;">
   Usually the reason our executable works on our computer but not on the server is because it requires three things:
-  1) An X server / graphical display
-  2) A graphics driver with sufficiently high OpenGL version
-  3) A desktop environment (sometimes)
+  <ol>
+    <li style="font-size:130%"> An X server / graphical display</li>
+    <li style="font-size:130%"> A graphics driver with sufficiently high OpenGL version</li>
+    <li style="font-size:130%"> A desktop environment (sometimes)</li>
+  </ol>
   </p>
 
   <p style="font-size:130%;">
@@ -92,6 +104,20 @@ h1 {letter-spacing: 6px}
   </p>
 
   <h2>1. Creating a Virtual Graphical Environment with Xvfb:</h2>
+
+  <p style="font-size:130%;">
+  Note: Xvfb is meant for machines which don't have graphics hardware.
+  It will run on pretty much any machine.
+  But, if you're using an instance with a GPU, and want your graphics executable to use it,
+  Xvfb isn't for you. The alternative is to start a virtual display using your GPU vendor's drivers directly.
+  For example, for nvidia: <br>
+  sudo nvidia-xconfig --busid=PCI:0:30:0 --use-display-device=none --virtual=1280x1024 <br>
+  this makes your system think it has a screen, you can then start the normal x server with: <br>
+  sudo Xorg :1 <br>
+  and check that opengl is set up to run on the gpu with: <br>
+  DISPLAY=:1 glxinfo <br>
+  if this works, you can skip parts 1 and 2. (maybe also 3 if the Xorg command above also started a DE - this depends on your Xorg config)
+  </p>
 
   <p style="font-size:130%;">
   First we need to make sure we've installed the dependencies.
@@ -121,7 +147,7 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
   So what exactly did this do? Basically, this starts an X server session running with a virtual screen.
   If you could look at that screen, you would see that it is all black (there's no desktop environment yet).
-  I'll show you how you <i>can</i> look at that screen in part 4.
+  Actually, there is a way to look at that screen, by streaming it to a remote computer (see part 4).
   </p>
 
   <h2>2. Graphics Drivers and OpenGL</h2>
@@ -192,20 +218,45 @@ h1 {letter-spacing: 6px}
   <h2>4. VNC, remote desktop</h2>
 
   <p style="font-size:130%;">
-  One way to look at our virtual screen is to stream it to another computer using a vnc remote desktop application.
+  It can be useful to see our virtual screen. To do that, we stream it to another computer using a vnc remote desktop application.
   For this we will use x11vnc as the server (fetches the image on the virtual screen and streams it online),
   and realvncviewer as the client (connects to the stream from another computer, and shows it).
   </p>
 
   <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
-  sudo apt install -y x11vnc
+  sudo apt install -y x11vnc <br>
   x11vnc -display :0 -usepw -rfbport 5901
   </p>
 
-  TODO
-  firewall rules
-  realvncviewer
-  images
+  <p style="font-size:130%;">
+  This should ask you to set a password, which you will need later to connect from the client
+  </p>
+
+  <p style="font-size:130%;">
+  One small issue with doing this is that often, firewall settings block outside machines from connecting to the server
+  on the VNC port. In this case, we're using port 5901, so we should create a firewall rule in the server provider's interface
+  to allow this specific port.
+  </p>
+  
+  <p style="font-size:130%;">
+  For example, on the Google Cloud Platform, in the search bar type "Firewall", click the first result. Click <b>"Create Firewall Rule"</b>
+  </p>
+
+  <img src="./images/run-your-unity-firewall.png" style="width:100%;">
+
+  <p style="font-size:130%;">
+  Apply the rule to incoming connections ("ingress"), from all ip ranges (0.0.0.0/0),
+  select the instances you want it to apply to (in my case I set all instances) and enable the tcp port that you want (5901).
+  </p>
+
+  <p style="font-size:130%;">
+  Let's test it: on your normal machine, install the vnc client (for example realvncviewer).
+  Run it, create a new connection to your server address:port (for example 34.126.185.12:5901),
+  and type the password you set earlier.
+  The screen should appear, and you should be able to see your executable running on the server.
+  </p>
+
+  <img src="./images/run-your-unity-xfce.png" style="width:100%;">
 
 </div>
 
