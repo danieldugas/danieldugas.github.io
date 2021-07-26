@@ -44,9 +44,8 @@ h1 {letter-spacing: 6px}
     photo crowdbotchallenge
     schematic components
   -->
-  <img src="./images/run-your-unity-components.png" style="width:100%;">
 
-  <h2>Part I: Basics - Why Won't it Run?</h2>
+  <h2>Basics - Why Won't it Run?</h2>
 
   <p style="font-size:130%;">
   Since we're using Unity as an example, let's say that you have a compiled unity executable,
@@ -55,7 +54,7 @@ h1 {letter-spacing: 6px}
   Why don't we try to run the command:
   </p>
 
-  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  <p style="font-size:100%;font-family:courier;padding:20px;margin-left:10%;background-color:#1E1E1E;color:white;">
   Welcome to Ubuntu 20.04.2 LTS (GNU/Linux 5.8.0-1038-gcp x86_64) <br>
   [this is running on a cpu-only GCP instance] <br>
   <b>daniel@34.126.185.12:~$</b> cd unity-executable <br>
@@ -76,6 +75,8 @@ h1 {letter-spacing: 6px}
   In general, though, those clues can be unhelpful, or not very explicit.
   If you can't find the exact reason, let's look at the most common ones.
   <p>
+
+  <img src="./images/run-your-unity-components.png" style="width:100%;">
 
   <p style="font-size:130%;">
   Usually the reason our executable works on our computer but not on the server is because it requires three things:
@@ -104,27 +105,21 @@ h1 {letter-spacing: 6px}
   I want to focus here on getting those 3 requirements instead, because it is quite useful in many cases.
   </p>
 
-  <h2>1. Creating a Virtual Graphical Environment with Xvfb:</h2>
+  <h2>1.a Creating a Virtual Graphical Environment with Xvfb (CPU-only):</h2>
 
   <p style="font-size:130%;">
   Note: Xvfb is meant for machines which don't have graphics hardware.
-  It will run on pretty much any machine.
-  But, if you're using an instance with a GPU, and want your graphics executable to use it,
-  Xvfb isn't for you. The alternative is to start a virtual display using your GPU vendor's drivers directly.
-  For example, for nvidia: <br>
-  sudo nvidia-xconfig --busid=PCI:0:30:0 --use-display-device=none --virtual=1280x1024 <br>
-  this makes your system think it has a screen, you can then start the normal x server with: <br>
-  sudo Xorg :1 <br>
-  and check that opengl is set up to run on the gpu with: <br>
-  DISPLAY=:1 glxinfo <br>
-  if this works, you can skip parts 1 and 2. (maybe also 3 if the Xorg command above also started a DE - this depends on your Xorg config)
+  But, if you're using an instance with a GPU, and want your graphics executable to run on the GPU,
+  Xvfb isn't for you. (Note: this doesn't affect programs which interface with the GPU through CUDA, like tensorflow).
+  If you want to use the GPU for graphics, you'll have to start the x server headlessly using your GPU vendor's display drivers.
+  Skip to part 1.b for an example on how to do so.
   </p>
 
   <p style="font-size:130%;">
   First we need to make sure we've installed the dependencies.
   </p>
 
-  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  <p style="font-size:100%;font-family:courier;padding:20px;margin-left:10%;background-color:#1E1E1E;color:white;">
   sudo apt update   <br>
   sudo apt install -y xorg-dev \ <br>
   &emsp;          libglu1-mesa libglu1-mesa-dev libgl1-mesa-dev freeglut3-dev mesa-common-dev \ <br>
@@ -135,7 +130,7 @@ h1 {letter-spacing: 6px}
   Now let's create a virtual screen on display ':0' (you can put any number here, :1, :2, etc., as long as you use the same one in later steps)
   </p>
 
-  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  <p style="font-size:100%;font-family:courier;padding:20px;margin-left:10%;background-color:#1E1E1E;color:white;">
   Xvfb :0 -screen 0 1024x768x24 +extension GLX +render -noreset >> xsession.log 2>&1 &
   </p>
 
@@ -151,6 +146,42 @@ h1 {letter-spacing: 6px}
   Actually, there is a way to look at that screen, by streaming it to a remote computer (see part 4).
   </p>
 
+  <h2>1.b Creating a Virtual Graphical Environment with Nvidia Drivers (GPU):</h2>
+  <p style="font-size:130%;">
+    <b> Skip to Part 2. if you ran Part 1.a successfully and don't want OpenGL to run on a GPU device </b>
+  </p>
+  <p style="font-size:130%;">
+  If you're using an nvidia GPU, here's how to set up the X Server / OpenGL:
+  </p>
+  <p style="font-size:100%;font-family:courier;padding:20px;margin-left:10%;background-color:#1E1E1E;color:white;">
+  # run this command to find your GPU bus id (for example PCI:0:30:0) <br>
+  nvidia-xconfig --query-gpu-info <br>
+  # replace the busid flag with your value <br>
+  # Note: with headless GPUs (e.g. Tesla T4), which don't have display outputs, remove the --use-display-device=none option <br>
+  sudo nvidia-xconfig --busid=PCI:0:30:0 --use-display-device=none --virtual=1280x1024 <br>
+  </p>
+  <p style="font-size:130%;">
+  this will have created a file in /etc/X11/xorg.conf, allowing the X server to use the GPU properly. You can now start it <br>
+  </p>
+  <p style="font-size:100%;font-family:courier;padding:20px;margin-left:10%;background-color:#1E1E1E;color:white;">
+  # unlike the startx command, this only starts the x server, no desktop environment <br>
+  sudo Xorg :0 <br>
+  </p>
+  <p style="font-size:130%;">
+  and check that opengl is set up to run on the gpu with:
+  </p>
+  <p style="font-size:100%;font-family:courier;padding:20px;margin-left:10%;background-color:#1E1E1E;color:white;">
+  DISPLAY=:0 glxinfo | grep version <br>
+  nvidia-smi # xorg should show up in the running programs
+  </p>
+  <p style="font-size:130%;">
+  if this works, you can skip parts 1 and 2. If not, it is usually a driver issue.
+  In order, make sure to check that your GPU is found by the nvidia-xconfig command,
+  that the bus value is correct, that the --use-display-device=none option is correct,
+  check the /var/log/Xorg.0.log for errors (search for the term nvidia),
+  and make sure nvidia drivers are installed.
+  </p>
+
   <h2>2. Graphics Drivers and OpenGL</h2>
 
   <p style="font-size:130%;">
@@ -159,7 +190,7 @@ h1 {letter-spacing: 6px}
   We can check that it is indeed usable, and the available version using the glxinfo command (installed with sudo apt install mesa-utils)
   </p>
 
-  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  <p style="font-size:100%;font-family:courier;padding:20px;margin-left:10%;background-color:#1E1E1E;color:white;">
   [On the server, before we ran Xvfb] <br>
   $ glxinfo <br>
   Error: unable to open display <br>
@@ -189,15 +220,15 @@ h1 {letter-spacing: 6px}
 
   <p style="font-size:130%;">
   The issue here is that the max OpenGL version is tied to the graphics driver being used, and hardware.
-  If you're on a GPU instance, the only way of increasing it is by updating the GPU drivers (the procedure depends on vendor - nvidia / intel).
-  If you're on a CPU-only instance, I found that using a later version of Ubuntu (20) also set OpenGL to a higher version (high enough to run Unity), though it might also be hardware dependent.
+  If you're on a GPU instance (and are sure the X server is running on the GPU, see Part 1.b), the only way of increasing it is by updating the GPU drivers (the procedure depends on vendor - nvidia / intel).
+  If you're on a CPU-only instance, I found that using a later version of Ubuntu (20) also set OpenGL to a higher version (high enough to run Unity), by upgrading llvmpipe. It might also be hardware dependent.
   This is a tricky topic to find an answer to, your mileage may vary.
   </p>
 
   <h2>3. Desktop Environment</h2>
 
   <p style="font-size:130%;">
-  A Desktop environment (abbreviated DE) is the thing that shows you a background, windows (through a window manager), a mouse pointer, and so on.
+  A Desktop environment (abbreviated DE) is the thing that shows you a desktop background, windows (through a window manager), a mouse pointer, and so on.
   Some applications interact with the DE, and so it might be necessary to run one.
   It can also be useful if you want to use the server as a remote desktop.
   </p>
@@ -207,7 +238,7 @@ h1 {letter-spacing: 6px}
   In this example, I'll use xfce to save on disk space, though you can easily switch to another
   </p>
 
-  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  <p style="font-size:100%;font-family:courier;padding:20px;margin-left:10%;background-color:#1E1E1E;color:white;">
   sudo apt install -y xfce4-session <br>
   DISPLAY=:0 startxfce4
   </p>
@@ -224,7 +255,7 @@ h1 {letter-spacing: 6px}
   and realvncviewer as the client (connects to the stream from another computer, and shows it).
   </p>
 
-  <p style="font-size:100%;font-family:courier;background-color:lightyellow;color:darkgreen;">
+  <p style="font-size:100%;font-family:courier;padding:20px;margin-left:10%;background-color:#1E1E1E;color:white;">
   sudo apt install -y x11vnc <br>
   x11vnc -display :0 -usepw -rfbport 5901
   </p>
@@ -251,8 +282,14 @@ h1 {letter-spacing: 6px}
   </p>
 
   <p style="font-size:130%;">
+  Or, if you're using AWS, click your instance, then the Security tab below, click the link to the instance's security group, click 'Edit Inbound Rules', and add a rule with the same parameters (TCP port 5901, all ips).
+  </p>
+
+  <img src="./images/run-your-unity-aws-firewall-rules.png" style="width:100%;">
+
+  <p style="font-size:130%;">
   Let's test it: on your normal machine, install the vnc client (for example realvncviewer).
-  Run it, create a new connection to your server address:port (for example 34.126.185.12:5901),
+  Run it, create a new connection to your server address:port (for example 34.126.185.12:5901 or ec2-13-54-127-20.eu-north-1.compute.amazonaws.com:5901),
   and type the password you set earlier.
   The screen should appear, and you should be able to see your executable running on the server.
   </p>
