@@ -44,14 +44,17 @@ h1 {letter-spacing: 6px}
 <!-- Photo Grid -->
 <div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
   <h1>Squid Game Theory</h1>
+  <p style="font-size:130%">"The Overthinker's Guide to Korean Death Games"</p>
+  <hr>
   <p style="font-size:130%;">
-  How to win at korean death games, a guide.
-
-  Are you into sadistic death games? Or are you simply very desperate for money?
-
+    <i>
+  Are you into sadistic versions of children's games? Or are you simply very desperate for money?
   In this post, we will look at basic game theory concepts and how they apply to the currently immensely popular series "Squid Game". Hold on to your tracksuits!
+    </i>
+  </p>
+  <p style="font-size:130%;">
 
-  Spoiler alert! The whole post is one big spoiler. Do not read any further if you plan to watch the show.
+    <u>Spoiler alert! The whole post is one big spoiler. Do not read any further if you plan to watch the show.</u>
   </p>
 
   <h2>"Game Theory? You mean, like, the study of Call of Duty?"</h2>
@@ -64,94 +67,309 @@ h1 {letter-spacing: 6px}
   or how smart people might compete with each other when co-operation is clearly better,
   how economies can end up letting people starve even when there's enough food for everyone.
 
+  </p>
+  <p style="font-size:130%;">
   And, lucky for us, it also readily applies to the theatrical, sadistic contest that the characters in Squid Game find themselves in.
 
-  Let's look at the games one by one.
   </p>
+  <p style="font-size:130%;">
+  We'll tackle the games one by one, in order. Are you ready? Get set...
+  </p>
+
+  <img src="./img/squid_game_theory/rlgl.png" align="center" style="width:20%">
 
   <h2>First Game: Red light, Green light</h2>
 
   <p style="font-size:130%;">
-  The first game clarifies that rules have serious consquences. It is also the most tragic game in a way, simply because of the sheer amount of unexpectant players ending up murdered.
-   
+  The first game clarifies that rules have serious consquences. It can also be considered the most tragic game, simply because of the sheer amount of unexpectant players ending up murdered.
+
+  </p>
+  <p style="font-size:130%;">
   Yet, there is very little 'game' here in the 'game theory' sense. One tough decision is how fast you should try to move, to maximize the odds of making it before the timer runs out. Maybe running on all-fours leads to a more stable waiting position? You probably don't have time to find out. Follow the rules and hope for the best, even if you do everything more or less right, there seems to be luck involved in the movement detection.
 
+  </p>
+  <p style="font-size:130%;">
   But game theory is about how our decisions and those of others interact, and this game is mostly a big free-for-all.
 
-  Note that player's 199's action to save the main character, at enormous risk to himself is so selfless that it is almost irrational (Which makes it all the more a heroic and human act). Possibly the most heroic in the entire show, given how much danger it places on oneself for a slight chance of saving someone!
   </p>
+  <p style="font-size:130%;">
+  One of the most dramatic moments is player's 199's action to save the main character, at enormous risk to himself is so selfless that it is almost irrational
+  (Which makes it all the more a heroic and human act.
+  Possibly the most heroic in the entire show, given how much danger it places on oneself for a slight chance of saving someone!)
+  But what does it mean to be irrational, or <b>rational</b>, in game theory?
+  </p>
+
+  <p style="font-size:130%;">
+  In simple, non-repeated games, a rational agent is one that always:
+  1) knows what he wants
+  2) picks the choice which give him the best outcome
+  </p>
+  <p style="font-size:130%;">
+  We'll see how these two properties lead to the basic theories of decision-making later. For now, we have a choice to make...
+  </p>
+
+  <img src="./img/squid_game_theory/invitation.png" align="center" style="width:20%">
+  <!-- card: "you are cordially invited to our big friendly death murder game!" -->
 
   <h2>
   Interlude: going home, and utility functions
   </h2>
 
   <p style="font-size:130%;">
-  At that point, if your aim is to save yourself and others, the best way to do so is to not return. 
+  So you somehow survived the first game. Congratulations! Even more incredible, after an extremely tight vote, the game organisers let you leave.
+  Just like that, sent you on your merry way. A little sleeping gas, some hand-tieing, and here you are: safe and home.
+  Except.. it seems someone has changed their mind. You could stay here, or, you could go back to the game. What should you do?
+  </p>
 
+  <p style="font-size:130%;">
+  At that point, one could argue: if your aim is to save yourself and others, the best thing to do is to not return.
   As previously mentioned, the organisers have very little incentive to actually give you anything if you do (somehow) win: they can dispose of you at almost no cost to themselves (what's one more murder to an organisation which just massacred hundreds?). They have no public image to uphold, since they are operating in complete illegality. And any surviving players are also a liability.
+  But $40M is a lot of money. And some don't have much to live for, anyways. So going back could be the chance of a lifetime?
+  </p>
 
-  In game theory, these possibilities are typically represented with the normal-matrix:
+  <p style="font-size:130%;">
+  What does game theory have to say about this dilemma?
+  Well, what is clear is that you have at least two options: going or not going.
+  Less obvious, the game organisers also have several options: try to kill every participant to tie up lose ends (even if they return, and win), or stay true to their word.
+  In game theory, these possibilities are typically represented with the <b>normal-form matrix</b>:
   each side of the matrix represents a player, and lists the decision they can take.
   For each decision pair, the players get a pair of outcomes:
 
+  </p>
+  <p style="font-size:130%;">
   Payoff matrix
-                  murder every player                                   uphold pledge
-  flee         probably live, poor | no show,  keep money            live,       poor | no show,  keep money
-  participate            die, poor | hit show, keep money    probably die, maybe rich | hit show, lose money
+  <table style="border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" colspan="2">murder every player</th> <th style="border-left: 1px solid" colspan="2">uphold pledge</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>flee</td>      <td style="border-left: 1px solid" align="right">probably live + poor </td><td>| no show +  keep money</td> <td style="border-left: 1px solid" align="right">live +       poor </td>        <td>| no show +  keep money</td> </tr>
+  <tr> <td>participate</td> <td style="border-left: 1px solid" align="right">die + poor </td>          <td>| hit show + keep money</td> <td style="border-left: 1px solid" align="right">probably die + maybe rich </td><td>| hit show + lose money</td> </tr>
+  </tbody>
+  </table>
 
+  </p>
+  <p>
+    Each row is one of your possible decision: <b>Flee</b> or <b>Participate</b>.
+  Each column is one of the other player's decisions: <b>Murder every player</b> or <b>Uphold pledge</b>.
+  Each decision pair leads to an ouctome pair.
+  For example the decision pair {You: Flee | Them: Murder every player}
+  leads to the outcome pair {You: probably live + poor | Them: no show + keep money}.
+  For brevity, we write decision pairs using the first letter of each player's decision:
+  {You: Flee | Them: Murder every player} becomes <b>FM</b>.
+
+  </p>
+  <p style="font-size:130%;">
   This payoff structure is barely a game.
   there is almost no dependence: the organisation's choice will not be affected by what they think players will do, only by whether they care more about money vs. keeping their word.
 
+  </p>
+  <p style="font-size:130%;">
   On the other side, as a rational player, does the tiny chance of winning outweigh the price of death?
-  
-  This is represented as a utility function. It's a function that ranks states of the world by agents' preference.
+
+  </p>
+  <p style="font-size:130%;">
+  This is represented as a <b>utility function</b>. It's a function that ranks states of the world by agents' preference.
   a normal person might rank
+  </p>
+  <p style="font-size:130%; margin-left:20px">
+  live + poor > probably live + poor > probably die + maybe rich > die + poor
+  </p>
+  <p style="font-size:130%;">
+  let's use the short notation instead:
+  </p>
+  <p style="font-size:130%; margin-left:20px">
   FU > FM > PU > PM
-  whereas someone who cares much less about their life, and much more about money, their utility function would rank:
+  </p>
+  <p style="font-size:130%;">
+  whereas someone who cares much less about their life, and much more about money, would have a utility function which ranks:
+  </p>
+  <p style="font-size:130%; margin-left:20px">
   PU > FU > FM > PM
-  
-  so the normal person would rationally always play flee, no matter what it thinks the organisation will do,
-  and the reckless money-grabber will play if he thinks the org cares about keeping its word, otherwise even he will flee.
+  </p>
+  <p style="font-size:130%;">
+  On the other side, a reasonable utility function for a criminal organisation could be:
+  </p>
+  <p style="font-size:130%; margin-left:20px">
+  PM > FU = FM > PU
+  </p>
+  <p style="font-size:130%;">
+  But, just maybe, the organisation could be really in it for the ideals, in which case:
+  </p>
+  <p style="font-size:130%; margin-left:20px">
+    PU > FU > PM > FM
+  </p>
 
+  <p style="font-size:130%; margin-left:20px">
+  in game theory, it's typical to represent the value of outcome with arbitrary numbers (1, 2, 3, 4).
+  The exact value doesn't matter, only that 4 is better than 3 which is better than 2, and so on.
+  Thanks to this utility function, we can now simplify our normal-form matrix:
+  </p>
+
+  <div class="w3-half">
+    <table style="border-collapse:collapse">
+    <thead style="border-bottom: 1px solid">
+    <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
+    </thead>
+    <tbody>
+    <tr> <td>flee</td>        <td style="border-left: 1px solid" align="center">3 | 2</td> <td style="border-left: 1px solid" align="center">4 | 2</td></tr>
+    <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 3</td> <td style="border-left: 1px solid" align="center">2 | 1</td></tr>
+    </tbody>
+    </table>
+    <p align="center">
+    normal player, normal org
+    </p>
+  </div>
+  <div class="w3-half">
+    <table style="border-collapse:collapse">
+    <thead style="border-bottom: 1px solid">
+    <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
+    </thead>
+    <tbody>
+    <tr> <td>flee</td>        <td style="border-left: 1px solid" align="center">3 | 1</td> <td style="border-left: 1px solid" align="center">4 | 3</td></tr>
+    <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 2</td> <td style="border-left: 1px solid" align="center">2 | 4</td></tr>
+    </tbody>
+    </table>
+    <p align="center">
+    normal player, idealistic org
+    </p>
+  </div>
+
+  <p style="font-size:130%;">
+  The first thing we notice is that the normal person would rationally always flee.
+  It doesn't matter what choice the organisation makes, or even what its utility function is, the normal person always gets a better payoff by fleeing.
+  This is called a <b>Dominant strategy</b>.
+  When a player has a Dominant strategy, and the other doesn't, they lead while the other player is forced to follow.
+  It's also possible that both players have a dominant strategy:
+  that's the case here. In both the left and right matrix, neither player's actions influences the other.
+  </p>
+  <p style="font-size:130%;">
+  But what if the player is greedy and suicidal?
+  </p>
+  <div class="w3-half">
+    <table style="border-collapse:collapse">
+    <thead style="border-bottom: 1px solid">
+    <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
+    </thead>
+    <tbody>
+      <tr> <td>flee</td>      <td style="border-left: 1px solid" align="center"><b>2 | 2</b></td> <td style="border-left: 1px solid" align="center">3 | 2</td></tr>
+    <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 3</td>        <td style="border-left: 1px solid" align="center">4 | 1</td></tr>
+    </tbody>
+    </table>
+    <p align="center">
+    greedy player, normal org
+    </p>
+  </div>
+  <div class="w3-half">
+    <table style="border-collapse:collapse">
+    <thead style="border-bottom: 1px solid">
+    <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
+    </thead>
+    <tbody>
+    <tr> <td>flee</td>        <td style="border-left: 1px solid" align="center">2 | 1</td> <td style="border-left: 1px solid" align="center">3 | 3</td></tr>
+    <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 2</td> <td style="border-left: 1px solid" align="center"><b>4 | 4</b></td></tr>
+    </tbody>
+    </table>
+    <p align="center">
+    greedy player, idealistic org
+    </p>
+  </div>
+
+  <p style="font-size:130%;">
+  What if the greedy player believes the organisation is normal (left matrix)?
+  Here we have an example of one-sided dominance: it's the org which will always pick murder, no matter what the player chooses - its payoffs are always bigger on the left column.
+  As a result, the greedy player has to follow: they know that the org will choose murder! So, they must decide to flee.
+  This (<b>FM</b>) is the <b>Nash equilibrium</b>. It's the point where no player gets a better outcome for themselves by changing their decision. I've marked it in bold in the payoff matrix.
+  Notice that the Nash equilibrium does not lead to maximum overall payoffs (2+2 &lt 4+1).
+  This is an important lesson in game theory:
+  Nash equilibrium prevail, even though a different strategy could be better overall (sum of players payoffs), or even better for everyone (every player maximizes their utility).
+  </p>
+  <p style="font-size:130%;">
+  Now, what if the greedy player believes the organisation is idealistic (right matrix)?
+  Here, once again the org's decision is not influenced by the player: <b>Uphold pledge</b> dominates <b>Murder every player</b>.
+  Knowing this, the greedy player will always decide to play. The result is a stable Nash equilibrium, <b>PU</b>.
+  Luckily, this Nash equilibrium is also the optimal outcome!
+  Unlike the previous games, this is an example of a <b>cooperative game</b>, where both players will have no issues agreeing, and getting what they want.
+  Also, all the games we've seen so far are <b>asymmetric</b>: each player has a different role, as the payoff matrix is not symmetric.
+  </p>
+  <p style="font-size:130%;">
+  Enough theory, and back to our decision: 
+  You must figure your utility function, and how likely you think you are to win, and survive.
+  Do you value your life more than money? Flee.
+  Do you thinks the org cares about keeping its word? If yes, play. Otherwise, flee.
+  </p>
+  <p style="font-size:130%;">
   If you do decide to play, you must play to survive: given the attrition on the first game, it is clear that very few will remain after 5 more such games, possibly the organisers plan on having a single winner or even none.  If any games are competitive (you don't know yet), any non-machiavellian kindness will reduce your odds of survival and increase someone else's (poor player 199) , in the grand scheme of things.
-
+  </p>
+  <p style="font-size:130%;">
   And yet you can decide to cooperate anyways, after all, you are human. In theory, it can still be rational to cooperate, depending on your utility function (your core values): how much do you value your life? the life of others? the prize money?
-
+  </p>
+  <p style="font-size:130%;">
   Make sure that you have a clear answer for these questions before you proceed, otherwise your decision making will be inconsistent at best.
   </p>
+
+  <img src="./img/squid_game_theory/hesitation.png" align="center" style="width:20%">
+  <!-- player 218: should I tell my friends? -->
 
   <h2>Second Game: Honeycomb, a tragedy of the commons</h2>
 
   <p style="font-size:130%;">
-  There is not much to say about the game itself. The best way to increase your odds is to have good knowledge of previous-generation korean traditions.
+  Once again, it looks like luck will play a big part to decide your fate. 
+  The best way to increase your odds, this time, is to have good knowledge of previous-generation korean traditions.
+  As luck would have it, that's your speciality (also, a potential ally told you that sugar was being prepared in the kitchen).
 
-  One interesting decision we see in the episode is player 218, who has figured out what the game will likely be. He hesitates between sharing with his teammates, and betraying them.
-
-  Let's look at the payoffs:
-  if he shares, he increases his teammates chance of survival
+  </p>
+  <p style="font-size:130%;">
+  Having figured out the next game, like player 218, you find yourself having to choose: do you share the information with your teammates, or do you betray them?
+  A tough decision! Or, is it?
+  </p>
+  <p style="font-size:130%;">
+  Game theory says: let's look at the payoffs:
+  if the player shares, he increases his teammates chance of survival
   if he betrays: his teammates are more likely to die,
+  </p>
+  <p style="font-size:130%;">
+  what should he do? It seems the dilemma here is between competitive ('thinning the herd' - assumes that the contest will turn competitive) and 'cooperative' mentality. But that single choice's impact on the actual size of the surviving cohort is actually small - 3 players more or less, out of 100 players - not exactly a strong competitive advantage. It's also not an advantage in the sense that it would equally advantage all of those who would make it to the next game, not just the player himself. On the other hand: helping your friends can gain you trust and valuable allies, but doesn't change the general situation much: that's an actual competitive advantage.
 
-  what should he do? It seems his dilemma here is between competitive ('thinning the herd' - assumes that the contest will turn competitive) and 'cooperative' mentality. But his choice's impact on the actual size of the surviving cohort is actually small - 3 players more or less, out of 100 players - not exactly a strong competitive advantage. It's also not an advantage in the sense that it would equally advantage all of those who would make it to the next game, not just himself. On the other hand: helping his friends would gain him trust and valuable allies, but not change the general situation much: an actual competitive advantage.
+  </p>
+  <p style="font-size:130%;">
+  This situation is actually quite familiar: it's an example of a classic tragedy of the commons social dilemma, which happens all the time in real life.
+  </p>
+  <p style="font-size:130%;">
+  doing the social thing (here, 'thinning the herd') yourself is costly to yourself, and benefits everyone equally. Free-loading (here, helping your friends) is bad for everyone else (more competitors), but good for you (trust, goodwill with teammates).
 
-  His situation is actually quite familiar: this is an example of a classic tragedy of the commons social dilemma, which happens every day all over the world.
+  </p>
 
-  thinning the herd yourself is costly, and benefits everyone equally. Free-loading (cooperating with others) is bad for everyone else (more competitors), but good for you (trust, goodwill with teammates).
+  <table style="border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" >freeload</th> <th style="border-left: 1px solid" >contribute</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>freeload</td>  <td style="border-left: 1px solid" align="center"><b>2 | 2</b></td> <td style="border-left: 1px solid" align="center">3 | 1</td></tr>
+  <tr> <td>contribute</td><td style="border-left: 1px solid" align="center">1 | 3</td> <td style="border-left: 1px solid" align="center">4 | 4</td></tr>
+  </tbody>
+  </table>
 
-  payoff matrix
-             contribute  freeload
-  contribute   3 3          2 4
-  freeload     4 2          1 1
-
-  (For simplicity, the payoffs in this post are very idealized. Of course, the actual payoffs can vary, may even be asymmetric, etc. What matters is their relative value - that outcome CC is worth more to you than outcome FF, but less than outcome FC)
-
+  <p style="font-size:130%;">
   With payoffs like these, players will converge towards freeloading.
   And if you are an ideal rational agent, you should too: the selfish, optimal solution in this case is to be lazy, and reap the personal benefit will letting others work for the shared rewards.
-  Interesting that the character shown to be most traditionally educated, rational thinking, and sociopathic doesn't follow his pareto optimal choice!
+  This is an example of a <b>symmetric</b>, game with a non-cooperative Nash equilibrium (FF).
+  Another name for this game is the "Commonize Costs–Privatize Profits Game"
+  </p>
+  <p style="font-size:130%;">
+  Interesting that the character shown to be most traditionally educated, rational thinking, and sociopathic doesn't follow his pareto-optimal choice!
 
+  </p>
+  <p style="font-size:130%;">
   In the real world, this is a typical problem that happens at all scales of human organisation, from small tribes to international treaties (e.g. global warming). One way that societies overcome these social dilemmas is through pre-commitment - giving up agency to create credible threats of punishments for freeloaders, which changes the payoff matrix. Police, governments, united nations, are all examples of attempts to do this.
 
+  </p>
+  <p style="font-size:130%;">
   Of course, you might be thinking that reputation, or morals are other reason for cooperation in such a case, and you'd be right. Morals can be thought of as terms in your utility function which alter payoff (like a self punishment for being 'bad'), and they are a powerful aspect in real decision making (however, when betraying your friend in a death game is the 'social good' option in the payoff matrix... we're probably a little past morals). As for reputation, I won't get into repeated games here, but if you're interested, it's fascinating topic. (scott alexander pavlov tit for tat)
   </p>
+
+  <img src="./img/squid_game_theory/scared.png" align="center" style="width:20%">
+  <!-- scared in bed -->
 
   <h2>
   Interlude: the night is dark
@@ -160,95 +378,215 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
   After the second game we see a general shift towards competitive mentality in the players. As the first night approaches, our protagonists realize that people are going to attack each others in the dark, to reduce the number of competitors.
 
+  </p>
+  <p style="font-size:130%;">
   Putting aside the tragedy-of-the-commons aspect of this situation, which we already discussed, there's another interesting dynamic at play.
 
+  </p>
+  <p style="font-size:130%;">
   There is safety in numbers: forming teams allows player to better defend themselves. However, this also implies trusting your teammate's, making you vulnerable to betrayals from them (and them vulnerable to your own betrayal).
-
-         protect        betray
-  protect  3 3           1 4
-  betray   4 1           2 2
-
-  Here, a reasonable utility function is BP (i betray) > PP (harmony) > BB (both betray) > PB (they betray)
-
-  This structure has a single nash equilibrium at BB, which paints a grim picture of your second night in the dormitories.
-  Luckily, many people don't actually rank BP > PP, leading to 
-
-         protect        betray
-  protect  3 3           1 3
-  betray   3 1           2 2
-  and in this case, a PP scenario is the most likely. Phew!
-
+  </p>
+  <p style="font-size:130%;">
+  A reasonable utility function for a  nice person is:
+  <p style="font-size:130%; margin-left:20px">
+  PP (harmony) > BB (both betray) > BP (i betray them) > PB (they betray me).
+  </p>
+  And for a psychopath:
+  </p>
+  <p style="font-size:130%; margin-left:20px">
+  BP (i betray them) > PP (harmony) > BB (both betray) > PB (they betray me).
+  </p>
+  <p style="font-size:130%;">
+  First, what if both teammates are psychopaths?
   </p>
 
+  <table style="border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" >protect</th> <th style="border-left: 1px solid" >betray</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>protect</td>  <td style="border-left: 1px solid" align="center">3 | 3</td> <td style="border-left: 1px solid" align="center"><b>1 | 4</b></td></tr>
+    <tr> <td>betray</td><td style="border-left: 1px solid" align="center"><b>4 | 1</b></td> <td style="border-left: 1px solid" align="center">2 | 2</td></tr>
+  </tbody>
+  </table>
+  <p>
+  Uh oh, things are about to get nasty.
+  </p>
 
+  <p style="font-size:130%;">
+  Straight away, we see something unlike the previous games.
+  This structure has not one, but two Nash equilibrium (<b>BP</b> and <b>PB</b>)!
+  On top of that, both are pretty terrible..
+  Despite being symmetric, games like these are unstable: a small difference in conditions can decide the winner.
+  This paints a grim picture of our two psychopath's second night in the dormitories:
+  the first one to betray the other dictates the game, and so wins.
+  </p>
+
+  <p style="font-size:130%;">
+  "Hey!" you object. "I don't care about that situation, I'm not a psychopath!"
+  Indeed, how rude of me!
+  Here, the normal-form game between you (nice person) and a psychopath:
+  </p>
+
+  <table style="border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" >protect</th> <th style="border-left: 1px solid" >betray</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>protect</td><td style="border-left: 1px solid" align="center">4 | 3</td> <td style="border-left: 1px solid" align="center">1 | 4</td></tr>
+    <tr> <td>betray</td> <td style="border-left: 1px solid" align="center">2 | 1</td> <td style="border-left: 1px solid" align="center"><b>3 | 2</b></td></tr>
+  </tbody>
+  </table>
+
+  <p style="font-size:130%;">
+  oops, the psycho would dominate that game, and you'd both end up in BB. Not a pleasant night.
+  Let's try putting you on a team with a nice person instead.
+  </p>
+
+  <table style="border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" >protect</th> <th style="border-left: 1px solid" >betray</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>protect</td><td style="border-left: 1px solid" align="center">4 | 4</td> <td style="border-left: 1px solid" align="center"> 1 | 2</td></tr>
+    <tr> <td>betray</td> <td style="border-left: 1px solid" align="center">2 | 1</td> <td style="border-left: 1px solid" align="center">3 | 3</td></tr>
+  </tbody>
+  </table>
+
+  <p style="font-size:130%;">
+  There's a Nash equilibrium at PP, Nice!
+  But wait: there's also one at BB.. Is that bad?
+  </p>
+
+  <p style="font-size:130%;">
+  This game is in the class of <b>coordination</b> games:
+  both of you would rather do the same thing than not do the same thing.
+  The good news is, if you're already at (PP), neither of you is going to move away from it unilaterally, so you can breathe.
+  But. If you're both starting in a sub-optimal situation (BB), it will be hard to get to (PP), because you need both players to do it simultaneously (otherwise, they both lose out).
+  </p>
+
+  <p style="font-size:130%;">
+  In practice, those games feel like a careful simultaneous dance towards an optimum.
+  For example, <a href="https://www.lesswrong.com/posts/9QxnfMYccz9QRgZ5z/the-costly-coordination-mechanism-of-common-knowledge">overthrowing an unpopular dictator</a> is also in this class of game: if you can get everyone to commit, the rebellion will be successful.
+  However, if you fail to coordinate, and only some people go out into the street, the rebellion will fail and the price will be steep.
+  </p>
+
+  <img src="./img/squid_game_theory/tug-o-war.png" align="center" style="width:20%">
+  <!-- tug of war glyphs -->
 
   <h2>Third game: tug of war</h2>
 
   <p style="font-size:130%;">
   the only decision in this game is who to team up with. However, without information on the next game, it is hardly a decision problem, more of a test of your ability to guess ahead, and your physical value as a player.
 
+  </p>
+  <p style="font-size:130%;">
   Looking at competitive tug-o-war videos, you can see that the technique described by player 001 is indeed proper (and could maybe turn the tide against a heavier, stronger team?). However, the three-steps-forward wager doesn't look like it would actually work: competitive players sometimes end up lying almost completely flat on the floor, and still apply close to maximum force..
 
+  </p>
+  <p style="font-size:130%;">
   Basically, while it looks like a skill / strength test, this game is mostly luck-based, if you build the wrong team or unluckily draw to play against a stronger team, you're toast.
 
+  </p>
+  <p style="font-size:130%;">
   There is one possible winning move here for the main characters: once the game is announced, and the precarity of their position as a weaker team becomes clear, it would be a good time to try for a go-home vote. Given that half the players will be in weaker teams, enough people might be convinced to vote out of this game and go home. Stronger players might try to argue against but would be less convincing given their clear motives.
   </p>
+
+  <img src="./img/squid_game_theory/marbles.png" align="center" style="width:20%">
+  <!-- old guy smiling -->
 
   <h2>Fourth Game: marbles</h2>
 
   <p style="font-size:130%;">
   this game is deceptively simple: the only rule is that you must convince your opponent that you should be the one to live (giving you all their marbles). If neither of you can convince the other, you both die.
 
+  </p>
+  <p style="font-size:130%;">
   The games played are all distractions from that essence, because the core game is unsolvable. The game is symmetric, and there can be only one winner.
            keep        give
   keep     2  2        3  1
   give     1  3        ----
 
+  </p>
+  <p style="font-size:130%;">
   In game theory, this is a bargaining game, this particular variant is an unsolvable decision problem. Even though death is guaranteed, rational agents would not be able to reach a compromise, since the outcome is negatively infinite for both decisions. What makes it worse is that the 'both refuse to yield' outcome has a slight allure: 'sure, it's unlikely, but what if they don't kill us when the clock runs out?'
 
+  </p>
+  <p style="font-size:130%;">
   This is where human instincts kick in to solve the unsolvable problem. By pre-committing to respecting the outcome of an unrelated, 'fair' game, the players can turn the stuck decision problem into a seemingly unbiased skill / luck game that they have a good chance of winning.
 
+  </p>
+  <p style="font-size:130%;">
   Notice that we do not see the soldiers actually enforcing the internal rules of the made-up game. When the hero loses his last marble (according to the agreed upon rules), he does not get shot. Only when people willingly surrender their last marble do they get eliminated.
 
+  </p>
+  <p style="font-size:130%;">
   If people realize this, they can choose to defect the agreed upon game (since there is no way to effectively pre-commit) - this happens with the gang member, who switches internal games when he realizes he will lose the agreed upon one.
 
+  </p>
+  <p style="font-size:130%;">
   What i find amazing here, is how natural the behaviors in the show seem to us. A rational machine would never surrender the last marble, as it is a guaranteed loss (at that point, reputation, ego, all is irrelevant as it is the last thing you'd ever do). Instead, we humans appeal to fairness, create pretend games and stick to our commitments even when we theoretically don't have to. Is this the results of years of evolution, giving us biases and common language / rules to allow us to solve stuck decision problems? After all, many real problems are like this, where two parties have to decide who gets the biggest slice of the pie, and violence is punished externally.
 
+  </p>
+  <p style="font-size:130%;">
   (Note that another way out - shown in the episode - is to associate a positive outcome to the other person living on: if you like the other enough, you could rationally decide to self-sacrifice and still increase your utility function.)
 
+  </p>
+  <p style="font-size:130%;">
   There are not many tips here: a rational agent who is playing to win should seek to abuse the tendency of people to stick to their commitments, by trying to win the agreed-upon game by luck / skill, and if things don't go their way, revert to the 'stuck' scenario (refusing to play further), change the game, convince or even trick the other. Note that this is considered a 'dick move' in human culture, and history has many cases of people choosing death over dishonor. Note: I'm not advocating either! This is a good opportunity ask yourself what your values are.
   </p>
+
+  <img src="./img/squid_game_theory/bridge.png" align="center" style="width:20%">
+  <!-- calculating teacher -->
 
   <h2>Fifth game: bridge</h2>
 
   <p style="font-size:130%;">
   At first glance, this would seem to be another straightforward luck-based game (unless you can somehow predict what the game will be). The first player has a 1:2^16 odds of surviving, the second 1:2^15*, and so on . Basically, only the last few players have any chance to make it.
 
+  </p>
+  <p style="font-size:130%;">
   * actually 1:(0.5 * 2^15 + 0.5 (0.5 * 2^14 + 0.5 (...)).
 
+  </p>
+  <p style="font-size:130%;">
   However, there's a hitch: the clock is ticking, and you can't be sure that the people in front of you will risk jumping on the next pane. In fact, why would they?
   Well, they can wait - guaranteed death, or they can move - unlikely but possibly survival. The choice which maximizes expected payoff is clear. Unless..
 
+  </p>
+  <p style="font-size:130%;">
   What if there's a third option? So far, we've treated this as a single-player decision, but there's other players, and they are motivated to survive too. We've assumed that the other players can only wait, but what if they're allowed to overtake? Let's add this option to the decision matrix.
 
               stall           overtake
   stall        1 1              3 2
   move ahead   2 3              --
-  wait.. we've seen something similar in the marble game - it's a bargaining game, but this time with a slight preference toward moving over stalling. 
+  wait.. we've seen something similar in the marble game - it's a bargaining game, but this time with a slight preference toward moving over stalling.
 
+  </p>
+  <p style="font-size:130%;">
   This bargaining game is similar to the famous game of chicken, simply without the option of both players yielding. In these games, one strategy is to convince the other party of your inability to yield: the driver who removes his steering wheel from the car forces the other to swerve. Here it would be hard to do so, as removing your possibility of moving forward also removes your possibility of winning if others solve the game.
   In this game, once again, human biases come into play - appeal to fairness / agreed-upon rules 'you should move, you have the lower number. we agreed earlier that the lower number goes first'. Of course, to a rational agent, if these don't affect the payoff, they're irrelevant. But we are almost built to solve situations like these (tribes that can solve bargaining problems maximizes total utility, and so becomes dominant over tribes that don't), and so the game can move along.
 
+  </p>
+  <p style="font-size:130%;">
   A hiccup in your brilliant stalling strategy, the other players realize they have a third option: shoving the staller. This complicates our payoff matrix a little: when shoving, others incur some cost (risk) to themselves, but a larger cost to you, and so it can act as a punishment. Knowing about this punishment can be a strong enough deterrant that it leaves you with no other reasonable choice than moving ahead.
 
+  </p>
+  <p style="font-size:130%;">
               stall        overtake       shove
   stall        1 1           3 2          1 3
   move ahead   2 4           --            --
 
-  this is bad news: the other players will always prefer shoving, which makes moving ahead the only rational decision. 
+  </p>
+  <p style="font-size:130%;">
+  this is bad news: the other players will always prefer shoving, which makes moving ahead the only rational decision.
 
+  </p>
+  <p style="font-size:130%;">
   That is, unless you can make shoving you less attractive than overtaking you? Player 101 almost manages to pull this off (turning things back into a bargaining game), but his plan fails due to a spiteful ex-teammate.
 
+  </p>
+  <p style="font-size:130%;">
   This game is actually quite interesting. It is hard to model what strategies rational agents playing this game would end up using, because of the anti-coordination aspect that is typical in these games, and I wonder whether they would be able to outrace the timer.
   Due to the back-and-forth nature of rational strategies in this game and the clock, it seems likely that some of the time, nobody would make it past this game.
 
@@ -262,14 +600,24 @@ h1 {letter-spacing: 6px}
 
   You somehow made it past 5 games, and got a nice steak dinner before heading to bed. Now the lights just went off in the dormitory, you have a knife in your pocket.
 
+  </p>
+  <p style="font-size:130%;">
   what do you do?
 
+  </p>
+  <p style="font-size:130%;">
   Defend / Attack
 
+  </p>
+  <p style="font-size:130%;">
   every attacker increases the risk for their target(s) to die by a lot, and for themselves to die by a little.
 
+  </p>
+  <p style="font-size:130%;">
   if no one chooses agression, all three survive, and have to face off in the next game (unknown odds).  So it only makes sense to choose agression at night if you think your odds of coming out unscathed are better than your odds of surving an unknown game.
 
+  </p>
+  <p style="font-size:130%;">
   Note: from the perspective of the organisers, this makes little sense. The risk that all participants will die from knife wounds is very high. If that happens, you lose the grand finale opportunity. Except of course if the organisers have a keen sense for drama, can somehow predict that the players will only attack the weakest element (the injured player). Or maybe at this point they can clearly see the [plot armor](tv tropes) that some characters must be wearing.
   </p>
 
@@ -278,33 +626,59 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
   If you've made it this far, you would think that things are looking good. Since both have a knife, any physical game is pretty much a one on one knife fight for victory.
 
+  </p>
+  <p style="font-size:130%;">
   This is not as great as it seems: knife fights have three outcomes: 1) they die, you live 2) they live, you die 3) both die; if you're physically evenly matched, that's a 1:3 or worse, chance of survival. Without knives, things are similar for 1 and 2, but 3) is eliminated (or close to eliminated)
 
+  </p>
+  <p style="font-size:130%;">
   This creates the opportunity for a quick coordination game before the actual contest:
 
-  if both players can coordinate getting rid of the knife, they both increase their chances of survival. 
+  </p>
+  <p style="font-size:130%;">
+  if both players can coordinate getting rid of the knife, they both increase their chances of survival.
 
+  </p>
+  <p style="font-size:130%;">
   does betraying the other during the knife discarding process give you an advantage? If yes, the payoff matrix is like this
 
+  </p>
+  <p style="font-size:130%;">
   2 2      4 1
   1 4      3 3
 
-  you might recognize the prisoner's dilemma, which is probably the most famous normal-matrix in game theory.
+  </p>
+  <p style="font-size:130%;">
+  you might recognize the prisoner's dilemma, which is probably the most famous normal-form matrix in game theory.
   In that case, rational players will defect and coordination will fail.
 
+  </p>
+  <p style="font-size:130%;">
   But don't despair! If the players find a way to make betrayal difficult or useless, they can change the payoff matrix to favor cooperation:
 
+  </p>
+  <p style="font-size:130%;">
   3 3   2 1
   1 2   4 4
 
-  this game is called the "assurance game", and lucky for you, it has a stable nash equilibrium at CC. Yay for maximized total utility!
+  </p>
+  <p style="font-size:130%;">
+  this game is called the "assurance game", and lucky for you, it has a stable Nash equilibrium at CC. Yay for maximized total utility!
 
+  </p>
+  <p style="font-size:130%;">
   For example, if they both put their knives on the floor simultaneously, then walk away from the knives one step at a time in sync, until they are both in the squid. If one player runs for the knife, the other will too and both will be back to square 1.
 
+  </p>
+  <p style="font-size:130%;">
   The actual payoff might actually not be symetric, depending for example on whether there is imbalance in the offence and defence roles difficulty.
 
+  </p>
+  <p style="font-size:130%;">
   Anyways, the players do not do this, and decide to fight in the rain instead, hollywood style. This hints towards a maximizing-drama term in their utility function. The main character ends up gaining the upper hand.
 
+  </p>
+  <p style="font-size:130%;">
   This is where one of the rare big redeeming moments in the show happen: the main character has all but won, and suddenly realizes his friend's death is not inevitable, it can be avoided if he forsakes the money. This is a true heroic moment, where the hero decides (possibly a little late) that a human life has no price. If, like me, this twist suprised you, you'll probably find that it serves as a good reminder: that there are often solutions outside of the box - the model we make for ourselves and restrict our thinking to - if we just take a moment to reevalute what really matters, what we are playing for.
   </p>
 
@@ -313,8 +687,12 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
   Statistically, the best move is not to play.
 
+  </p>
+  <p style="font-size:130%;">
   We also see that being strong, able fighter and imposing / scary is a big help in many games.
 
+  </p>
+  <p style="font-size:130%;">
   Disclaimer: Of course, all of this analytical theory is just that, theory. Real life can be fast and messy. I don't actually think you should become obsessed with game theory and write payoff matrices for every thing you do. Concepts like the ones discussed here are neat, and sometimes give us new ways of looking at old problems. Most importantly, I hope you find them fun to play with.
   </p>
 
