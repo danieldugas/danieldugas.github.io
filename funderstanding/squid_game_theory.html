@@ -76,7 +76,12 @@ h1 {letter-spacing: 6px}
   We'll tackle the games one by one, in order. Are you ready? Get set...
   </p>
 
-  <img src="./img/squid_game_theory/rlgl.png" align="center" style="width:20%">
+  <div align="center">
+  <img src="./img/squid_game_theory/rlgl.png" align="center" style="width:60%">
+  <p>
+  You want to know true fear? If this doll catches you scrolling, it publishes your entire internet history on twitter.
+  </p>
+  </div>
 
   <h2>First Game: Red light, Green light</h2>
 
@@ -101,15 +106,20 @@ h1 {letter-spacing: 6px}
 
   <p style="font-size:130%;">
   In simple, non-repeated games, a rational agent is one that always:
-  1) knows what he wants
-  2) picks the choice which give him the best outcome
+  1) knows what they want
+  2) picks the choice which give them the best outcome
   </p>
   <p style="font-size:130%;">
   We'll see how these two properties lead to the basic theories of decision-making later. For now, we have a choice to make...
   </p>
 
-  <img src="./img/squid_game_theory/invitation.png" align="center" style="width:20%">
+  <div align="center">
+  <img src="./img/squid_game_theory/invitation.png" align="center" style="width:60%">
   <!-- card: "you are cordially invited to our big friendly death murder game!" -->
+  <p>
+  Sure we have a lot of churn, but the customers which make it all the way past our funnel give us fantastic reviews.
+  </p>
+  </div>
 
   <h2>
   Interlude: going home, and utility functions
@@ -133,12 +143,13 @@ h1 {letter-spacing: 6px}
   Less obvious, the game organisers also have several options: try to kill every participant to tie up lose ends (even if they return, and win), or stay true to their word.
   In game theory, these possibilities are typically represented with the <b>normal-form matrix</b>:
   each side of the matrix represents a player, and lists the decision they can take.
-  For each decision pair, the players get a pair of outcomes:
+  For each decision pair, the players get a pair of outcomes: the left is your outcome, the right is the other player's outcome.
+  Let's write out this game's normal-form matrix:
 
   </p>
-  <p style="font-size:130%;">
-  Payoff matrix
-  <table style="border-collapse:collapse">
+
+  <div align="center">
+  <table style="font-size:130%; border-collapse:collapse">
   <thead style="border-bottom: 1px solid">
   <tr> <th></th> <th style="border-left: 1px solid" colspan="2">murder every player</th> <th style="border-left: 1px solid" colspan="2">uphold pledge</th> </tr>
   </thead>
@@ -147,8 +158,8 @@ h1 {letter-spacing: 6px}
   <tr> <td>participate</td> <td style="border-left: 1px solid" align="right">die + poor </td>          <td>| hit show + keep money</td> <td style="border-left: 1px solid" align="right">probably die + maybe rich </td><td>| hit show + lose money</td> </tr>
   </tbody>
   </table>
+  </div>
 
-  </p>
   <p>
     Each row is one of your possible decision: <b>Flee</b> or <b>Participate</b>.
   Each column is one of the other player's decisions: <b>Murder every player</b> or <b>Uphold pledge</b>.
@@ -169,35 +180,40 @@ h1 {letter-spacing: 6px}
 
   </p>
   <p style="font-size:130%;">
-  This is represented as a <b>utility function</b>. It's a function that ranks states of the world by agents' preference.
+  A <b>utility function</b> is a player's answer to that question. It's a function that ranks states of the world by agents' preference.
   a normal person might rank
   </p>
   <p style="font-size:130%; margin-left:20px">
-  live + poor > probably live + poor > probably die + maybe rich > die + poor
+  live + poor &nbsp&gt&nbsp probably live + poor &nbsp&gt&nbsp probably die + maybe rich &nbsp&gt&nbsp die + poor *
+  </p>
+
+  <p>
+  * Of course, the ranking will depend on the individual payoff probabilities. It's the rational agent's (you) job to figure those out, then rank outcomes from favorite to least favorite.
+  Here, we just assume those probabilities are fixed (say, 1:456 chance of winning, 455:456 chance of dying) and rank accordingly.
   </p>
   <p style="font-size:130%;">
   let's use the short notation instead:
   </p>
   <p style="font-size:130%; margin-left:20px">
-  FU > FM > PU > PM
+  FU &nbsp&gt&nbsp FM &nbsp&gt&nbsp PU &nbsp&gt&nbsp PM
   </p>
   <p style="font-size:130%;">
   whereas someone who cares much less about their life, and much more about money, would have a utility function which ranks:
   </p>
   <p style="font-size:130%; margin-left:20px">
-  PU > FU > FM > PM
+  PU &nbsp&gt&nbsp FU &nbsp&gt&nbsp FM &nbsp&gt&nbsp PM
   </p>
   <p style="font-size:130%;">
   On the other side, a reasonable utility function for a criminal organisation could be:
   </p>
   <p style="font-size:130%; margin-left:20px">
-  PM > FU = FM > PU
+  PM &nbsp&gt&nbsp FU = FM &nbsp&gt&nbsp PU
   </p>
   <p style="font-size:130%;">
-  But, just maybe, the organisation could be really in it for the ideals, in which case:
+  But, just maybe, the organisation could really be in it for the ideals, in which case:
   </p>
   <p style="font-size:130%; margin-left:20px">
-    PU > FU > PM > FM
+    PU &nbsp&gt&nbsp FU &nbsp&gt&nbsp PM &nbsp&gt&nbsp FM
   </p>
 
   <p style="font-size:130%; margin-left:20px">
@@ -206,33 +222,35 @@ h1 {letter-spacing: 6px}
   Thanks to this utility function, we can now simplify our normal-form matrix:
   </p>
 
-  <div class="w3-half">
-    <table style="border-collapse:collapse">
-    <thead style="border-bottom: 1px solid">
-    <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
-    </thead>
-    <tbody>
-    <tr> <td>flee</td>        <td style="border-left: 1px solid" align="center">3 | 2</td> <td style="border-left: 1px solid" align="center">4 | 2</td></tr>
-    <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 3</td> <td style="border-left: 1px solid" align="center">2 | 1</td></tr>
-    </tbody>
-    </table>
-    <p align="center">
-    normal player, normal org
-    </p>
-  </div>
-  <div class="w3-half">
-    <table style="border-collapse:collapse">
-    <thead style="border-bottom: 1px solid">
-    <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
-    </thead>
-    <tbody>
-    <tr> <td>flee</td>        <td style="border-left: 1px solid" align="center">3 | 1</td> <td style="border-left: 1px solid" align="center">4 | 3</td></tr>
-    <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 2</td> <td style="border-left: 1px solid" align="center">2 | 4</td></tr>
-    </tbody>
-    </table>
-    <p align="center">
-    normal player, idealistic org
-    </p>
+  <div align="center">
+    <div class="w3-half">
+      <table style="font-size:130%; border-collapse:collapse">
+      <thead style="border-bottom: 1px solid">
+      <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
+      </thead>
+      <tbody>
+      <tr> <td>flee</td>        <td style="border-left: 1px solid" align="center">3 | 2</td> <td style="border-left: 1px solid" align="center">4 | 2</td></tr>
+      <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 3</td> <td style="border-left: 1px solid" align="center">2 | 1</td></tr>
+      </tbody>
+      </table>
+      <p align="center">
+      normal player, normal org
+      </p>
+    </div>
+    <div class="w3-half">
+      <table style="font-size:130%; border-collapse:collapse">
+      <thead style="border-bottom: 1px solid">
+      <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
+      </thead>
+      <tbody>
+      <tr> <td>flee</td>        <td style="border-left: 1px solid" align="center">3 | 1</td> <td style="border-left: 1px solid" align="center">4 | 3</td></tr>
+      <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 2</td> <td style="border-left: 1px solid" align="center">2 | 4</td></tr>
+      </tbody>
+      </table>
+      <p align="center">
+      normal player, idealistic org
+      </p>
+    </div>
   </div>
 
   <p style="font-size:130%;">
@@ -246,33 +264,35 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
   But what if the player is greedy and suicidal?
   </p>
-  <div class="w3-half">
-    <table style="border-collapse:collapse">
-    <thead style="border-bottom: 1px solid">
-    <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
-    </thead>
-    <tbody>
-      <tr> <td>flee</td>      <td style="border-left: 1px solid" align="center"><b>2 | 2</b></td> <td style="border-left: 1px solid" align="center">3 | 2</td></tr>
-    <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 3</td>        <td style="border-left: 1px solid" align="center">4 | 1</td></tr>
-    </tbody>
-    </table>
-    <p align="center">
-    greedy player, normal org
-    </p>
-  </div>
-  <div class="w3-half">
-    <table style="border-collapse:collapse">
-    <thead style="border-bottom: 1px solid">
-    <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
-    </thead>
-    <tbody>
-    <tr> <td>flee</td>        <td style="border-left: 1px solid" align="center">2 | 1</td> <td style="border-left: 1px solid" align="center">3 | 3</td></tr>
-    <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 2</td> <td style="border-left: 1px solid" align="center"><b>4 | 4</b></td></tr>
-    </tbody>
-    </table>
-    <p align="center">
-    greedy player, idealistic org
-    </p>
+  <div align="center">
+    <div class="w3-half">
+      <table style="font-size:130%; border-collapse:collapse">
+      <thead style="border-bottom: 1px solid">
+      <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
+      </thead>
+      <tbody>
+        <tr> <td>flee</td>      <td style="border-left: 1px solid" align="center"><b>2 | 2</b></td> <td style="border-left: 1px solid" align="center">3 | 2</td></tr>
+      <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 3</td>        <td style="border-left: 1px solid" align="center">4 | 1</td></tr>
+      </tbody>
+      </table>
+      <p align="center">
+      greedy player, normal org
+      </p>
+    </div>
+    <div class="w3-half">
+      <table style="font-size:130%; border-collapse:collapse">
+      <thead style="border-bottom: 1px solid">
+      <tr> <th></th> <th style="border-left: 1px solid" >murder every player</th> <th style="border-left: 1px solid" >uphold pledge</th> </tr>
+      </thead>
+      <tbody>
+      <tr> <td>flee</td>        <td style="border-left: 1px solid" align="center">2 | 1</td> <td style="border-left: 1px solid" align="center">3 | 3</td></tr>
+      <tr> <td>participate</td> <td style="border-left: 1px solid" align="center">1 | 2</td> <td style="border-left: 1px solid" align="center"><b>4 | 4</b></td></tr>
+      </tbody>
+      </table>
+      <p align="center">
+      greedy player, idealistic org
+      </p>
+    </div>
   </div>
 
   <p style="font-size:130%;">
@@ -308,8 +328,12 @@ h1 {letter-spacing: 6px}
   Make sure that you have a clear answer for these questions before you proceed, otherwise your decision making will be inconsistent at best.
   </p>
 
-  <img src="./img/squid_game_theory/hesitation.png" align="center" style="width:20%">
-  <!-- player 218: should I tell my friends? -->
+  <div align="center">
+  <img src="./img/squid_game_theory/hesitation.png" align="center" style="width:60%">
+  <p>
+  in hindsight, maybe I shouldn't have picked the mandelbrot fractal shape
+  </p>
+  </div>
 
   <h2>Second Game: Honeycomb, a tragedy of the commons</h2>
 
@@ -340,7 +364,8 @@ h1 {letter-spacing: 6px}
 
   </p>
 
-  <table style="border-collapse:collapse">
+  <div align=center>
+  <table style="font-size:160%; border-collapse:collapse">
   <thead style="border-bottom: 1px solid">
   <tr> <th></th> <th style="border-left: 1px solid" >freeload</th> <th style="border-left: 1px solid" >contribute</th> </tr>
   </thead>
@@ -349,6 +374,7 @@ h1 {letter-spacing: 6px}
   <tr> <td>contribute</td><td style="border-left: 1px solid" align="center">1 | 3</td> <td style="border-left: 1px solid" align="center">4 | 4</td></tr>
   </tbody>
   </table>
+  </div>
 
   <p style="font-size:130%;">
   With payoffs like these, players will converge towards freeloading.
@@ -365,11 +391,18 @@ h1 {letter-spacing: 6px}
 
   </p>
   <p style="font-size:130%;">
-  Of course, you might be thinking that reputation, or morals are other reason for cooperation in such a case, and you'd be right. Morals can be thought of as terms in your utility function which alter payoff (like a self punishment for being 'bad'), and they are a powerful aspect in real decision making (however, when betraying your friend in a death game is the 'social good' option in the payoff matrix... we're probably a little past morals). As for reputation, I won't get into repeated games here, but if you're interested, it's fascinating topic. (scott alexander pavlov tit for tat)
+  Of course, you might be thinking that reputation, or morals are other reason for cooperation in such a case, and you'd be right.
+  Morals can be thought of as terms in your utility function which alter payoff (like a self punishment for being 'bad'), and they are a powerful aspect in real decision making (however, when betraying your friend in a death game is the 'social good' option in the payoff matrix...
+  we're probably a little past morals).
+  As for reputation, I won't get into repeated games here, but if you're interested, it's fascinating topic (see [1]).
   </p>
 
-  <img src="./img/squid_game_theory/scared.png" align="center" style="width:20%">
-  <!-- scared in bed -->
+  <div align="center">
+  <img src="./img/squid_game_theory/scared.png" align="center" style="width:60%">
+  <p>
+  Think that's a bad night? I once had a nightmare that my friends found my reddit account.
+  </p>
+  </div>
 
   <h2>
   Interlude: the night is dark
@@ -389,18 +422,19 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
   A reasonable utility function for a  nice person is:
   <p style="font-size:130%; margin-left:20px">
-  PP (harmony) > BB (both betray) > BP (i betray them) > PB (they betray me).
+  PP (harmony) &nbsp&gt&nbsp BB (both betray) &nbsp&gt&nbsp BP (i betray them) &nbsp&gt&nbsp PB (they betray me).
   </p>
   And for a psychopath:
   </p>
   <p style="font-size:130%; margin-left:20px">
-  BP (i betray them) > PP (harmony) > BB (both betray) > PB (they betray me).
+  BP (i betray them) &nbsp&gt&nbsp PP (harmony) &nbsp&gt&nbsp BB (both betray) &nbsp&gt&nbsp PB (they betray me).
   </p>
   <p style="font-size:130%;">
   First, what if both teammates are psychopaths?
   </p>
 
-  <table style="border-collapse:collapse">
+  <div align="center">
+  <table style="font-size:160%; border-collapse:collapse">
   <thead style="border-bottom: 1px solid">
   <tr> <th></th> <th style="border-left: 1px solid" >protect</th> <th style="border-left: 1px solid" >betray</th> </tr>
   </thead>
@@ -409,6 +443,8 @@ h1 {letter-spacing: 6px}
     <tr> <td>betray</td><td style="border-left: 1px solid" align="center"><b>4 | 1</b></td> <td style="border-left: 1px solid" align="center">2 | 2</td></tr>
   </tbody>
   </table>
+  </div>
+
   <p>
   Uh oh, things are about to get nasty.
   </p>
@@ -428,7 +464,8 @@ h1 {letter-spacing: 6px}
   Here, the normal-form game between you (nice person) and a psychopath:
   </p>
 
-  <table style="border-collapse:collapse">
+  <div align="center">
+  <table style="font-size:160%; border-collapse:collapse">
   <thead style="border-bottom: 1px solid">
   <tr> <th></th> <th style="border-left: 1px solid" >protect</th> <th style="border-left: 1px solid" >betray</th> </tr>
   </thead>
@@ -437,13 +474,15 @@ h1 {letter-spacing: 6px}
     <tr> <td>betray</td> <td style="border-left: 1px solid" align="center">2 | 1</td> <td style="border-left: 1px solid" align="center"><b>3 | 2</b></td></tr>
   </tbody>
   </table>
+  </div>
 
   <p style="font-size:130%;">
   oops, the psycho would dominate that game, and you'd both end up in BB. Not a pleasant night.
   Let's try putting you on a team with a nice person instead.
   </p>
 
-  <table style="border-collapse:collapse">
+  <div align="center">
+  <table style="font-size:160%; border-collapse:collapse">
   <thead style="border-bottom: 1px solid">
   <tr> <th></th> <th style="border-left: 1px solid" >protect</th> <th style="border-left: 1px solid" >betray</th> </tr>
   </thead>
@@ -452,6 +491,7 @@ h1 {letter-spacing: 6px}
     <tr> <td>betray</td> <td style="border-left: 1px solid" align="center">2 | 1</td> <td style="border-left: 1px solid" align="center">3 | 3</td></tr>
   </tbody>
   </table>
+  </div>
 
   <p style="font-size:130%;">
   There's a Nash equilibrium at PP, Nice!
@@ -471,8 +511,12 @@ h1 {letter-spacing: 6px}
   However, if you fail to coordinate, and only some people go out into the street, the rebellion will fail and the price will be steep.
   </p>
 
-  <img src="./img/squid_game_theory/tug-o-war.png" align="center" style="width:20%">
-  <!-- tug of war glyphs -->
+  <div align="center">
+  <img src="./img/squid_game_theory/tug-o-war.png" align="center" style="width:60%">
+  <p>
+  Did I forget to turn the gas off when I left the house?
+  </p>
+  </div>
 
   <h2>Third game: tug of war</h2>
 
@@ -492,24 +536,37 @@ h1 {letter-spacing: 6px}
   There is one possible winning move here for the main characters: once the game is announced, and the precarity of their position as a weaker team becomes clear, it would be a good time to try for a go-home vote. Given that half the players will be in weaker teams, enough people might be convinced to vote out of this game and go home. Stronger players might try to argue against but would be less convincing given their clear motives.
   </p>
 
-  <img src="./img/squid_game_theory/marbles.png" align="center" style="width:20%">
-  <!-- old guy smiling -->
+  <div align="center">
+  <img src="./img/squid_game_theory/marbles.png" align="center" style="width:60%">
+  <p>
+  I think this guy may be starting to lose his marbles
+  </p>
+  </div>
 
   <h2>Fourth Game: marbles</h2>
 
   <p style="font-size:130%;">
   this game is deceptively simple: the only rule is that you must convince your opponent that you should be the one to live (giving you all their marbles). If neither of you can convince the other, you both die.
-
   </p>
   <p style="font-size:130%;">
   The games played are all distractions from that essence, because the core game is unsolvable. The game is symmetric, and there can be only one winner.
-           keep        give
-  keep     2  2        3  1
-  give     1  3        ----
-
   </p>
+
+  <div align="center">
+  <table style="font-size:160%; border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" >keep</th> <th style="border-left: 1px solid" >give</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>keep</td><td style="border-left: 1px solid" align="center"><b>2 | 2</b></td> <td style="border-left: 1px solid" align="center">3 | 1</td></tr>
+    <tr> <td>give</td> <td style="border-left: 1px solid" align="center">1 | 3</td> <td style="border-left: 1px solid" align="center"></td></tr>
+  </tbody>
+  </table>
+  </div>
+
   <p style="font-size:130%;">
-  In game theory, this is a bargaining game, this particular variant is an unsolvable decision problem. Even though death is guaranteed, rational agents would not be able to reach a compromise, since the outcome is negatively infinite for both decisions. What makes it worse is that the 'both refuse to yield' outcome has a slight allure: 'sure, it's unlikely, but what if they don't kill us when the clock runs out?'
+  In game theory, this is a bargaining game, this particular variant is a cruel decision problem. Even though death is guaranteed, rational agents would not be able to reach a compromise, since the outcome of surrender is worse than the outcome of stalling.
+  What makes it worse is that the 'both refuse to yield' outcome has a slight allure: 'sure, it's unlikely, but what if they don't kill us when the clock runs out?'
 
   </p>
   <p style="font-size:130%;">
@@ -525,19 +582,35 @@ h1 {letter-spacing: 6px}
 
   </p>
   <p style="font-size:130%;">
-  What i find amazing here, is how natural the behaviors in the show seem to us. A rational machine would never surrender the last marble, as it is a guaranteed loss (at that point, reputation, ego, all is irrelevant as it is the last thing you'd ever do). Instead, we humans appeal to fairness, create pretend games and stick to our commitments even when we theoretically don't have to. Is this the results of years of evolution, giving us biases and common language / rules to allow us to solve stuck decision problems? After all, many real problems are like this, where two parties have to decide who gets the biggest slice of the pie, and violence is punished externally.
-
+  What I find amazing here, is how natural the behaviors in the show seem to us. A rational machine would never surrender the last marble, as it is a guaranteed loss (at that point, reputation, ego, all is irrelevant as it is the last thing you'd ever do). Instead, we humans appeal to fairness, create pretend games and stick to our commitments even when we theoretically don't have to.
+  Is this the results of years of evolution, giving us biases and common language / rules to allow us to solve stuck decision problems?
+  After all, many real problems are like this, where two parties have to decide who gets the biggest slice of the pie, and violence is punished externally.
+  </p>
+  <p style="font-size:130%;">
+  In fact it almost feels like we're built to solve situations like these (maybe because tribes which can solve bargaining problems can maximize total utility, and so becomes dominant over tribes that don't),
+  As a result, most teams are able to get a winner. This would certainly not be the case with rational agents.
   </p>
   <p style="font-size:130%;">
   (Note that another way out - shown in the episode - is to associate a positive outcome to the other person living on: if you like the other enough, you could rationally decide to self-sacrifice and still increase your utility function.)
 
   </p>
   <p style="font-size:130%;">
-  There are not many tips here: a rational agent who is playing to win should seek to abuse the tendency of people to stick to their commitments, by trying to win the agreed-upon game by luck / skill, and if things don't go their way, revert to the 'stuck' scenario (refusing to play further), change the game, convince or even trick the other. Note that this is considered a 'dick move' in human culture, and history has many cases of people choosing death over dishonor. Note: I'm not advocating either! This is a good opportunity ask yourself what your values are.
+  There are not many tips here: a ruthless player should seek to abuse the tendency of people to stick to their commitments,
+  by trying to win the agreed-upon game by luck / skill, and if things don't go their way:
+  revert to the 'stuck' scenario (refusing to play further),
+  change the game,
+  convince or even trick the other.
+  Note that this is considered a 'dick move' in human culture, and history has many cases of people choosing death over dishonor.
+  Note: I'm not advocating either! This is a good opportunity to ask yourself what <b>your</b> values are.
   </p>
 
-  <img src="./img/squid_game_theory/bridge.png" align="center" style="width:20%">
+  <div align="center">
+  <img src="./img/squid_game_theory/bridge.png" align="center" style="width:60%">
   <!-- calculating teacher -->
+  <p>
+  Eh, those are still better odds than the spice girls getting back together and <i>that</i> doesn't stop me writing them letters
+  </p>
+  </div>
 
   <h2>Fifth game: bridge</h2>
 
@@ -545,39 +618,74 @@ h1 {letter-spacing: 6px}
   At first glance, this would seem to be another straightforward luck-based game (unless you can somehow predict what the game will be). The first player has a 1:2^16 odds of surviving, the second 1:2^15*, and so on . Basically, only the last few players have any chance to make it.
 
   </p>
-  <p style="font-size:130%;">
+  <p>
   * actually 1:(0.5 * 2^15 + 0.5 (0.5 * 2^14 + 0.5 (...)).
-
   </p>
   <p style="font-size:130%;">
   However, there's a hitch: the clock is ticking, and you can't be sure that the people in front of you will risk jumping on the next pane. In fact, why would they?
-  Well, they can wait - guaranteed death, or they can move - unlikely but possibly survival. The choice which maximizes expected payoff is clear. Unless..
+  Well, they can wait (guaranteed death), or they can move (unlikely but possibly survival). The choice which maximizes expected payoff is clear. Unless..
 
   </p>
   <p style="font-size:130%;">
   What if there's a third option? So far, we've treated this as a single-player decision, but there's other players, and they are motivated to survive too. We've assumed that the other players can only wait, but what if they're allowed to overtake? Let's add this option to the decision matrix.
 
-              stall           overtake
-  stall        1 1              3 2
-  move ahead   2 3              --
-  wait.. we've seen something similar in the marble game - it's a bargaining game, but this time with a slight preference toward moving over stalling.
+  <div align="center">
+  <table style="font-size:160%; border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" >stall</th> <th style="border-left: 1px solid" >overtake</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>stall</td><td style="border-left: 1px solid" align="center">1 | 1</td> <td style="border-left: 1px solid" align="center"><b>3 | 2</b></td></tr>
+    <tr> <td>move ahead</td> <td style="border-left: 1px solid" align="center"><b>2 | 3</b></td> <td style="border-left: 1px solid" align="center"></td></tr>
+  </tbody>
+  </table>
+  <p>
+  wait.. we've seen something similar in the marble game...
+  </p>
+  </div>
 
   </p>
   <p style="font-size:130%;">
-  This bargaining game is similar to the famous game of chicken, simply without the option of both players yielding. In these games, one strategy is to convince the other party of your inability to yield: the driver who removes his steering wheel from the car forces the other to swerve. Here it would be hard to do so, as removing your possibility of moving forward also removes your possibility of winning if others solve the game.
-  In this game, once again, human biases come into play - appeal to fairness / agreed-upon rules 'you should move, you have the lower number. we agreed earlier that the lower number goes first'. Of course, to a rational agent, if these don't affect the payoff, they're irrelevant. But we are almost built to solve situations like these (tribes that can solve bargaining problems maximizes total utility, and so becomes dominant over tribes that don't), and so the game can move along.
-
+  It's again a bargaining game, but this time with a slight preference toward moving over stalling. Does that change much?
   </p>
   <p style="font-size:130%;">
-  A hiccup in your brilliant stalling strategy, the other players realize they have a third option: shoving the staller. This complicates our payoff matrix a little: when shoving, others incur some cost (risk) to themselves, but a larger cost to you, and so it can act as a punishment. Knowing about this punishment can be a strong enough deterrant that it leaves you with no other reasonable choice than moving ahead.
-
+  Well, this game is similar to the game of 'chicken', made famous by a scene in Footloose in which two drivers are driving towards annhilation, and the last one to swerve wins.
+  In our bridge-crossing game, there is no option for both players to yield, but that doesn't affect the core mechanism:
+  Chicken is an <b>anti-coordination</b> game, which is also competitive. It has two Nash equilibrium states, and the winner is the one who most convincingly shows the other that they will <i>not</i> yield.
   </p>
   <p style="font-size:130%;">
-              stall        overtake       shove
-  stall        1 1           3 2          1 3
-  move ahead   2 4           --            --
-
+  Exemplified: the driver who removes his steering wheel from the car forces the other to swerve, and wins.
+  Here it would be hard to do so, as removing your possibility of moving forward also removes your possibility of winning if others solve the game.
+  But the more convincing you are that you will not move, the more likely it is that the others will (and vice versa).
   </p>
+  <p style="font-size:130%;">
+  In this game, once again, human biases come into play - appeal to fairness / agreed-upon rules
+  '<i>you</i> should move, you have the lower number.  we <i>agreed</i> earlier that the lower number goes first'.
+  Of course, to a rational agent, if these don't affect the payoff (if you don't get shot for overtaking), they're irrelevant.
+  </p>
+  <p style="font-size:130%;">
+  A hiccup in your brilliant stalling strategy: the other players realize they have a third option - shoving the staller.
+  </p>
+  <p style="font-size:130%;">
+  This complicates our payoff matrix a little: when shoving, others incur some cost (risk) to themselves, but a larger cost to you, and so it can act as a punishment.
+  Knowing about this punishment can be a strong enough deterrant that it leaves you with no other reasonable choice than moving ahead.
+  </p>
+
+  <div align="center">
+  <table style="font-size:160%; border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" >stall</th> <th style="border-left: 1px solid" >overtake</th> <th style="border-left: 1px solid" >shove</th></tr>
+  </thead>
+  <tbody>
+    <tr> <td>stall</td><td style="border-left: 1px solid" align="center">1 | 1</td>              <td style="border-left: 1px solid" align="center">3 | 2</td><td style="border-left: 1px solid" align="center">1 | 3</td></tr>
+    <tr> <td>move ahead</td> <td style="border-left: 1px solid" align="center"><b>2 | 4</b></td> <td style="border-left: 1px solid" align="center"></td>         <td style="border-left: 1px solid" align="center"></td></tr>
+  </tbody>
+  </table>
+  <p>
+  I never said we couldn't add columns.
+  </p>
+  </div>
+
   <p style="font-size:130%;">
   this is bad news: the other players will always prefer shoving, which makes moving ahead the only rational decision.
 
@@ -587,38 +695,51 @@ h1 {letter-spacing: 6px}
 
   </p>
   <p style="font-size:130%;">
-  This game is actually quite interesting. It is hard to model what strategies rational agents playing this game would end up using, because of the anti-coordination aspect that is typical in these games, and I wonder whether they would be able to outrace the timer.
+  Would you be able to outrace the timer?
   Due to the back-and-forth nature of rational strategies in this game and the clock, it seems likely that some of the time, nobody would make it past this game.
-
   </p>
+
+  <div align="center">
+  <img src="./img/squid_game_theory/dinner.png" align="center" style="width:60%">
+  <p>
+  Consider yourselves lucky, the original plan was to leave each player a spoon after the meal.
+  </p>
+  </div>
 
   <h2>
   Interlude: three's a crowd
   </h2>
 
   <p style="font-size:130%;">
-
-  You somehow made it past 5 games, and got a nice steak dinner before heading to bed. Now the lights just went off in the dormitory, you have a knife in your pocket.
-
+  You somehow made it past 5 games, and even got a nice steak dinner before heading to bed. Now the lights just went off in the dormitory, you have a knife in your pocket.
   </p>
   <p style="font-size:130%;">
-  what do you do?
-
+  Should you attack the others? Or just focus on defense?
   </p>
   <p style="font-size:130%;">
-  Defend / Attack
-
+  Let's say that every attacker increases the risk for their target(s) to die by a lot, and for themselves to die by a little.
+  But, if no one chooses agression, all three survive, and have to face off in the next game (unknown odds, probably close to 1:3).
   </p>
   <p style="font-size:130%;">
-  every attacker increases the risk for their target(s) to die by a lot, and for themselves to die by a little.
-
+  As a result, there's not much game happening here: your strategy is dominant either way, it simply depends on what you believe the odds to be.
+  You will attack if you think your odds of coming out unscathed (1:?) are better than your odds of surving an unknown game (~1:3?).
+  Otherwise, you won't.
   </p>
   <p style="font-size:130%;">
-  if no one chooses agression, all three survive, and have to face off in the next game (unknown odds).  So it only makes sense to choose agression at night if you think your odds of coming out unscathed are better than your odds of surving an unknown game.
-
+  This is a good reminder that in decision theory, probabilistic estimates are essential.
+  Every decision you make implies a utility function, and some belief of the outcome probabilities, whether you think you have one or not.
+  If you don't explicitely decide what your utility is and what you believe is likely,
+  your choices which oscillate, like two people trying to steer a car: the result will be worse than either person's steering.
+  (Switching randomly between two utility function / probabilistic model pairs, you will get worse outcomes for either than picking one and sticking to it)
   </p>
   <p style="font-size:130%;">
-  Note: from the perspective of the organisers, this makes little sense. The risk that all participants will die from knife wounds is very high. If that happens, you lose the grand finale opportunity. Except of course if the organisers have a keen sense for drama, can somehow predict that the players will only attack the weakest element (the injured player). Or maybe at this point they can clearly see the [plot armor](tv tropes) that some characters must be wearing.
+  Hey, that's a silver lining right there: you can sleep easy knowing that you won't have to draw a normal-form matrix, for once.
+  </p>
+  <p style="font-size:130%;">
+  Note: from the perspective of the organisers, this makes little sense. The risk that all participants will die from knife wounds is very high.
+  If that happens, you lose the grand finale opportunity. Except of course if the organisers have a keen sense for drama,
+  and can somehow predict that the players will only attack the weakest element (the injured player).
+  Or maybe at this point they can clearly see the [plot armor](tv tropes) that some characters must be wearing.
   </p>
 
   <h2>Sixth game: squid game</h2>
@@ -628,76 +749,122 @@ h1 {letter-spacing: 6px}
 
   </p>
   <p style="font-size:130%;">
-  This is not as great as it seems: knife fights have three outcomes: 1) they die, you live 2) they live, you die 3) both die; if you're physically evenly matched, that's a 1:3 or worse, chance of survival. Without knives, things are similar for 1 and 2, but 3) is eliminated (or close to eliminated)
-
+  This is not as great as it seems: knife fights have three outcomes: 1) they die, you live 2) they live, you die 3) both die; if you're physically evenly matched, that's a 1:3 (or worse), chance of survival. Without knives, things are similar for 1 and 2, but 3) is eliminated (or close to eliminated), which raises both your chances of survival
   </p>
-  <p style="font-size:130%;">
-  This creates the opportunity for a quick coordination game before the actual contest:
 
+  <div align="center">
+  <img src="./img/squid_game_theory/finale.png" align="center" style="width:60%">
+  <p>
+  My best friend is a dentist, and sometimes he gets really intense about flossing
   </p>
+  </div>
+
   <p style="font-size:130%;">
+  This fact creates the opportunity for a quick coordination game before the actual contest:
   if both players can coordinate getting rid of the knife, they both increase their chances of survival.
-
   </p>
   <p style="font-size:130%;">
   does betraying the other during the knife discarding process give you an advantage? If yes, the payoff matrix is like this
-
-  </p>
-  <p style="font-size:130%;">
-  2 2      4 1
-  1 4      3 3
-
-  </p>
-  <p style="font-size:130%;">
-  you might recognize the prisoner's dilemma, which is probably the most famous normal-form matrix in game theory.
-  In that case, rational players will defect and coordination will fail.
-
-  </p>
-  <p style="font-size:130%;">
-  But don't despair! If the players find a way to make betrayal difficult or useless, they can change the payoff matrix to favor cooperation:
-
-  </p>
-  <p style="font-size:130%;">
-  3 3   2 1
-  1 2   4 4
-
-  </p>
-  <p style="font-size:130%;">
-  this game is called the "assurance game", and lucky for you, it has a stable Nash equilibrium at CC. Yay for maximized total utility!
-
-  </p>
-  <p style="font-size:130%;">
-  For example, if they both put their knives on the floor simultaneously, then walk away from the knives one step at a time in sync, until they are both in the squid. If one player runs for the knife, the other will too and both will be back to square 1.
-
-  </p>
-  <p style="font-size:130%;">
-  The actual payoff might actually not be symetric, depending for example on whether there is imbalance in the offence and defence roles difficulty.
-
-  </p>
-  <p style="font-size:130%;">
-  Anyways, the players do not do this, and decide to fight in the rain instead, hollywood style. This hints towards a maximizing-drama term in their utility function. The main character ends up gaining the upper hand.
-
-  </p>
-  <p style="font-size:130%;">
-  This is where one of the rare big redeeming moments in the show happen: the main character has all but won, and suddenly realizes his friend's death is not inevitable, it can be avoided if he forsakes the money. This is a true heroic moment, where the hero decides (possibly a little late) that a human life has no price. If, like me, this twist suprised you, you'll probably find that it serves as a good reminder: that there are often solutions outside of the box - the model we make for ourselves and restrict our thinking to - if we just take a moment to reevalute what really matters, what we are playing for.
   </p>
 
-  <h2>Takeaway:</h2>
+  <div align="center">
+  <table style="font-size:160%; border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" >betray</th> <th style="border-left: 1px solid" >comply</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>betray</td><td style="border-left: 1px solid" align="center"><b>2 | 2</b></td> <td style="border-left: 1px solid" align="center">4 | 1</td></tr>
+    <tr> <td>comply</td> <td style="border-left: 1px solid" align="center">1 | 4</td> <td style="border-left: 1px solid" align="center">3 | 3</td></tr>
+  </tbody>
+  </table>
+  </div>
 
   <p style="font-size:130%;">
-  Statistically, the best move is not to play.
-
+  You might recognize the prisoner's dilemma, which is probably the most famous normal-form matrix of all, in game theory.
+  It's a symmetric, competitive game with a nasty Nash equilibrium.
+  If the payoffs can't be altered somehoe, rational agents will always betray.
+  Even when real people play, prisoner's dilemmas usually end with mutual defection, and both players lose.
+  And that's even though there's a better outcome for everyone!
+  It's famous because it's so counter-intuitive. The best move is the worst move.
   </p>
   <p style="font-size:130%;">
-  We also see that being strong, able fighter and imposing / scary is a big help in many games.
+  But don't despair: in our korean arena, things are not set in stone.
+  If the players find a way to make betrayal difficult or useless, they can change the payoff matrix to favor cooperation more.
+  </p>
 
+  <div align="center">
+  <table style="font-size:160%; border-collapse:collapse">
+  <thead style="border-bottom: 1px solid">
+  <tr> <th></th> <th style="border-left: 1px solid" >betray</th> <th style="border-left: 1px solid" >comply</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>betray</td><td style="border-left: 1px solid" align="center"><b>3 | 3</b></td> <td style="border-left: 1px solid" align="center">2 | 1</td></tr>
+    <tr> <td>comply</td> <td style="border-left: 1px solid" align="center">1 | 2</td> <td style="border-left: 1px solid" align="center"><b>4 | 4</b></td></tr>
+  </tbody>
+  </table>
+  <p>
+  The actual payoff might actually not be symetric, depending for example on whether there is imbalance (offence / defence)
+  </p>
+  </div>
+
+  <p style="font-size:130%;">
+  How? For example, if both players put their knives on the floor simultaneously,
+  then walk away from the knives one step at a time in sync until they are both in the squid (at that point, you are locked in the squid since the game starts),
+  they can end up in this nicer payoff structure.
+  Of course if one player runs for the knife, the other will too and both will be back to square 1.
   </p>
   <p style="font-size:130%;">
-  Disclaimer: Of course, all of this analytical theory is just that, theory. Real life can be fast and messy. I don't actually think you should become obsessed with game theory and write payoff matrices for every thing you do. Concepts like the ones discussed here are neat, and sometimes give us new ways of looking at old problems. Most importantly, I hope you find them fun to play with.
+  But, like the night-protection game, this game is about coordination, and people can usually solve these:
+  as long as we can make sure we move in sync, we can avoid the bad outcomes and skip to the good one.
+  In game theory, this normal-form is called the "Assurance game" (or Stag Hunt).
   </p>
+  <p style="font-size:130%;">
+  Anyways, the players do not do this. They decide to have a dramatic knife-fight instead, in the rain.
+  Could this hint towards a maximizing-drama term in their utility function?
+  The main character ends up gaining the upper hand.
+  </p>
+  <p style="font-size:130%;">
+  This is where one of the rare big redeeming moments in the show happen:
+  the main character has all but won, and suddenly realizes his friend's death is not inevitable, it can be avoided if he forsakes the money.
+  This is a true heroic moment, where the hero decides (possibly a little late) that a human life has no price.
+  If, like me, this twist suprised you, you'll probably find that it serves as a good reminder:
+  There are often solutions outside of the box.
+  Like in the bridge-crossing, players can change the entire dynamic by coming up with a completely new course of action.
+  The same can be true in life: we often restrict ourselves to the choices we are used to,
+  without realizing that an entirely different path is available to us.
+  This is why I feel inspired whenever I see someone braking their mind's restrictions in a way I did not expect.
+  </p>
+
+  <h2>Disclaimer:</h2>
+
+  <p style="font-size:130%;">
+  Of course, all of this analytical theory is just that, theory. Real life can be fast and messy, and doesn't fit on a piece of paper.
+  Also, I don't actually think you should become obsessed with game theory and write payoff matrices for every thing you do.
+  </p>
+  <p style="font-size:130%;">
+  Still, concepts like the ones discussed here are neat, and can give us new ways of looking at old problems. And sometimes, a new angle can be just the thing to help you turn the tide.
+  </p>
+  <p style="font-size:130%;">
+  Most importantly, I hope you find these ideas fun to play with.
+  And if they made you want to dig deeper into this fascinating field, here's a few links I picked willy-nilly:
+  </p>
+  <p style="font-size:130%;">
+  <a href="https://www.lesswrong.com/posts/3rxMBRCYEmHCNDLhu/the-pavlov-strategy">
+  [1] Repeated games, the pavlov startegy
+  </a>
+  <p>
+  <p style="font-size:130%;">
+  <a href="https://www.economicsnetwork.ac.uk/showcase/vazquez_prisoners">
+  [2] Real life prisoner's dilemma - what would you do?
+  </a>
+  <p>
+
 
 </div>
 
+  <p>
+  (Images credit: Netflix)
+  <p>
 <!-- End Page Content -->
 </div>
 
