@@ -227,7 +227,8 @@ h1 {letter-spacing: 6px}
   <img src="./img/GPT_architecture/multiheaded.png" style="width:100%" title="">
   <p style="font-size:130%;">
     <b>Note</b>: the paper mentions that GPT-3 uses <a href="https://openai.com/blog/sparse-transformer/">sparse attention</a>, which allows more efficient computation.
-    Honestly, I haven't taken the time to understand exactly how it's implemented. You're on your own, good luck!
+    I'm not including it in the diagram to keep things clear, and because it is an optimization (ideally should not change the output, just save on operations - ideally being keyword here).
+    Another optimization which I'm not including in the diagram, as helpfully noted by Kamilė Lukošiūtė: In practice, attention models implementations can differ on where the attention weight tensors are split, with some having a large weight tensor (in this case, would be 12288 x 12288) before the split, then splitting the output vector. In theory, the actual operations are the same, so it should also not affect model outputs (which is the reason why I use the term 'optimization'), though I might be wrong.
   </p>
   <h3>Feed Forward</h3>
   <p style="font-size:130%;">
