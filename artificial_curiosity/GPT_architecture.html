@@ -60,7 +60,7 @@ h1 {letter-spacing: 6px}
   </p>
   <h3>Original Diagrams</h3>
   <p style="font-size:130%;">
-    As a starting point, the original transformer and GPT papers provide us with the following diagrams:
+    As a starting point, the original transformer and GPT papers<a href="#paper1"><sup>[1]</sup></a><a href="#paper2"><sup>[2]</sup></a><a href="#paper3"><sup>[3]</sup></a> provide us with the following diagrams:
   </p>
   <img src="./img/GPT_architecture/GPT1.png" style="width:30%" title="">
   <img src="./img/GPT_architecture/Transformer.png" style="width:50%" title="">
@@ -131,6 +131,9 @@ h1 {letter-spacing: 6px}
     <b>Note</b>: For efficiency, GPT-3 actually uses byte-level Byte Pair Encoding (BPE) tokenization. What this means is that "words" in the vocabulary are not full words, but groups of characters (for byte-level BPE, bytes) which occur often in text.
     Using the GPT-3 Byte-level BPE tokenizer, "Not all heroes wear capes" is split into tokens "Not" "all" "heroes" "wear" "cap" "es", which have ids 3673, 477, 10281, 5806, 1451, 274 in the vocabulary.
     <a href="https://huggingface.co/transformers/tokenizer_summary.html">Here</a> is a very good introduction to the subject, and a <a href="https://github.com/huggingface/tokenizers">github implementation</a> so you can try it yourself.
+  </p>
+  <p style="font-size:130%;">
+    <i>2022 edit: OpenAI now has a <a href="https://beta.openai.com/tokenizer">tokenizer tool</a>, which allows you to type some text and see how it gets broken down into tokens.</i>
   </p>
   <h3>Embedding</h3>
   <p style="font-size:130%;">
@@ -229,6 +232,9 @@ h1 {letter-spacing: 6px}
     <b>Note</b>: the paper mentions that GPT-3 uses <a href="https://openai.com/blog/sparse-transformer/">sparse attention</a>, which allows more efficient computation.
     Honestly, I haven't taken the time to understand exactly how it's implemented. You're on your own, good luck!
   </p>
+  <p style="font-size:130%;">
+    <b>'Splitting hairs'</b>: The above drawing implies separate weights matrices for each head. However, in practice, attention models implementations may use a single big combined weight tensor for all the heads, do the matrix multiplication once, and <i>then</i> split it into each head's a, k, v matrices. Not to worry: In theory, it should also not affect model outputs, since the algebraic operations are the same. (thanks to Kamilė Lukošiūtė for raising this point)
+  </p>
   <h3>Feed Forward</h3>
   <p style="font-size:130%;">
     The feed forward block is a good-old multi-layer-perceptron with 1 hidden layer.
@@ -283,7 +289,45 @@ h1 {letter-spacing: 6px}
   <p style="font-size:130%;">
     The operations which contain learnable weights are highlighted in <span style="color: red;">red</span>.
   </p>
+ <p style="margin-bottom:3cm;"> </p>
+ <p style="margin-bottom:1cm;"> </p>
+  <h5>References</h5>
+  <div id="paper1">
+      [1] Radford, A., Narasimhan, K., Salimans, T. and Sutskever, I., 2018.
+    <a href="https://www.cs.ubc.ca/~amuham01/LING530/papers/radford2018improving.pdf">
+      Improving language understanding by generative pre-training.
+    </a>
+  </div>
+  <div id="paper2">
+      [2] Radford, A., Wu, J., Child, R., Luan, D., Amodei, D. and Sutskever, I., 2019.
+    <a href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf">
+      Language models are unsupervised multitask learners.
+    </a>
+      OpenAI blog, 1(8), p.9.
+  </div>
+  <div id="paper3">
+      [3] Brown, T., Mann, B., Ryder, N., Subbiah, M., Kaplan, J.D., Dhariwal, P., Neelakantan, A., Shyam, P., Sastry, G., Askell, A. and Agarwal, S., 2020.
+    <a href="https://arxiv.org/pdf/2005.14165.pdf">
+      Language models are few-shot learners.
+    </a>
+      Advances in neural information processing systems, 33, pp.1877-1901
+  </div>
 </div>
+
+  
+
+<div>
+ <hr style="margin:auto;width:80%;height:1px;border-width:0;color:gray;background-color:gray">
+ <p style="margin-bottom:1cm;"> </p>
+
+  <h3 style="text-align:center">Comments</h3>
+  <p style="font-size:130%;">
+  This static site doesn't allow for comments, but maybe you'll find that the next best thing is this <a href="https://news.ycombinator.com/item?id=33942597#33942959">discussion on hacker news</a>?
+  </p>
+  <p><br></p>
+</div>
+  
+
 
 <!-- End Page Content -->
 </div>
