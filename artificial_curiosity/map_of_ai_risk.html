@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PP4068J99C"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-PP4068J99C');
+</script>
+<!-- end of GA -->
+<title>The GPT-3 Architecture, on a Napkin</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<style>
+body,h1 {font-family: "Raleway", Arial, sans-serif}
+h1 {letter-spacing: 6px}
+.w3-row-padding img {margin-bottom: 12px}
+</style>
+<body>
+
+<!-- !PAGE CONTENT! -->
+<div class="w3-content" style="max-width:1500px">
+
+<!-- Header -->
+<header class="w3-panel w3-center w3-opacity" style="padding:28px 16px">
+  <h1 class="w3-xlarge">HOW DEEP IS THE MACHINE?</h1>
+  <h1>The Artificial Curiosity Series</h1>
+
+  <div class="w3-padding-32">
+    <div class="w3-bar w3-border">
+      <a href="../index.html" class="w3-bar-item w3-button">dugas.ch</a>
+      <a href="../blog.html" class="w3-bar-item w3-button">/ Blog</a>
+      <a href="./index.html" class="w3-bar-item w3-button">/ Artificial Curiosity</a>
+      <a href="#" class="w3-bar-item w3-button w3-light-grey">/ The GPT Architecture, on a Napkin</a>
+    </div>
+  </div>
+</header>
+
+<!-- Photo Grid -->
+<div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
+  <h1>The GPT-3 Architecture, on a Napkin</h1>
+  <p style="font-size:130%;">
+    There are so many brilliant posts on GPT-3, 
+    <a href="https://www.gwern.net/GPT-3">demonstrating what it can do</a>,
+    <a href="https://leogao.dev/2020/05/29/GPT-3-A-Brief-Summary/">pondering its</a>
+    <a href="https://maraoz.com/2020/07/18/openai-gpt3/">consequences</a>,
+    <a href="http://jalammar.github.io/illustrated-gpt2/">vizualizing how it works</a>.
+    With all these out there, it still took a crawl through several papers and blogs before I was confident that I had grasped the architecture.
+  </p>
+  <p style="font-size:130%;">
+    So the goal for this page is humble, but simple: help others build an <i>as detailed as possible</i> understanding of the GPT-3 architecture.
+  </p>
+  <p style="font-size:130%;">
+    Or if you're impatient, jump straight to the <a href="./img/GPT_architecture/fullarch.png">full-architecture sketch</a>.
+  </p>
+  <h3>Original Diagrams</h3>
+  <p style="font-size:130%;">
+    As a starting point, the original transformer and GPT papers<a href="#paper1"><sup>[1]</sup></a><a href="#paper2"><sup>[2]</sup></a><a href="#paper3"><sup>[3]</sup></a> provide us with the following diagrams:
+  </p>
+  <img src="./img/GPT_architecture/GPT1.png" style="width:30%" title="">
+  <img src="./img/GPT_architecture/Transformer.png" style="width:50%" title="">
+  <p style="font-size:130%;">
+    Not bad as far as diagrams go, but if you're like me, not enough to understand the full picture. So let's dig in!
+  </p>
+  <h3>In / Out</h3>
+  <p style="font-size:130%;">
+    Before we can understand anything else, we need to know:  what are the inputs and outputs of GPT? 
+  </p>
+  <img src="./img/map_of_ai_risk/ai_risk_map.svg" style="width:100%" title="">
+
+<!-- End Page Content -->
+</div>
+
+
+<!-- Javascript -->
+<style>
+.content {
+  padding: 0 18px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+</style>
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+}
+</script>
+
+<!-- Footer -->
+<footer class="w3-container w3-padding-64 w3-light-grey w3-center w3-large">
+  <!-- Font awesome logos: fa fa-something-something -->
+  <i class="fab fa-pied-piper-alt w3-hover-opacity"></i>
+  <p>Powered by <a  id="powered_by_link" href="http://beesbeesbees.com/" target="_blank" class="w3-hover-text-green">bees</a></p>
+
+  <script>
+  var powerSources = [
+    "bees",
+    "eels",
+    "koalas",
+    "circuits",
+    "logic",
+    "a chihuaha",
+    "infinite zoom",
+    ];
+  var powerLinks = [
+    "http://beesbeesbees.com/",
+    "http://eelslap.com",
+    "http://koalastothemax.com",
+    "http://electricboogiewoogie.com",
+    "http://www.visual6502.org/JSSim/index.html",
+    "http://chihuahuaspin.com/",
+    "http://zoomquilt.org/",
+    ];
+  var randomIndex = Math.floor(Math.random()*powerSources.length);
+  document.getElementById("powered_by_link").href = powerLinks[randomIndex];
+  document.getElementById("powered_by_link").innerHTML = powerSources[randomIndex];
+  </script>
+</footer>
+
+</body>
+</html>
