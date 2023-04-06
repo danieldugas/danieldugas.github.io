@@ -1,0 +1,82 @@
+
+What is a logit?
+Why binary cross entropy?
+
+Entropy in information theory <----> entropy in machine learning
+Real uses! Information theory - WW2 code breaking
+
+Example:
+----------
+
+Death note
+
+L vs. Light
+
+26 bits of information (7 billion people)
+26 yes or no answers (man or woman? west hemisphere or east hemisphere? etc)
+
+Why the log?
+----------
+
+No single answer - satisfies several criterion
+But the simplest intuition is it transforms probabilities into questions answered
+0.5 -> -1
+0.25 -> -2 
+1 bit difference!
+
+same for 0.25, 0.125
+
+link to planecrash chapter which gets to log if we didn't know it already:
+
+Distributions (beliefs):
+----------
+
+^
+|       | 
+__________________> N people
+
+
+^
+|-----------------
+__________________> N people
+
+^      _
+|    _- -_
+__________________> N people
+
+Entropy:
+----------
+
+Goes down the more certain a distribution is
+
+
+^
+|       | 
+__________________> N people
+
+Cross entropy:
+----------
+
+^
+|----------|------    L's belief is uniform but truth is 1.0 at Light -> -26 'points'
+__________________> N people
+
+^
+|          |            L's belief is 1.0 at Light -> 0 points
+__________________> N people
+
+
+^
+|       |  |            L's belief is 1.0 at someone else -> -inf points
+__________________> N people
+
+
+Nice scoring function! Rewards accurate certainty, punishes uncertainty, and severely punishes incorrect certainty.
+
+Same with our models:
+----------
+
+We want their outputs to map to probabilities and probabilistic reasoning
+Nice scoring function
+
+It's fine to use other losses (L1, L2, etc), but the resulting outputs are not to be considered 'probabilities'!
