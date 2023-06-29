@@ -56,7 +56,9 @@ This post is my attempt at understanding this paper.
 For context, the most famous instance segmentation methods are probably RCNN and YOLO.
 A difficult thing about instance segmentation is that unlike with pixel classification the amount and sizes of masks a model should output are variable.
   </p>
+    <div style="text-align:center">
   <img src="./img/tensor_mask/fig1.png" style="width:50%" title="">
+    </div>
   <p>
     In instance segmentation, the goal is to generate a single mask for each object in the image, even if several nearby objects have the same class. This means the number of masks is variable, and can differ between images - even if the images themselves have the same shapes.
   </p>
@@ -68,7 +70,7 @@ A difficult thing about instance segmentation is that unlike with pixel classifi
 But the point is, wouldn’t it be nice if we could just generate dense masks in some fixed-shape tensor, using fixed-shape neural networks?
   </p>
 
-    <h2> Sliding Window for Instance Segmentation </h2>
+    <h3> A Sliding Window for Instance Segmentation </h2>
 
   <p style="font-size:130%;">
 The core idea of TensorMask is relatively simple:
@@ -77,7 +79,9 @@ The core idea of TensorMask is relatively simple:
 
 At each pixel of the image, output a UxV mask which determines whether nearby pixels are in or out of the mask.
   </p>
-  <img src="./img/tensor_mask/fig2.png" style="width:50%" title="">
+    <div style="text-align:center">
+  <img src="./img/tensor_mask/fig2.png" style="width:30%" title="">
+    </div>
   <p style="font-size:130%;">
 
 A simple idea, yes. Although, the execution is anything but: you can just tell that the authors put in a lot of effort towards making it work in practice.
@@ -87,7 +91,7 @@ A simple idea, yes. Although, the execution is anything but: you can just tell t
 I think it helps to start with the simple, core concept, and then gradually add complexity.
 
   </p>
-  <h2>The Simple Concept</h2>
+  <h2>Part I - A Simple Concept</h2>
   <p style="font-size:130%;">
 
 The core concept is, given an image of size (H, W), train a model to output a sliding-window mask tensor (U, V, H, W). In other words for each pixel in the image, our tensor contains a mask of size (U, V).
@@ -145,7 +149,9 @@ Up to now, we just focus on inputs and outputs. But how do we actually produce t
 You’d probably expect the answer to be ‘with some kind of neural network’...<br>
 and you’d be right.
   </p>
+    <div style="text-align:center">
   <img src="./img/tensor_mask/arch.png" style="width:80%" title="">
+  </div>
   <p>
   simplified architecture of a single TensorMask head
   </p>
@@ -167,7 +173,7 @@ This feature tensor is passed through a single cnn layer outputing a (UxV, H, W)
 Note: I was surprised by this because it means that the <b>mask information a few pixels away from a certain pixel is very tied to the features at that pixel</b>. Remember this fact, as it will be relevant when we talk about improvements that the authors tried.
   </p>
 
-    <h2>Things get Complicated</h2>
+    <h2>Part II - Things get Complicated</h2>
 
   <p style="font-size:130%;">
 So that’s the theory, but what about practice? Could this simple concept actually work?
@@ -177,9 +183,11 @@ So that’s the theory, but what about practice? Could this simple concept actua
 Well, reading the paper, it becomes clear that the authors had to overcome a few hurdles before this idea could actually produce useful results.
   </p>
 
-    <h3>First Problem - Tensor Size:</h3>
+    <h3>A Size Issue</h3>
 
-  <img src="./img/tensor_mask/fig3.png" style="width:50%" title="">
+    <div style="text-align:center">
+  <img src="./img/tensor_mask/fig3.png" style="width:30%" title="">
+    </div>
   <p style="font-size:130%;">
 In the example picture above, one of the output masks takes up almost the entire picture. With this tensor idea, that would mean that we'd need to make U and V at least as large as H and W, which would make the tensors arbitrarily large - for a 600x600 pixel image, the full tensor would be 129’600’000’000 values, (129Gb if values are only zeros and ones).
   </p>
@@ -195,7 +203,9 @@ The first, most obvious way to reduce this size is to make masks smaller (smalle
 For example, instead of outputting a UxV dense mask at every pixel, we could output a mask only every 2 pixels, which would make the tensor 4 times smaller (U, V, H/2, W/2).
   </p>
 
-  <img src="./img/tensor_mask/fig5.png" style="width:50%" title="">
+    <div style="text-align:center">
+  <img src="./img/tensor_mask/fig5.png" style="width:40%" title="">
+    </div>
 
   <p style="font-size:130%;">
   This is called the HW stride, and it can be any positive integer N, depending on how sparse we want the output to be.
@@ -212,7 +222,9 @@ This is good, but doesn't take us all the way there, and if we push this too far
 Another way we can save space is by making the masks themselves sparse. For example, we can make each mask less dense by ‘spreading it out’ over more pixels. That’s another way to make the tensor smaller (U/2, V/2, H, W)
   </p>
 
-  <img src="./img/tensor_mask/fig4.png" style="width:50%" title="">
+    <div style="text-align:center">
+  <img src="./img/tensor_mask/fig4.png" style="width:30%" title="">
+    </div>
 
   <p style="font-size:130%;">
   Again, although this figure shows a stride of 2, a larger number can be chosen as well.
@@ -249,7 +261,9 @@ They make multiple copies of this tensor mask method, with various striding and 
 Note: the same pixel could end up with multiple positive masks, I guess? I'm not sure what happens in that case.
   </p>
 
+    <div style="text-align:center">
   <img src="./img/tensor_mask/fig6.png" style="width:50%" title="">
+    </div>
 
   <p style="font-size:130%;">
 
@@ -269,7 +283,9 @@ The authors do try several sets of head parameters and compare them.
 Long story short, they find that they get their best results when they make multiple heads, with increasing H, W size and <i>proportionally decreasing U, V size</i>.
   </p>
 
+    <div style="text-align:center">
   <img src="./img/tensor_mask/bipyramid.png" style="width:50%" title="">
+    </div>
 
   <p>
   I stole this illustration from the paper. Each line is a head. σ are the strides for either UV or HW (a.k.a how many pixel apart mask pixels, and mask centers are).
@@ -286,7 +302,7 @@ A neat thing is that it keeps the tensor size constant for all heads - a less ne
   <img src="./img/tensor_mask/pyramid_head.jpeg" style="width:10%" title="">
   No, not this kind of pyramid head.
 
-    <h3>Idea - Aligned Sliding Window</h3>
+    <h3>Aligning the AI</h3>
 
   <p style="font-size:130%;">
 Higher in this post, I mention how inefficient it seems to be that the features for a given pixel contribute to mask information a bunch of pixels away. But the authors are like ‘have no fear, sweet summer child, for we have designed man-made wonders beyond your comprehension’, and present us with what they call the ‘Aligned Representations’. Basically, they shift things around in the (U, V, H, W) tensor, so that the tensor value at some pixel (x, y) is now the mask information of <b>this pixel</b> but for a <b>mask window centered at another pixel</b> which is u, v pixels away.
@@ -299,7 +315,9 @@ Higher in this post, I mention how inefficient it seems to be that the features 
   <p style="font-size:130%;">
 
 Their figure can take a little bit of time to understand, but explains it better than I ever could:</p>
+    <div style="text-align:center">
   <img src="./img/tensor_mask/aligned_representation.png" style="width:50%" title="">
+  </div>
   <p style="font-size:130%;">
 
 Anyways, you can still quite well understand the method without fully understanding this - what really matters here is that this is a shifting around of values in the tensor, so it can be done easily and reversed, and does not change the tensor size. When the tensor is in ‘Aligned mode’ the neural network layers do a better job of computing useful local information. And when the tensor is put back into ‘Unaligned or natural mode’, it is simpler to understand for us, and easier to manipulate at the mask level.
@@ -309,14 +327,14 @@ Anyways, you can still quite well understand the method without fully understand
 The authors show that this aligned representation makes a big difference when creating sparse masks that are then upscaled - and much less difference when using no up-scaling. (I find this surprising, as I would have expected the difference to be large without up-scaling still. Maybe it’s because they only use relatively small UV sizes in testing, which means things are never so far away? If that’s the case, I would bet that repeating the same test with non-upscaled, large-UV masks would lead to a greater impact of representation alignment.)
   </p>
 
-    <h3>Remaining Questions:</h3>
+    <h3>A Question Remains</h3>
 
   <p style="font-size:130%;">
 How does this method avoid generating very similar nearby masks for the same object? <br>
-My understanding is that the model learns not to predict those because the dataset makes sure to exclude them. I should look at the code again to better understand whether the authors find other ways to avoid this.
+My understanding is that the model learns not to predict those because the dataset makes sure to not contain such example. Still, I would expect the model to sometime get confused and output such duplicate masks anyways. I should look at the code again to better understand whether the authors find other ways to avoid this.
   </p>
 
-    <h3>Fin?</h3>
+    <h2>Part III - Fin</h2>
 
   <p style="font-size:130%;">
 After all these optimizations and improvements, the authors show that the tensormask model is competitive with Mask RCNN, which does seem to answer their initial question: Yes, this is a viable method for generating masks (if not a simple one - after all the upscaling, striding, aligning, multiple heads, and other tricks), using only fixed-size tensors and neural networks.
