@@ -45,7 +45,7 @@ h1 {letter-spacing: 6px}
 <div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
   <h1>TensorMask, for You and I</h1>
   <p style="font-size:130%;">
-    TensorMask is the name for an image segmentation method, released in 2019 by its authors from FAIR.<br>
+    TensorMask is the name for an image segmentation method, released in 2019 by the authors (affiliated to FAIR).<br>
 This post is my attempt at understanding this paper.
   </p>
   <p style="font-size:130%;">
@@ -116,7 +116,7 @@ Each value is a single probability, for example one if the pixel is part of a re
     <h3>Ground truth data?</h3>
 
   <p style="font-size:130%;">
-Authors take known masks from labelled datasets, and turn them into ground truth tensors. For example, if the ground truth label has a single mask with a bounding box centered at the pixel (5, 6), the 2d subtensor (U, V) which is a subset of the full tensor (U, V, H, W) at h=5, w=6
+Authors take known masks from labelled datasets, and turn them into ground truth tensors. For example, if the ground truth label has a single mask with a bounding box centered at the pixel (5, 6), the 2d subtensor (U, V) which is a subset of the full tensor (U, V, H, W) at h=5, w=6, is initialized to match that mask.
   </p>
   <p style="font-size:130%;">
 
@@ -177,40 +177,46 @@ So that’s the theory, but what about practice? Could this simple concept actua
 Well, reading the paper, it becomes clear that the authors had to overcome a few hurdles before this idea could actually produce useful results.
   </p>
 
-    <h3>First Problem - tensor size:</h3>
+    <h3>First Problem - Tensor Size:</h3>
 
   <img src="./img/tensor_mask/fig3.png" style="width:50%" title="">
   <p style="font-size:130%;">
-In the example picture above, one of the outputted masks takes up almost the entire picture. With this tensor idea, that would mean that we'd need to make U and V at least as large as H and W, which would make the tensors arbitrarily large - for a 600x600 pixel image, the full tensor would be 129’600’000’000 values, (129Gb if values are only zeros and ones).
+In the example picture above, one of the output masks takes up almost the entire picture. With this tensor idea, that would mean that we'd need to make U and V at least as large as H and W, which would make the tensors arbitrarily large - for a 600x600 pixel image, the full tensor would be 129’600’000’000 values, (129Gb if values are only zeros and ones).
   </p>
   <p style="font-size:130%;">
 
-The first, most obvious way to reduce this size is to make masks smaller (smaller U, V). But this also means that large objects can't be segmented anymore. So the authors try a few other typical ways to make things smaller.
+The first, most obvious way to reduce this size is to make masks smaller (smaller U, V). But this also means that large objects can't be segmented anymore. So the authors try a few other typical tricks to make things smaller.
   </p>
-  <p style="font-size:130%;">
 
-For example, by playing with the stride, size and resolution of the masks themselves
-  </p>
 
     <h3>HW stride</h3>
 
   <p style="font-size:130%;">
-For example, instead of outputting a UxV dense mask at every pixel, we could only output a mask every 10 pixels, which would make the tensor 100 times smaller (U, V, H/10, W/10)
-  </p>
-  <p style="font-size:130%;">
-
-This is good, but doesn't take us all the way there, and if we push this too far, we lose the ability to get masks for small objects at all.
+For example, instead of outputting a UxV dense mask at every pixel, we could output a mask only every 2 pixels, which would make the tensor 4 times smaller (U, V, H/2, W/2).
   </p>
 
   <img src="./img/tensor_mask/fig5.png" style="width:50%" title="">
 
+  <p style="font-size:130%;">
+  This is called the HW stride, and it can be any positive integer N, depending on how sparse we want the output to be.
+  </p>
+
+  <p style="font-size:130%;">
+This is good, but doesn't take us all the way there, and if we push this too far, we lose the ability to get masks for small objects at all.
+  </p>
+
+
     <h3>UV Stride</h3>
 
   <p style="font-size:130%;">
-Another way we can save space is by making the masks themselves sparse. For example, we could produce a mask for each pixel in the image, but make that mask less dense by ‘spreading it out’ over more pixels. That’s another way to make the tensor smaller (U/4, V/4, H, W)
+Another way we can save space is by making the masks themselves sparse. For example, we can make each mask less dense by ‘spreading it out’ over more pixels. That’s another way to make the tensor smaller (U/2, V/2, H, W)
   </p>
 
   <img src="./img/tensor_mask/fig4.png" style="width:50%" title="">
+
+  <p style="font-size:130%;">
+  Again, although this figure shows a stride of 2, a larger number can be chosen as well.
+  </p>
 
     <h3>Upscaling Masks</h3>
 
@@ -236,10 +242,11 @@ Also, unfortunately, these sparse mask alone don’t solve everything, as there 
 
   <p style="font-size:130%;">
 Instead, the authors use a multi-resolution approach:
-They make multiple copies of this tensor mask method, with various striding and size values. Each copy is called a ‘head’. Each head outputs a mask tensor, which can simply be combined.
+They make multiple copies of this tensor mask method, with various striding and size values. Each copy is called a ‘head’. Each head outputs a mask tensor, which can simply be combined: Most pixels will probably not have a 'valid' (positive) mask centered there anyway, and we only care about 'valid' masks.
 </p>
+
   <p style="font-size:130%;">
-Note: the same pixel could end up with multiple positive masks, I guess? But that sounds like it’s not a big issue.
+Note: the same pixel could end up with multiple positive masks, I guess? I'm not sure what happens in that case.
   </p>
 
   <img src="./img/tensor_mask/fig6.png" style="width:50%" title="">
@@ -282,10 +289,10 @@ A neat thing is that it keeps the tensor size constant for all heads - a less ne
     <h3>Idea - Aligned Sliding Window</h3>
 
   <p style="font-size:130%;">
-Higher in this post, I mention how inefficient it seems to be, that the features for a given pixel contribute to mask information a bunch of pixels away. But the authors are like ‘have no fear, sweet summer child, for we have designed man-made wonders beyond your comprehension’, and present us with what they call the ‘Aligned Representations’. Basically, they shift things around in the (U, V, H, W) tensor, so that the tensor value at some pixel (x, y) is now the mask information of <b>this pixel</b> but for a <b>mask window centered at another pixel</b> which is u, v pixels away.
+Higher in this post, I mention how inefficient it seems to be that the features for a given pixel contribute to mask information a bunch of pixels away. But the authors are like ‘have no fear, sweet summer child, for we have designed man-made wonders beyond your comprehension’, and present us with what they call the ‘Aligned Representations’. Basically, they shift things around in the (U, V, H, W) tensor, so that the tensor value at some pixel (x, y) is now the mask information of <b>this pixel</b> but for a <b>mask window centered at another pixel</b> which is u, v pixels away.
   </p>
   <p style="font-size:130%;">
-  In the natural representation, moving in the UV dimensions represent moving sideways within a mask.<br>
+  In other words, in the natural representation, moving in the UV dimensions represent moving sideways within a mask.<br>
   In the aligned representation, moving in the UV dimension represents <i>shifting the mask sideways</i> (but keeping target the pixel fixed).
   
   </p>
