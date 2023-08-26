@@ -20,6 +20,44 @@
 body,h1 {font-family: "Raleway", Arial, sans-serif}
 h1 {letter-spacing: 6px}
 .w3-row-padding img {margin-bottom: 12px}
+
+
+.hoverimg {
+  opacity: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: .5s ease;
+  backface-visibility: hidden;
+}
+
+.hoverimgoverlay {
+  transition: .5s ease;
+  opacity: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  -ms-transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.hoverimgcontainer:hover .hoverimg {
+  opacity: 0.1;
+}
+
+.hoverimgcontainer:hover .hoverimgoverlay {
+  opacity: 1;
+}
+
+.hoverimgcontainer:active .hoverimg {
+  opacity: 0.1;
+}
+
+.hoverimgcontainer:active .hoverimgoverlay {
+  opacity: 1;
+}
+
 </style>
 <body>
 
@@ -163,37 +201,159 @@ h1 {letter-spacing: 6px}
 <h1>Projects</h1>
 <div class="w3-content" style="max-width:1200px">
 <div class="w3-row-padding" style="margin-bottom:128px">
-  <h1 align="right" class="w3-xlarge">SIMULATION, COMPUTER GRAPHICS</h1>
-    <div class="w3-col" style="width:52.9%">
-    <!-- navdreams sim -->
-      <a href="https://github.com/danieldugas/navrep3d"><img src="/images/illumination_cropped.gif" style="width:100%"></a>
+  <h1 align="right" class="w3-xlarge">AI</h1>
+    <div style="border-right: 6px solid #777; line-height: 10px; padding-top: 50px; padding-bottom: 100px; padding-right: 200px; margin-right:10px">
+      <!-- GPT-3 on a napkin -->
+  <!--     <a href="/artificial_curiosity/GPT_architecture.html"> -->
+  <!--       <img src="/artificial_curiosity/img/GPT_architecture/multiheaded.png" style="width:100%"> -->
+  <!--     </a> -->
+      <div class="hoverimgcontainer">
+        <div style="position: relative">
+        <img class="hoverimg" src="/artificial_curiosity/img/GPT_architecture/multiheaded.png">
+        <div class="hoverimgoverlay">
+          <p style="font-size:150%;">
+          <a href="/artificial_curiosity/GPT_architecture.html">
+          The GPT-3 Architecture, Explained
+          </a>
+          </p>
+          <p style="font-size:150%;">
+          (featured on <a href="https://news.ycombinator.com/item?id=33942597"> hacker news </a>)
+          </p>
+        </div>
+        </div>
+      </div>
+      <!--     dreams -->
+      <div class="hoverimgcontainer">
+        <div style="position: relative">
+          <video class="hoverimg" src="/images/dreams.webm" autoplay loop muted playsinline></video>
+        <div class="hoverimgoverlay">
+          <p style="font-size:150%;">
+          <a href="https://arxiv.org/abs/2203.12299">
+          Transformer World-Models
+          </a>
+          </p>
+        </div>
+        </div>
+      </div>
     </div>
-    <div class="w3-rest">
-    <!-- CUDA nori -->
-      <a href="https://www.youtube.com/watch?v=U9LsgCfXRXk"><img src="/images/cbox.png" style="width:100%"></a> 
-    </div>
-    <!-- lattice boltzmann -->
-      <a href="https://github.com/danieldugas/Lattice-Boltzmann-Simulation/blob/master/LBProjectReport.pdf"><img src="/images/lattice_boltzmann.gif" style="width:100%"></a>
   <h1 align="right" class="w3-xlarge">ROBOTICS & VR</h1>
-    <!-- VR pepper -->
-      <img src="/images/vrpeppersync.gif" style="width:100%">
-    <!-- CUBLI sync -->
-      <a href="https://github.com/danieldugas/CUBLI-Choreographer#readme"><img src="/images/cubli.gif" style="width:100%"></a>
-  <h1 align="right" class="w3-xlarge">COMPUTER VISION, PLANNING & AI</h1>
-    <!--     dreams -->
-    <a href="https://arxiv.org/abs/2203.12299"><video src="/images/dreams.webm" autoplay loop muted playsinline style="width:100%"></a>
+    <div style="border-right: 6px solid #777; line-height: 10px; padding-top: 50px; padding-bottom: 100px; padding-right: 200px; margin-right:10px">
+      <!-- VR pepper -->
+      <div class="hoverimgcontainer">
+        <div style="position: relative">
+          <img class="hoverimg" src="/images/vrpeppersync.gif"></img>
+        <div class="hoverimgoverlay">
+          <p style="font-size:150%;">
+          <a href="https://drive.google.com/file/d/1aq4iNQjFiFyVVH77aDyH07l8M3LcuFfm/view?usp=sharing">
+          Robot VR Piloting
+          </a>
+          </p>
+        </div>
+        </div>
+      </div>
+      <!-- CUBLI sync -->
+      <div class="hoverimgcontainer">
+        <div style="position: relative">
+          <img class="hoverimg" src="/images/cubli.gif" ></img>
+        <div class="hoverimgoverlay">
+          <p style="font-size:150%;">
+          <a href="https://github.com/danieldugas/CUBLI-Choreographer#readme">
+          Synchronized CUBLI Choreography
+          </a>
+          </p>
+        </div>
+        </div>
+      </div>
+    </div>
+  <h1 align="right" class="w3-xlarge">COMPUTER VISION, PLANNING & SLAM</h1>
+    <div style="border-right: 6px solid #777; line-height: 10px; padding-top: 50px; padding-bottom: 100px; padding-right: 200px; margin-right:10px">
     <!-- segmap lidar -->
-    <a href="https://www.youtube.com/watch?v=iddCgYbgpjE"><img src="/images/segmap.png" style="width:100%"></a>
+      <div class="hoverimgcontainer">
+        <div style="position: relative">
+          <img class="hoverimg" src="/images/segmap.png" ></img>
+        <div class="hoverimgoverlay">
+          <p style="font-size:150%;">
+            <a href="https://www.youtube.com/watch?v=iddCgYbgpjE">
+          SEGMAP: AI-Augmented LiDAR SLAM
+          </a>
+          </p>
+        </div>
+        </div>
+      </div>
     <!-- 2d planning dijkstra -->
-    <div class="w3-half">
-    <img src="/images/sdf_gradient.png" style="width:100%">
+      <div class="hoverimgcontainer">
+        <div style="position: relative">
+          <div class="hoverimg">
+          <div class="w3-row">
+            <div class="w3-half">
+              <a href="https://github.com/danieldugas/pymap2d">
+            <img src="/images/sdf_gradient.png" style="width:100%">
+              </a>
+            </div>
+            <div class="w3-half">
+              <a href="https://github.com/danieldugas/pymap2d">
+            <img src="/images/sdf_planned_path.png" style="width:100%">
+              </a>
+            </div>
+          </div>
+          </div>
+        <div class="hoverimgoverlay">
+          <p style="font-size:150%;">
+            <a href="https://github.com/danieldugas/pymap2d">
+          Robot Path Planning
+          </a>
+          </p>
+        </div>
+        </div>
+      </div>
     </div>
-    <div class="w3-half">
-    <img src="/images/sdf_planned_path.png" style="width:100%">
-    </div>
-    <!-- GPT-3 on a napkin -->
-    <a href="/artificial_curiosity/GPT_architecture.html"><img src="/artificial_curiosity/img/GPT_architecture/fullarch.png" style="width:100%"></a>
+    <h1 align="right" class="w3-xlarge">SIMULATION, COMPUTER GRAPHICS</h1>
+      <div style="border-right: 6px solid #777; line-height: 10px; padding-top: 50px; padding-bottom: 100px; padding-right: 200px; margin-right:10px">
+<!--     <div class="w3-col" style="width:52.9%"> -->
+    <!-- navdreams sim -->
+      <div class="hoverimgcontainer">
+        <div style="position: relative">
+          <img class="hoverimg" src="/images/illumination_cropped.gif" ></img>
+        <div class="hoverimgoverlay">
+          <p style="font-size:150%;">
+            <a href="https://github.com/danieldugas/NavDreamsUnity">
+          High-fidelity Simulation for RL
+          </a>
+          </p>
+        </div>
+        </div>
+      </div>
+<!--     </div> -->
+<!--     <div class="w3-rest"> -->
+    <!-- CUDA nori -->
+      <div class="hoverimgcontainer">
+        <div style="position: relative">
+          <img class="hoverimg" src="/images/cbox.png" ></img>
+        <div class="hoverimgoverlay">
+          <p style="font-size:150%;">
+            <a href="https://www.youtube.com/watch?v=U9LsgCfXRXk">
+          CUDA for Realtime Raytracing
+          </a>
+          </p>
+        </div>
+        </div>
+      </div>
+<!--     </div> -->
+    <!-- lattice boltzmann -->
+      <div class="hoverimgcontainer">
+        <div style="position: relative">
+          <img class="hoverimg" src="/images/lattice_boltzmann.gif" ></img>
+        <div class="hoverimgoverlay">
+          <p style="font-size:150%;">
+            <a href="https://github.com/danieldugas/Lattice-Boltzmann-Simulation/blob/master/LBProjectReport.pdf">
+          Lattice-Boltmann Fluid Simulation
+          </a>
+          </p>
+        </div>
+        </div>
+      </div>
 <!--     <h1 align="right" class="w3-xlarge">MECHANICAL ENGINEERING</h1> -->
+      </div>
     <!-- pepper base -->
 </div>
 </div>
