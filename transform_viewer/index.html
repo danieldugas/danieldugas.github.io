@@ -86,6 +86,15 @@
       .slider {
         vertical-align: middle;
       }
+
+      /* make the cheatsheet look like a paper */
+      .cheatsheet {
+        background-color: #ffffff;
+        border: 1px solid #cccccc;
+        border-radius: 10px;
+        padding: 10px;
+        margin: 10px;
+      }
     </style>
   </head>
   <body>
@@ -154,18 +163,22 @@
         <div>
           <h3>Resulting Transformation Matrix</h3>
           <p><sup>parent</sup><sub>child</sub>M = </p>
-        <div id="info">Description</div>
+          <div id="info">Description</div>
           <p>The matrix represents the pose of the child frame (bright colors) in the parent frame (greyed-out).</p>
-          <h3>Cheatsheet:</h3>
-          <p>A transform matrix can be used to easily transform objects from a child to a parent frame</p> 
-          <p>For example if we have three frames, "world", "person", and "hand" and some objects (e.g. a hat, an apple). We might know some relationships between frames and objects, for example where the person is in the world, where the hand is w.r.t. the person, where the apple is w.r.t the hand...</p>
-          <p>Here, the apple coordinates can be represented as a vector, <sup>in world</sup>X<sub>apple</sub> = [x, y, z, 1]</p>
-          <p><sup>in world</sup>X<sub>apple</sub> = <sup>in world</sup><sub>person</sub>M @ <sup>in person</sup>X<sub>apple</sub>
-          <p>this math also works for transforming frames</p>
-          <p><sup>in world</sup><sub>arm</sub>M = <sup>in world</sup><sub>person</sub>M @ <sup>in person</sup><sub>arm</sub>M
+          <div class="cheatsheet">
+            <h3>Cheatsheet:</h3>
+            <p>A transform matrix can be used to easily transform objects from a child to a parent frame</p> 
+            <p>For example if we have three frames, "world", "person", and "hand" and some objects (e.g. a hat, an apple). We might know some relationships between frames and objects, for example where the person is in the world, where the hand is w.r.t. the person, where the apple is w.r.t the hand...</p>
+            <p>Here, the apple coordinates can be represented as a vector,</p>
+            <p><sup>in person</sup>X<sub>apple</sub> = [x, y, z, 1]</p>
+            <p>we can use transforms to get the apple's position in another frame</p>
+            <p><sup>in world</sup>X<sub>apple</sub> = <sup>in world</sup><sub>person</sub>M @ <sup>in person</sup>X<sub>apple</sub>
+            <p>this math also works for transforming frames</p>
+            <p><sup>in world</sup><sub>arm</sub>M = <sup>in world</sup><sub>person</sub>M @ <sup>in person</sup><sub>arm</sub>M
 
-          <p>@ denotes the matrix multiplication operator</p>
-          <p>I am reusing the notation from <a href="http://wiki.ros.org/tf/Overview/Transformations">this link</a></p>
+            <p>@ denotes the matrix multiplication operator</p>
+            <p>I am reusing the notation from <a href="http://wiki.ros.org/tf/Overview/Transformations">this link</a></p>
+          </div>
         </div>
         <h2>View Options</h2>
           <!-- axes scaling: make sure text is vertically centered -->
