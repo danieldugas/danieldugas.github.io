@@ -197,7 +197,7 @@
     <script src="js/FileSaver.js"></script>
     <script>
       // Our Javascript will go here.
-      const CF = 0.8; // what percentage of the window horizontally the canvas should fill
+      const CF = Math.max((window.innerWidth - 500) / window.innerWidth, 0.5); // what percentage of the window horizontally the canvas should fill -> 500px for the sidebar, or 50/50 split if the screen is too small
       const DEBUGSHAPES = false;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera( 75, window.innerWidth * CF / window.innerHeight, 0.1, 1000 );
