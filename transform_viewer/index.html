@@ -5,6 +5,37 @@
     <style>
       body { margin: 0; }
 
+
+      /* sidepanel style */
+      .sidepanel {
+        flex-grow: 1;
+        background-color: #ffffff;
+        padding: 10px;
+        border-right: 5px solid red;
+      }
+
+
+      /* change font for whole page */
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+
+      /* hide dl and dl2 labels */
+      .dl {
+        display: none;
+      }
+      .dl2 {
+        display: none;
+      }
+
+      /* make input boxes look good */
+      input {
+        border: 1px solid #cccccc;
+        border-radius: 10px;
+        padding: 3px;
+        margin: 3px;
+      }
+
       input {
         width: 70px;
       }
@@ -18,13 +49,42 @@
       input[type=number] {
           -moz-appearance:textfield; /* Firefox */
       }
+      /* make radio switch look good */
+      input[type=radio] {
+        border: 1px solid #cccccc;
+        border-radius: 10px;
+        padding: 3px;
+        margin: 3px;
+        width: 20px;
+        height: 20px;
+      }
 
-      /* sidepanel style */
-      .sidepanel {
-        flex-grow: 1;
-        background-color: #ffffff;
+      /* font color for units */
+      .angleunit {
+        color: #973434;
+      }
+
+      /* buttons looking flat design */
+      button {
+        background-color: #fdeded;
+        border: 1px solid #ff9898;
+        border-radius: 10px;
         padding: 10px;
-        border-right: 5px solid red;
+        margin: 3px;
+      }
+
+      /* dropdown looking flat */
+      select {
+        background-color: #fdeded;
+        border: 1px solid #ff9898;
+        border-radius: 10px;
+        padding: 3px;
+        margin: 3px;
+      }
+      
+      /* Align slider with text */
+      .slider {
+        vertical-align: middle;
       }
     </style>
   </head>
@@ -39,7 +99,7 @@
           <label><input type="radio" id="iformatdeg" name="iformat" value="1" onchange="update(-1)">Degrees</label>
           </p>
           <h3>Translation</h3>
-          <p class="pi" id="ip6">Translation vector
+          <p class="pi" id="ip6">Translation vector (xyz)
           <br><span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="t0" value="0" oninput="update(6)">
           <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="t1" value="0" oninput="update(6)">
           <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="t2" value="0" oninput="update(6)">
@@ -57,28 +117,28 @@
           <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="m21" value="0" oninput="update(0)">
           <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="m22" value="1" oninput="update(0)">
           </p>
-          <p class="pi" id="ip1">Quaternion
+          <p class="pi" id="ip1">Quaternion (xyzw) 
           <br>
           <span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="q0" value="0" oninput="update(1)">
           <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="q1" value="0" oninput="update(1)">
           <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="q2" value="0" oninput="update(1)">
-          <span class="dl">w<input type="number" pattern="\d+(\.\d*)?" id="q3" value="1" oninput="update(1)"></span>
+          <span class="dl">w</span><input type="number" pattern="\d+(\.\d*)?" id="q3" value="1" oninput="update(1)">
           </p>
-          <p class="pi" id="ip2">Axis-angle
+          <p class="pi" id="ip2">Axis-angle (xyz, angle)<span class="angleunit" name="spananglei"> (radians)</span>
           <br>
           <span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="a0" value="0" oninput="update(2)">
           <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="a1" value="0" oninput="update(2)">
           <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="a2" value="0" oninput="update(2)">
-          <span class="dl">Angle<span name="spananglei"> (radians)</span> <input type="number" pattern="\d+(\.\d*)?" id="a3" value="0" oninput="update(2)"></span>
+          <span class="dl">Angle<span class="angleunit" name="spananglei"> (radians)</span></span><input type="number" pattern="\d+(\.\d*)?" id="a3" value="0" oninput="update(2)">
           </p>
-          <p class="pi" id="ip3">Axis with angle magnitude<span name="spananglei"> (radians)</span>
+          <p class="pi" id="ip3">Axis with angle magnitude<span class="angleunit" name="spananglei"> (radians)</span>
           <br><span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="r0" value="0" oninput="update(3)">
           <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="r1" value="0" oninput="update(3)">
           <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="r2" value="0" oninput="update(3)">
           </p>
-          <p class="pi" id="ip4">Euler angles of multiple axis rotations<span name="spananglei"> (radians)</span>
+          <p class="pi" id="ip4">Euler angles of multiple axis rotations<span class="angleunit" name="spananglei"> (radians)</span>
           <br>
-          <span class="dl"><select id="euler" onchange="update(4)">
+          <span class="sel"><select id="euler" onchange="update(4)">
           <option value="XYZ" selected="">XYZ</option>
           <option value="XZY">XZY</option>
           <option value="YXZ">YXZ</option>
@@ -99,18 +159,17 @@
           <h3>Cheatsheet:</h3>
           <p>A transform matrix can be used to easily transform objects from a child to a parent frame</p> 
           <p>For example if we have three frames, "world", "person", and "hand" and some objects (e.g. a hat, an apple). We might know some relationships between frames and objects, for example where the person is in the world, where the hand is w.r.t. the person, where the apple is w.r.t the hand...</p>
-          <p>Here, the apple coordinates can be represented as a vector, <sup>world</sup>X<sub>apple</sub> = [x, y, z, 1]</p>
+          <p>Here, the apple coordinates can be represented as a vector, <sup>in world</sup>X<sub>apple</sub> = [x, y, z, 1]</p>
           <p><sup>in world</sup>X<sub>apple</sub> = <sup>in world</sup><sub>person</sub>M @ <sup>in person</sup>X<sub>apple</sub>
           <p>this math also works for transforming frames</p>
           <p><sup>in world</sup><sub>arm</sub>M = <sup>in world</sup><sub>person</sub>M @ <sup>in person</sup><sub>arm</sub>M
 
           <p>@ denotes the matrix multiplication operator</p>
-          <p>see also <a href="http://wiki.ros.org/tf/Overview/Transformations">this link</a></p>
+          <p>I am reusing the notation from <a href="http://wiki.ros.org/tf/Overview/Transformations">this link</a></p>
         </div>
         <h2>View Options</h2>
-        <div class="slidecontainer">
-          Scale axes<input type="range" min="0" max="100" value="100" class="slider" id="myRange">
-        </div>
+          <!-- axes scaling: make sure text is vertically centered -->
+          <input type="range" min="0" max="100" value="100" class="slider" id="myRange">Scale Axes
         <!-- switching to ortho view isn't working yet, can't figure out why -->
         <!-- <button type="button" onclick="xplaneview();">X Plane View</button> -->
         <label><input type="checkbox" id="showgrid" name="igrid" value="0" checked="" onchange="toggleGrid()">Grid</label>
@@ -125,14 +184,15 @@
     <script src="js/FileSaver.js"></script>
     <script>
       // Our Javascript will go here.
+      const CF = 0.8; // what percentage of the window horizontally the canvas should fill
       const DEBUGSHAPES = false;
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera( 75, window.innerWidth * 0.7 / window.innerHeight, 0.1, 1000 );
-      const orthocam = new THREE.OrthographicCamera( 75, window.innerWidth * 0.7 / window.innerHeight, 0.1, 1000 );
+      const camera = new THREE.PerspectiveCamera( 75, window.innerWidth * CF / window.innerHeight, 0.1, 1000 );
+      const orthocam = new THREE.OrthographicCamera( 75, window.innerWidth * CF / window.innerHeight, 0.1, 1000 );
       var activecamera = camera;
 
       const renderer = new THREE.WebGLRenderer();
-      renderer.setSize( window.innerWidth * 0.7, window.innerHeight);
+      renderer.setSize( window.innerWidth * CF, window.innerHeight);
       renderer.setClearColor( 0xffffff );
       // document.body.appendChild( renderer.domElement );
       document.getElementById("canvas").appendChild( renderer.domElement );
