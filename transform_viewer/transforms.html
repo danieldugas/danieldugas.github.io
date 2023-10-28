@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PP4068J99C"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-PP4068J99C');
+</script>
+<!-- end of GA -->
+<title>Transformations</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<style>
+body,h1 {font-family: "Raleway", Arial, sans-serif}
+h1 {letter-spacing: 6px}
+.w3-row-padding img {margin-bottom: 12px}
+
+p {
+    font-size: 130%;
+}
+
+.content {
+  padding: 0 18px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+</style>
+<body>
+
+<!-- !PAGE CONTENT! -->
+<div class="w3-content" style="max-width:1500px">
+
+<!-- Header -->
+<header class="w3-panel w3-center w3-opacity" style="padding:28px 16px">
+  <h1 class="w3-xlarge">HOW DEEP IS THE MACHINE?</h1>
+  <h1>The Artificial Curiosity Series</h1>
+
+  <div class="w3-padding-32">
+    <div class="w3-bar w3-border">
+      <a href="../index.html" class="w3-bar-item w3-button">dugas.ch</a>
+      <a href="../blog.html" class="w3-bar-item w3-button">/ Blog</a>
+      <a href="../artificial_curiosity/" class="w3-bar-item w3-button">/ Artificial Curiosity</a>
+      <a href="#" class="w3-bar-item w3-button w3-light-grey">/ Transformations</a>
+    </div>
+  </div>
+</header>
+
+<!-- Photo Grid -->
+<div class="w3-row-padding" style="margin-bottom:128px;max-width:1000px">
+  <h1>Transformations</h1>
+  <p>
+    In robotics geometrical transformations are an everyday thing.
+    Cameras, robot positions, maps, very few components of robotics software don’t include them in one way or another.<br>
+    But while most of my students use them daily, few understand them intuitively.
+  </p>
+  <p>
+    I made this as an attempt to make the concepts more visually intuitive.
+  </p>
+
+
+
+  <div id="canvasCA1" style="flex-grow: 2"></div>
+  <div id="canvasCA2" style="flex-grow: 2"></div>
+
+
+
+
+</div>
+
+
+<div>
+ <hr style="margin:auto;width:80%;height:1px;border-width:0;color:gray;background-color:gray">
+ <p style="margin-bottom:1cm;"> </p>
+
+  <h3 style="text-align:center">Comments</h3>
+  <p>
+  This static site doesn't allow for comments, but maybe you'll find that the next best thing is this <a href="https://news.ycombinator.com/item?id=33942597#33942959">discussion on hacker news</a>?
+  </p>
+  <p><br></p>
+</div>
+  
+
+
+<!-- End Page Content -->
+</div>
+
+
+<!-- Javascript -->
+<script src="js/three.min.js"></script>
+<script src="js/LoaderSupport.js"></script>
+<script src="js/OBJLoader2.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/FileSaver.js"></script>
+<script>
+    const W = 500;
+    const H = 500;
+    // CA1 init
+    const WM = 30; // in meters, the width of the camera frustrum
+    const HM = 30;
+    const sceneCA1 = new THREE.Scene();
+    const cameraCA1 = new THREE.OrthographicCamera( WM / - 2, WM / 2, HM / 2, HM / - 2, 0.1, 1000 );
+    const rendererCA1 = new THREE.WebGLRenderer();
+    rendererCA1.setSize( W, H);
+    rendererCA1.setClearColor( 0xffffff );
+    document.getElementById("canvasCA1").appendChild( rendererCA1.domElement );
+    sceneCA1.add(new THREE.AmbientLight(0x404040))
+    var lightCA1 = new THREE.PointLight( 0xffffff );
+    lightCA1.position.set( 0, -1, 5 );
+    sceneCA1.add(lightCA1);
+    var gridCA1 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
+    gridCA1.rotation.x = Math.PI / 2;
+    sceneCA1.add(gridCA1);
+    cameraCA1.position.z = 100;
+    cameraCA1.up.set(0, 1, 0);
+    const controlsCA1 = new THREE.OrbitControls(cameraCA1, rendererCA1.domElement);
+    controlsCA1.target.set(0, 0, 0);
+    controlsCA1.enableRotate = false;
+    controlsCA1.screenSpacePanning = true;
+    controlsCA1.update();
+    // CA2 init
+    const sceneCA2 = new THREE.Scene();
+    const cameraCA2 = new THREE.PerspectiveCamera( 75, W / H, 0.1, 1000 );
+    const rendererCA2 = new THREE.WebGLRenderer();
+    rendererCA2.setSize( W, H);
+    rendererCA2.setClearColor( 0xffffff );
+    document.getElementById("canvasCA2").appendChild( rendererCA2.domElement );
+    sceneCA2.add(new THREE.AmbientLight(0x404040))
+    var lightCA2 = new THREE.PointLight( 0xffffff );
+    lightCA2.position.set( 0, -1, 5 );
+    sceneCA2.add(lightCA2);
+    var gridCA2 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
+    gridCA2.rotation.x = Math.PI / 2;
+    sceneCA2.add(gridCA2);
+    cameraCA2.position.y = -5;
+    cameraCA2.position.z = 3;
+    cameraCA2.position.x = 3
+    cameraCA2.up.set(0, 0, 1);
+    const controlsCA2 = new THREE.OrbitControls(cameraCA2, rendererCA2.domElement);
+    controlsCA2.target.set(0, 0, 0);
+    controlsCA2.update();
+
+
+    // requestAnimationFrame makes this function run once for every frame.
+    // keep this function small to avoid slowing down the page.
+    // currently it updates the 3d geometry to match the stored frame data.
+    function animate() {
+        requestAnimationFrame( animate );
+
+        // re-render canvas
+        rendererCA1.render( sceneCA1, cameraCA1 );
+        rendererCA2.render( sceneCA2, cameraCA2 );
+    }
+    animate();
+</script>
+
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+}
+</script>
+
+<!-- Footer -->
+<footer class="w3-container w3-padding-64 w3-light-grey w3-center w3-large">
+  <!-- Font awesome logos: fa fa-something-something -->
+  <i class="fab fa-pied-piper-alt w3-hover-opacity"></i>
+  <p style="font-size:100%;">Powered by <a  id="powered_by_link" href="http://beesbeesbees.com/" target="_blank" class="w3-hover-text-green">bees</a></p>
+
+  <script>
+  var powerSources = [
+    "bees",
+    "eels",
+    "koalas",
+    "circuits",
+    "logic",
+    "a chihuaha",
+    "infinite zoom",
+    ];
+  var powerLinks = [
+    "http://beesbeesbees.com/",
+    "http://eelslap.com",
+    "http://koalastothemax.com",
+    "http://electricboogiewoogie.com",
+    "http://www.visual6502.org/JSSim/index.html",
+    "http://chihuahuaspin.com/",
+    "http://zoomquilt.org/",
+    ];
+  var randomIndex = Math.floor(Math.random()*powerSources.length);
+  document.getElementById("powered_by_link").href = powerLinks[randomIndex];
+  document.getElementById("powered_by_link").innerHTML = powerSources[randomIndex];
+  </script>
+</footer>
+
+</body>
+</html>
