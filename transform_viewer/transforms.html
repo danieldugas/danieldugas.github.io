@@ -32,6 +32,39 @@ p {
   overflow: hidden;
   transition: max-height 0.2s ease-out;
 }
+
+/* side by side flexbox */
+.interactivecanvas {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1cm;
+}
+
+.interactivecontrols {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    margin-left: 1cm;
+}
+
+/* nice slider - single thin black line, minimalistic contour for the circle */
+
+input[type="range"] {
+  display: block;
+  -webkit-appearance: none;
+	-moz-appearance: none;
+	background: rgb(94, 94, 94);
+	border-radius: 5px;
+  width: 100%;
+  height: 2px;
+  outline: 0;
+  margin: 20px;
+}
+  
+
 </style>
 <body>
 
@@ -62,13 +95,86 @@ p {
     But while most of my students use them daily, few understand them intuitively.
   </p>
   <p>
-    I made this as an attempt to make the concepts more visually intuitive.
+    I made this as an attempt to make the concepts more visual and intuitive.
   </p>
 
+    <ul>
+        <li><a href="#sectionobjects">Objects</a></li>
+        <li><a href="#section2d">2D Transformations</a></li>
+        <li><a href="#section3d">3D Transformations</a></li>
+        <li><a href="#sectionprojection">Projection</a></li>
+        <li><a href="#sectionhomogeneous">Homogeneous Coordinates</a></li>
+    </ul>
+
+  <h2 id="sectionobjects">Objects</h2>
+  
+
+  <div class="interactivecanvas">
+    <div id="canvasCA00"></div>
+    <div class="interactivecontrols" id="controlsCA00">
+        <input type="range" min="0" max="100" value="100" class="slider" id="s0_CA00">
+        <input type="range" min="0" max="100" value="100" class="slider" id="s1_CA00">
+        <input type="range" min="0" max="100" value="100" class="slider" id="s2_CA00">
+    </div>
+  </div>
+
+  <div class="interactivecanvas">
+    <div id="canvasCA01"></div>
+    <div class="interactivecontrols" id="controlsCA01">
+        <input type="range" min="0" max="100" value="100" class="slider" id="s0_CA01">
+        <input type="range" min="0" max="100" value="100" class="slider" id="s1_CA01">
+        <input type="range" min="0" max="100" value="100" class="slider" id="s2_CA01">
+    </div>
+  </div>
+
+  <div class="interactivecanvas">
+    <div id="canvasCA02"></div>
+    <div class="interactivecontrols" id="controlsCA02">
+        <input type="range" min="0" max="100" value="100" class="slider" id="s0_CA02">
+        <input type="range" min="0" max="100" value="100" class="slider" id="s1_CA02">
+        <input type="range" min="0" max="100" value="100" class="slider" id="s2_CA02">
+    </div>
+  </div>
+
+  <h2 id="section2d">2D Transformations</h2>
+
+  <div class="interactivecanvas">
+    <div id="canvasCA10"></div>
+    <div class="interactivecontrols" id="controlsCA10">
+        <input type="range" min="0" max="100" value="0" class="slider" id="s0_CA10">
+        <input type="range" min="0" max="100" value="0" class="slider" id="s1_CA10">
+        <input type="range" min="0" max="100" value="0" class="slider" id="s2_CA10">
+    </div>
+    <div class="interactivetext"><span id="t0_CA10">M</span></div>
+  </div>
 
 
-  <div id="canvasCA1" style="flex-grow: 2"></div>
-  <div id="canvasCA2" style="flex-grow: 2"></div>
+  <h2 id="section3d">3D Transformations</h2>
+
+  <div class="interactivecanvas">
+    <div id="canvasCA20"></div>
+    <div class="interactivecontrols" id="controlsCA20">
+        <input type="range" min="0" max="100" value="0" class="slider" id="s0_CA20">
+        <input type="range" min="0" max="100" value="0" class="slider" id="s1_CA20">
+        <input type="range" min="0" max="100" value="0" class="slider" id="s2_CA20">
+    </div>
+    <div class="interactivetext"><span id="t0_CA20">M</span></div>
+  </div>
+
+  <h2 id="sectionprojection">Projection</h2>
+
+  <div class="interactivecanvas">
+    <div id="canvasCA30"></div>
+    <div class="interactivecontrols" id="controlsCA30">
+        <input type="range" min="0" max="100" value="0" class="slider" id="s0_CA30">
+        <input type="range" min="0" max="100" value="0" class="slider" id="s1_CA30">
+        <input type="range" min="0" max="100" value="0" class="slider" id="s2_CA30">
+    </div>
+    <div class="interactivetext"><span id="t0_CA30">M</span></div>
+  </div>
+
+
+  <h2 id="sectionhomogeneous">Homogeneous Coordinates</h2>
 
 
 
@@ -102,50 +208,208 @@ p {
 <script>
     const W = 500;
     const H = 500;
-    // CA1 init
-    const WM = 30; // in meters, the width of the camera frustrum
-    const HM = 30;
-    const sceneCA1 = new THREE.Scene();
-    const cameraCA1 = new THREE.OrthographicCamera( WM / - 2, WM / 2, HM / 2, HM / - 2, 0.1, 1000 );
-    const rendererCA1 = new THREE.WebGLRenderer();
-    rendererCA1.setSize( W, H);
-    rendererCA1.setClearColor( 0xffffff );
-    document.getElementById("canvasCA1").appendChild( rendererCA1.domElement );
-    sceneCA1.add(new THREE.AmbientLight(0x404040))
-    var lightCA1 = new THREE.PointLight( 0xffffff );
-    lightCA1.position.set( 0, -1, 5 );
-    sceneCA1.add(lightCA1);
-    var gridCA1 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
-    gridCA1.rotation.x = Math.PI / 2;
-    sceneCA1.add(gridCA1);
-    cameraCA1.position.z = 100;
-    cameraCA1.up.set(0, 1, 0);
-    const controlsCA1 = new THREE.OrbitControls(cameraCA1, rendererCA1.domElement);
-    controlsCA1.target.set(0, 0, 0);
-    controlsCA1.enableRotate = false;
-    controlsCA1.screenSpacePanning = true;
-    controlsCA1.update();
-    // CA2 init
-    const sceneCA2 = new THREE.Scene();
-    const cameraCA2 = new THREE.PerspectiveCamera( 75, W / H, 0.1, 1000 );
-    const rendererCA2 = new THREE.WebGLRenderer();
-    rendererCA2.setSize( W, H);
-    rendererCA2.setClearColor( 0xffffff );
-    document.getElementById("canvasCA2").appendChild( rendererCA2.domElement );
-    sceneCA2.add(new THREE.AmbientLight(0x404040))
-    var lightCA2 = new THREE.PointLight( 0xffffff );
-    lightCA2.position.set( 0, -1, 5 );
-    sceneCA2.add(lightCA2);
-    var gridCA2 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
-    gridCA2.rotation.x = Math.PI / 2;
-    sceneCA2.add(gridCA2);
-    cameraCA2.position.y = -5;
-    cameraCA2.position.z = 3;
-    cameraCA2.position.x = 3
-    cameraCA2.up.set(0, 0, 1);
-    const controlsCA2 = new THREE.OrbitControls(cameraCA2, rendererCA2.domElement);
-    controlsCA2.target.set(0, 0, 0);
-    controlsCA2.update();
+    const CA00 = true;
+    const CA01 = true;
+    const CA02 = true;
+    const CA10 = true;
+    const CA20 = true;
+    // CA00 init
+    const WMCA00 = 30; // in meters, the width of the camera frustrum
+    const HMCA00 = 30;
+    const sceneCA00 = new THREE.Scene();
+    const cameraCA00 = new THREE.OrthographicCamera( WMCA00 / - 2, WMCA00 / 2, HMCA00 / 2, HMCA00 / - 2, 0.1, 1000 );
+    const rendererCA00 = new THREE.WebGLRenderer();
+    rendererCA00.setSize( W, H);
+    rendererCA00.setClearColor( 0xffffff );
+    if (CA00) {
+        document.getElementById("canvasCA00").appendChild( rendererCA00.domElement );
+    }
+    sceneCA00.add(new THREE.AmbientLight(0x404040))
+    var lightCA00 = new THREE.PointLight( 0xffffff );
+    lightCA00.position.set( 0, -1, 5 );
+    sceneCA00.add(lightCA00);
+    var gridCA00 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
+    gridCA00.rotation.x = Math.PI / 2;
+    sceneCA00.add(gridCA00);
+    cameraCA00.position.z = 100;
+    cameraCA00.up.set(0, 1, 0);
+    const controlsCA00 = new THREE.OrbitControls(cameraCA00, rendererCA00.domElement);
+    controlsCA00.target.set(0, 0, 0);
+    controlsCA00.enableRotate = false;
+    controlsCA00.screenSpacePanning = true;
+    controlsCA00.update();
+    function updateCA00() {
+        rendererCA00.render( sceneCA00, cameraCA00 );
+    }
+    // CA01 init
+    const WMCA01 = 30; // in meters, the width of the camera frustrum
+    const HMCA01 = 30;
+    const sceneCA01 = new THREE.Scene();
+    const cameraCA01 = new THREE.OrthographicCamera( WMCA01 / - 2, WMCA01 / 2, HMCA01 / 2, HMCA01 / - 2, 0.1, 1000 );
+    const rendererCA01 = new THREE.WebGLRenderer();
+    rendererCA01.setSize( W, H);
+    rendererCA01.setClearColor( 0xffffff );
+    if (CA01) {
+        document.getElementById("canvasCA01").appendChild( rendererCA01.domElement );
+    }
+    sceneCA01.add(new THREE.AmbientLight(0x404040))
+    var lightCA01 = new THREE.PointLight( 0xffffff );
+    lightCA01.position.set( 0, -1, 5 );
+    sceneCA01.add(lightCA01);
+    var gridCA01 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
+    gridCA01.rotation.x = Math.PI / 2;
+    sceneCA01.add(gridCA01);
+    cameraCA01.position.z = 100;
+    cameraCA01.up.set(0, 1, 0);
+    const controlsCA01 = new THREE.OrbitControls(cameraCA01, rendererCA01.domElement);
+    controlsCA01.target.set(0, 0, 0);
+    controlsCA01.enableRotate = false;
+    controlsCA01.screenSpacePanning = true;
+    controlsCA01.update();
+    function updateCA01() {
+        rendererCA01.render( sceneCA01, cameraCA01 );
+    }
+    // CA02 init
+    const WMCA02 = 30; // in meters, the width of the camera frustrum
+    const HMCA02 = 30;
+    const sceneCA02 = new THREE.Scene();
+    const cameraCA02 = new THREE.OrthographicCamera( WMCA02 / - 2, WMCA02 / 2, HMCA02 / 2, HMCA02 / - 2, 0.1, 1000 );
+    const rendererCA02 = new THREE.WebGLRenderer();
+    rendererCA02.setSize( W, H);
+    rendererCA02.setClearColor( 0xffffff );
+    if (CA02) {
+        document.getElementById("canvasCA02").appendChild( rendererCA02.domElement );
+    }
+    sceneCA02.add(new THREE.AmbientLight(0x404040))
+    var lightCA02 = new THREE.PointLight( 0xffffff );
+    lightCA02.position.set( 0, -1, 5 );
+    sceneCA02.add(lightCA02);
+    var gridCA02 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
+    gridCA02.rotation.x = Math.PI / 2;
+    sceneCA02.add(gridCA02);
+    cameraCA02.position.z = 100;
+    cameraCA02.up.set(0, 1, 0);
+    const controlsCA02 = new THREE.OrbitControls(cameraCA02, rendererCA02.domElement);
+    controlsCA02.target.set(0, 0, 0);
+    controlsCA02.enableRotate = false;
+    controlsCA02.screenSpacePanning = true;
+    controlsCA02.update();
+    function updateCA02() {
+        rendererCA02.render( sceneCA02, cameraCA02 );
+    }
+    // CA10 init
+    // 2D transform of a point
+    const WMCA10 = 10; // in meters, the width of the camera frustrum
+    const HMCA10 = 10;
+    const sceneCA10 = new THREE.Scene();
+    const cameraCA10 = new THREE.OrthographicCamera( WMCA10 / - 2, WMCA10 / 2, HMCA10 / 2, HMCA10 / - 2, 0.1, 1000 );
+    const rendererCA10 = new THREE.WebGLRenderer();
+    rendererCA10.setSize( W, H);
+    rendererCA10.setClearColor( 0xffffff );
+    if (CA10) {
+        document.getElementById("canvasCA10").appendChild( rendererCA10.domElement );
+    }
+    sceneCA10.add(new THREE.AmbientLight(0x404040))
+    var lightCA10 = new THREE.PointLight( 0xffffff );
+    lightCA10.position.set( 0, -1, 5 );
+    sceneCA10.add(lightCA10);
+    var gridCA10 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
+    gridCA10.rotation.x = Math.PI / 2;
+    sceneCA10.add(gridCA10);
+    cameraCA10.position.z = 100;
+    cameraCA10.up.set(0, 1, 0);
+    const controlsCA10 = new THREE.OrbitControls(cameraCA10, rendererCA10.domElement);
+    controlsCA10.target.set(0, 0, 0);
+    controlsCA10.enableRotate = false;
+    controlsCA10.screenSpacePanning = true;
+    controlsCA10.update();
+    const AXL_CA10 = 1.0;
+    const AXT_CA10 = 0.02;
+    const yaxismaterial_CA10 = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+    var yaxiscylindergeom_CA10 = new THREE.CylinderGeometry(AXL_CA10 * AXT_CA10, AXL_CA10 * AXT_CA10, AXL_CA10, 32 );
+    yaxiscylindergeom_CA10.vertices.forEach((v) => {v.y += AXL_CA10 / 2;});
+    const yaxis_CA10 = new THREE.Mesh(yaxiscylindergeom_CA10, yaxismaterial_CA10);
+    yaxis_CA10.position.set(0, 0, 0);
+    sceneCA10.add(yaxis_CA10);
+    const quat_xaxisCA10 = new THREE.Quaternion();
+    quat_xaxisCA10.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2);
+    const xaxismaterial_CA10 = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+    var xaxiscylindergeom_CA10 = new THREE.CylinderGeometry(AXL_CA10 * AXT_CA10, AXL_CA10 * AXT_CA10, AXL_CA10, 32 );
+    xaxiscylindergeom_CA10.vertices.forEach((v) => {v.y += AXL_CA10 / 2;});
+    xaxiscylindergeom_CA10.vertices.forEach((v) => {v.applyQuaternion(quat_xaxisCA10);});
+    const xaxis_CA10 = new THREE.Mesh(xaxiscylindergeom_CA10, xaxismaterial_CA10);
+    xaxis_CA10.position.set(0, 0, 0);
+    sceneCA10.add(xaxis_CA10);
+    const x_CA10 = 2.0;
+    const y_CA10 = 1.0;
+    const quat_pCA10 = new THREE.Quaternion();
+    quat_pCA10.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+    const poldmat_CA10 = new THREE.MeshBasicMaterial( { color: 0xcccccc } );
+    var poldmatgeom_CA10 = new THREE.CylinderGeometry(0.1, 0.1, 0.1, 32 );
+    poldmatgeom_CA10.vertices.forEach((v) => {v.applyQuaternion(quat_pCA10);});
+    const pold_CA10 = new THREE.Mesh(poldmatgeom_CA10, poldmat_CA10);
+    pold_CA10.position.set(x_CA10, y_CA10, 0);
+    sceneCA10.add(pold_CA10);
+    const pmat_CA10 = new THREE.MeshBasicMaterial( { color: 0xcccccc } );
+    var pmatgeom_CA10 = new THREE.CylinderGeometry(0.1, 0.1, 0.1, 32 );
+    pmatgeom_CA10.vertices.forEach((v) => {v.applyQuaternion(quat_pCA10);});
+    const p_CA10 = new THREE.Mesh(pmatgeom_CA10, pmat_CA10);
+    p_CA10.position.set(x_CA10, y_CA10, 0);
+    sceneCA10.add(p_CA10);
+    const pctrmat_CA10 = new THREE.MeshBasicMaterial( { color: 0x000000 } );
+    var pctrmatgeom_CA10 = new THREE.CylinderGeometry(0.15, 0.15, 0.08, 32 );
+    pctrmatgeom_CA10.vertices.forEach((v) => {v.applyQuaternion(quat_pCA10);});
+    const pctr_CA10 = new THREE.Mesh(pctrmatgeom_CA10, pctrmat_CA10);
+    pctr_CA10.position.set(x_CA10, y_CA10, 0);
+    sceneCA10.add(pctr_CA10);
+    function updateCA10() {
+        // Get inputs
+        var s0 = document.getElementById("s0_CA10").value / 100.0;
+        var s1 = document.getElementById("s1_CA10").value / 100.0;
+        var s2 = document.getElementById("s2_CA10").value / 100.0;
+        var dx = s0 * 2.0;
+        var dy = s1 * 2.0;
+        var angle = s2 * Math.PI * 2.0;
+        // new positions
+        var x_CA10_new = x_CA10 * Math.cos(angle) - y_CA10 * Math.sin(angle) + dx;
+        var y_CA10_new = x_CA10 * Math.sin(angle) + y_CA10 * Math.cos(angle) + dy;
+        // Update scene
+        p_CA10.position.set(x_CA10_new, y_CA10_new, 0);
+        pctr_CA10.position.set(x_CA10_new, y_CA10_new, 0);
+        xaxis_CA10.position.set(dx, dy, 0);
+        xaxis_CA10.rotation.z = angle;
+        yaxis_CA10.position.set(dx, dy, 0);
+        yaxis_CA10.rotation.z = angle;
+        rendererCA10.render( sceneCA10, cameraCA10 );
+        // Update text
+        document.getElementById("t0_CA10").innerHTML = "p' = Mp<br> <br> M = [[" + "cos(" + angle.toFixed(1) + "), -sin(" + angle.toFixed(1) + "), " + dx + "],<br> [sin(" + angle.toFixed(1) + "), cos(" + angle.toFixed(1) + "), " + dy + "],<br> [0, 0, 1]]";
+    }
+    // CA20 init
+    const sceneCA20 = new THREE.Scene();
+    const cameraCA20 = new THREE.PerspectiveCamera( 75, W / H, 0.1, 1000 );
+    const rendererCA20 = new THREE.WebGLRenderer();
+    rendererCA20.setSize( W, H);
+    rendererCA20.setClearColor( 0xffffff );
+    if (CA20) {
+        document.getElementById("canvasCA20").appendChild( rendererCA20.domElement );
+    }
+    sceneCA20.add(new THREE.AmbientLight(0x404040))
+    var lightCA20 = new THREE.PointLight( 0xffffff );
+    lightCA20.position.set( 0, -1, 5 );
+    sceneCA20.add(lightCA20);
+    var gridCA20 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
+    gridCA20.rotation.x = Math.PI / 2;
+    sceneCA20.add(gridCA20);
+    cameraCA20.position.y = -5;
+    cameraCA20.position.z = 3;
+    cameraCA20.position.x = 3
+    cameraCA20.up.set(0, 0, 1);
+    const controlsCA20 = new THREE.OrbitControls(cameraCA20, rendererCA20.domElement);
+    controlsCA20.target.set(0, 0, 0);
+    controlsCA20.update();
+    function updateCA20() {
+        rendererCA20.render( sceneCA20, cameraCA20 );
+    }
 
 
     // requestAnimationFrame makes this function run once for every frame.
@@ -155,8 +419,11 @@ p {
         requestAnimationFrame( animate );
 
         // re-render canvas
-        rendererCA1.render( sceneCA1, cameraCA1 );
-        rendererCA2.render( sceneCA2, cameraCA2 );
+        if (CA00) { updateCA00(); }
+        if (CA00) { updateCA01(); }
+        if (CA00) { updateCA02(); }
+        if (CA10) { updateCA10(); }
+        if (CA20) { updateCA20(); }
     }
     animate();
 </script>
