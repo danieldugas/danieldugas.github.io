@@ -183,9 +183,11 @@
         <h2>View Options</h2>
           <!-- axes scaling: make sure text is vertically centered -->
           <input type="range" min="0" max="100" value="100" class="slider" id="myRange">Scale Axes
-        <!-- switching to ortho view isn't working yet, can't figure out why -->
-        <!-- <button type="button" onclick="xplaneview();">X Plane View</button> -->
-        <label><input type="checkbox" id="showgrid" name="igrid" value="0" checked="" onchange="toggleGrid()">Grid</label>
+          <label><input type="checkbox" id="showgrid" name="igrid" value="0" checked="" onchange="toggleGrid()">Grid</label>
+        <button type="button" onclick="standardview();">Standard View</button>
+        <button type="button" onclick="planeview(0);">X Plane View</button>
+        <button type="button" onclick="planeview(1);">Y Plane View</button>
+        <button type="button" onclick="planeview(2);">Z Plane View</button>
       </div>
       <div id="canvas" style="flex-grow: 2"></div>
     </div>
@@ -201,20 +203,20 @@
       const DEBUGSHAPES = false;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera( 75, window.innerWidth * CF / window.innerHeight, 0.1, 1000 );
-      const orthocam = new THREE.OrthographicCamera( 75, window.innerWidth * CF / window.innerHeight, 0.1, 1000 );
+      const orthocam = new THREE.OrthographicCamera(-15 / CF, 15 / CF, 15, -15, 0.1, 1000 );
       var activecamera = camera;
-
       const renderer = new THREE.WebGLRenderer();
       renderer.setSize( window.innerWidth * CF, window.innerHeight);
       renderer.setClearColor( 0xffffff );
       // document.body.appendChild( renderer.domElement );
       document.getElementById("canvas").appendChild( renderer.domElement );
+      camera.up.set(0, 0, 1);
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
       scene.add(new THREE.AmbientLight(0x404040))
       var light = new THREE.PointLight( 0xffffff );
       light.position.set( 0, -1, 5 );
       scene.add(light);
-
       var grid = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
       grid.rotation.x = Math.PI / 2;
       scene.add(grid);
@@ -224,10 +226,40 @@
         grid.visible = show.checked;
       }
 
-      camera.position.y = -5;
-      camera.position.z = 3;
-      camera.position.x = 3
-      camera.up.set(0, 0, 1);
+      function standardview() {
+        camera.position.y = -5;
+        camera.position.z = 3;
+        camera.position.x = 3
+        camera.up.set(0, 0, 1);
+        camera.lookAt(0, 0, 0);
+        activecamera = camera;
+        controls.object = camera;
+        controls.target.set(0, 0, 0);
+        controls.screenSpacePanning = false;
+        controls.update();
+      }
+      standardview()
+
+      function planeview(orient) {
+        if (orient == 0) {
+          orthocam.position.set(0, 100, 0);
+          orthocam.up.set(0, 0, 1);
+        }
+        if (orient == 1) {
+          orthocam.position.set(100, 0, 0);
+          orthocam.up.set(0, 0, 1);
+        }
+        if (orient == 2) {
+          orthocam.position.set(0, 0, 100);
+        }
+        orthocam.lookAt(0, 0, 0);
+        controls.object = orthocam;
+        activecamera = orthocam;
+        controls.target.set(0, 0, 0);
+        controls.screenSpacePanning = true;
+        controls.update();
+      }
+
 
       // transform values
       // [xx, yx, zx, x]
@@ -258,20 +290,20 @@
       quat2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2);  
       const AXL = 1.0;
       const AXT = 0.02;
-      const origxaxismaterial = new THREE.MeshBasicMaterial( { color: 0xff8888 } );
+      const origxaxismaterial = new THREE.MeshBasicMaterial( { color: 0xddbbbb } );
       var origxaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
       origxaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
       origxaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat2);});
       const origxaxis = new THREE.Mesh(origxaxiscylindergeom, origxaxismaterial);
       origxaxis.position.set(0, 0, 0);
       scene.add(origxaxis);
-      const origyaxismaterial = new THREE.MeshBasicMaterial( { color: 0x88ff88 } );
+      const origyaxismaterial = new THREE.MeshBasicMaterial( { color: 0xbbddbb } );
       var origyaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
       origyaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
       const origyaxis = new THREE.Mesh(origyaxiscylindergeom, origyaxismaterial);
       origyaxis.position.set(0, 0, 0);
       scene.add(origyaxis);
-      const origzaxismaterial = new THREE.MeshBasicMaterial( { color: 0x8888ff } );
+      const origzaxismaterial = new THREE.MeshBasicMaterial( { color: 0xbbbbdd } );
       var origzaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
       origzaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
       origzaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat1);});
@@ -301,23 +333,6 @@
       scene.add(zaxis);
 
 
-      const controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.target.set(0, 0, 0);
-      controls.update();
-
-      function xplaneview() {
-        // this doesn't work, and I don't know why
-        orthocam.position.set(0, 1, 0);
-        orthocam.up.set(0, 0, 1);
-        orthocam.lookAt(0, 0, 0);
-        controls.object = orthocam;
-        activecamera = orthocam;
-        controls.target.set(0, 0, 0);
-        controls.update();
-        // remove perspective
-
-      }
-
       // instantiate a loader
       const loader = new THREE.OBJLoader2();
 
@@ -345,7 +360,7 @@
         }
       );
 
-      // update input function. Argument is the index of the form element which has been updated
+      // Called when a field gets updated by the user. Argument is the index of the form element which has been updated
       function update(ipidx) {
           // convert any input into Matrix4
           if (ipidx == 6) {
