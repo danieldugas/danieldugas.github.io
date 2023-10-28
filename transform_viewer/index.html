@@ -12,6 +12,13 @@
         background-color: #ffffff;
         padding: 10px;
         border-right: 5px solid red;
+        overflow-y: scroll;
+        max-height: 98vh;
+      }
+      .canvaspanel {
+        flex-grow: 2;
+        max-height: 100vh;
+        overflow-y: clip;
       }
 
 
@@ -189,7 +196,7 @@
         <button type="button" onclick="planeview(1);">Y Plane View</button>
         <button type="button" onclick="planeview(2);">Z Plane View</button>
       </div>
-      <div id="canvas" style="flex-grow: 2"></div>
+      <div id="canvas" class="canvaspanel"></div>
     </div>
 
     <script src="js/three.min.js"></script>
