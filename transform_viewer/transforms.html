@@ -64,6 +64,16 @@ input[type="range"] {
   margin: 20px;
 }
 
+
+  /* buttons looking flat design */
+  button {
+    background-color: #fdeded;
+    border: 1px solid #ff9898;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 3px;
+  }
+
 /* left and right border */
 .matrixtable {
     border-left: 1px solid black;
@@ -206,6 +216,7 @@ input[type="range"] {
         <input type="range" min="0" max="100" value="50" class="slider" id="s2_CA30">
         <input type="range" min="0" max="100" value="50" class="slider" id="s3_CA30">
         <input type="range" min="0" max="100" value="50" class="slider" id="s4_CA30">
+        <button type="button" onclick="resetValuesCA30();">Reset</button>
     </div>
     <div class="interactivetext"><span id="t0_CA30">p' = Mp</span></div>
   </div>
@@ -342,7 +353,8 @@ input[type="range"] {
 
         const persp = makePerspectiveMatrix(s, fx, fy, ox, oy, this.near, this.far);
         const ndc = makeNdcMatrix(left, right, bottom, top, this.near, this.far);
-        const projection = ndc.multiply(persp);
+        // const projection = ndc.multiply(persp);
+        const projection = persp;
 
         this.projectionMatrix.copy(projection);
         const inverseproj = new THREE.Matrix4();
@@ -726,6 +738,13 @@ input[type="range"] {
     const controlsCA30 = new THREE.OrbitControls(cameraCA30, rendererCA30.domElement);
     controlsCA30.target.set(0, 0, 0);
     controlsCA30.update();
+    function resetValuesCA30() {
+        document.getElementById("s0_CA30").value = 50;
+        document.getElementById("s1_CA30").value = 50;
+        document.getElementById("s2_CA30").value = 50;
+        document.getElementById("s3_CA30").value = 50;
+        document.getElementById("s4_CA30").value = 50;
+    }
     function updateCA30() {
         // inputs
         var fx = parseFloat(document.getElementById("s0_CA30").value) / 100.0 * 3.0 + 0.5;
@@ -777,6 +796,8 @@ input[type="range"] {
     const controlsCA31 = new THREE.OrbitControls(cameraCA31, rendererCA31.domElement);
     controlsCA31.target.set(0, 0, 0);
     controlsCA31.update();
+    controlsCA31.enableRotate = false;
+    controlsCA31.enablePan = false;
     function updateCA31() {
         // inputs
         var fx = parseFloat(document.getElementById("s0_CA30").value) / 100.0 * 3.0 + 0.5;
@@ -784,6 +805,18 @@ input[type="range"] {
         var u0 = parseFloat(document.getElementById("s2_CA30").value) / 100.0 * 2.0 - 1.0;
         var v0 = parseFloat(document.getElementById("s3_CA30").value) / 100.0 * 2.0 - 1.0;
         var gamma = parseFloat(document.getElementById("s4_CA30").value) / 100.0 * 2.0 - 1.0;
+        // cameraCA31.projectionMatrixInverse.elements[0] = 1.0 / fx;
+        // cameraCA31.projectionMatrixInverse.elements[5] = 1.0 / fy;
+        // cameraCA31.projectionMatrixInverse.elements[1] = gamma;
+        // cameraCA31.projectionMatrixInverse.elements[2] = u0;
+        // cameraCA31.projectionMatrixInverse.elements[6] = v0;
+        // cameraCA31.projectionMatrixInverse.copy(new THREE.Matrix4().getInverse(cameraCA31.projectionMatrixInverse));
+        cameraCA31.projectionMatrix.elements[0] = fx;
+        cameraCA31.projectionMatrix.elements[5] = fy;
+        cameraCA31.projectionMatrix.elements[1] = gamma;
+        cameraCA31.projectionMatrix.elements[8] = -u0 * fx;
+        cameraCA31.projectionMatrix.elements[9] = -v0 * fy;
+        cameraCA31.position.z = 0.0;
         rendererCA31.render( sceneCA31, cameraCA31 );
     }
 
