@@ -194,19 +194,24 @@ input[type="range"] {
     <div class="interactivetext"><span id="t0_CA20">M</span></div>
   </div>
 
+  <h2>Mixing Dimensions</h2>
   <h2 id="sectionprojection">Projection</h2>
-
+  see also <a href="https://ksimek.github.io/2013/08/13/intrinsic/">this link</a>
   <div class="interactivecanvas">
     <div id="canvasCA30"></div>
+    <div id="canvasCA31"></div>
     <div class="interactivecontrols" id="controlsCA30">
         <input type="range" min="0" max="100" value="0" class="slider" id="s0_CA30">
         <input type="range" min="0" max="100" value="0" class="slider" id="s1_CA30">
-        <input type="range" min="0" max="100" value="0" class="slider" id="s2_CA30">
+        <input type="range" min="0" max="100" value="50" class="slider" id="s2_CA30">
+        <input type="range" min="0" max="100" value="50" class="slider" id="s3_CA30">
+        <input type="range" min="0" max="100" value="50" class="slider" id="s4_CA30">
     </div>
     <div class="interactivetext"><span id="t0_CA30">p' = Mp</span></div>
   </div>
 
 
+  <h2 id="sectionperspective">Perspective</h2>
   <h2 id="sectionhomogeneous">Homogeneous Coordinates</h2>
 
 
@@ -239,7 +244,119 @@ input[type="range"] {
 <script src="js/OrbitControls.js"></script>
 <script src="js/FileSaver.js"></script>
 <script>
+      
+    // Pinhole camera class
+    function makeNdcMatrix(
+      left,
+      right,
+      bottom,
+      top,
+      near,
+      far
+    ) {
+      const tx = -(right + left) / (right - left);
+      const ty = -(top + bottom) / (top - bottom);
+      const tz = -(far + near) / (far - near);
 
+      const ndc = new THREE.Matrix4();
+      // prettier-ignore
+      ndc.set(
+          2 / (right - left), 0, 0, tx,
+          0, 2 / (top - bottom), 0, ty,
+          0, 0, -2 / (far - near), tz,
+          0, 0, 0, 1,
+        );
+      return ndc;
+    }
+
+    function makePerspectiveMatrix(
+      s,
+      alpha,
+      beta,
+      x0,
+      y0,
+      near,
+      far
+    ) {
+      const A = near + far;
+      const B = near * far;
+
+      const perspective = new THREE.Matrix4();
+      // prettier-ignore
+      perspective.set(
+          alpha, s, x0, 0,
+          0, beta, y0, 0,
+          0, 0, -A, B,
+          0, 0, 1, 0,
+        );
+      return perspective;
+    }
+
+    class PinholeCamera extends THREE.PerspectiveCamera {
+      K;
+      imageWidth;
+      imageHeight;
+
+      constructor(
+        K,
+        imageWidth,
+        imageHeight,
+        aspect,
+        near,
+        far
+      ) {
+        super(45, aspect, near, far);
+
+        this.K = K;
+        this.imageWidth = imageWidth;
+        this.imageHeight = imageHeight;
+        this.updateProjectionMatrix();
+      }
+
+      updateProjectionMatrix() {
+        if (!this.K) {
+          return;
+        }
+
+
+        // column-major order
+        const fx = this.K.elements[0 + 0 * 3];
+        const fy = this.K.elements[1 + 1 * 3];
+        const ox = this.K.elements[0 + 2 * 3];
+        const oy = this.K.elements[1 + 2 * 3];
+        const s = this.K.elements[0 + 1 * 3];
+
+        const imageAspect = this.imageWidth / this.imageHeight;
+        const relAspect = this.aspect / imageAspect;
+
+        const relAspectFactorX = Math.max(1, relAspect);
+        const relAspectFactorY = Math.max(1, 1 / relAspect);
+
+        const relAspectOffsetX = ((1 - relAspectFactorX) / 2) * this.imageWidth;
+        const relAspectOffsetY = ((1 - relAspectFactorY) / 2) * this.imageHeight;
+
+        const left = relAspectOffsetX;
+        const right = this.imageWidth - relAspectOffsetX;
+        const top = relAspectOffsetY;
+        const bottom = this.imageHeight - relAspectOffsetY;
+
+        const persp = makePerspectiveMatrix(s, fx, fy, ox, oy, this.near, this.far);
+        const ndc = makeNdcMatrix(left, right, bottom, top, this.near, this.far);
+        const projection = ndc.multiply(persp);
+
+        this.projectionMatrix.copy(projection);
+        const inverseproj = new THREE.Matrix4();
+        inverseproj.getInverse(projection);
+        // debug
+        console.log("projection matrix");
+        console.log(projection);
+        console.log("inverse projection matrix");
+        console.log(inverseproj);
+        this.projectionMatrixInverse.copy(inverseproj);
+      }
+    }
+
+    // create RGB axes
     function createAxis(which, length) {
       const L = length;
       const T = 0.04;
@@ -266,6 +383,8 @@ input[type="range"] {
     const CA02 = true;
     const CA10 = true;
     const CA20 = true;
+    const CA30 = true;
+    const CA31 = true;
     // CA00 init
     // Points
     const WMCA00 = 6; // in meters, the width of the camera frustrum
@@ -542,7 +661,131 @@ input[type="range"] {
         zaxis_CA20.setRotationFromEuler(euler);
         rendererCA20.render( sceneCA20, cameraCA20 );
     }
+    // CA30 init
+    // https://segments.ai/blog/simulating-cameras-three-js  very helpful for custom camera
+    const sceneCA30 = new THREE.Scene();
+    const cameraCA30 = new THREE.PerspectiveCamera( 75, W / H, 0.1, 1000 );
+    const rendererCA30 = new THREE.WebGLRenderer();
+    rendererCA30.setSize( W, H);
+    rendererCA30.setClearColor( 0xffffff );
+    if (CA30) {
+        document.getElementById("canvasCA30").appendChild( rendererCA30.domElement );
+    }
+    sceneCA30.add(new THREE.AmbientLight(0x404040))
+    var lightCA30 = new THREE.PointLight( 0xffffff );
+    lightCA30.position.set( 0, 3, 0 );
+    sceneCA30.add(lightCA30);
+    var gridCA30 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
+    gridCA30.rotation.x = Math.PI / 2;
+    sceneCA30.add(gridCA30);
+    const xaxis_CA30 = createAxis(0, 1.0);
+    sceneCA30.add(xaxis_CA30);
+    const yaxis_CA30 = createAxis(1, 1.0);
+    sceneCA30.add(yaxis_CA30);
+    const zaxis_CA30 = createAxis(2, 1.0);
+    sceneCA30.add(zaxis_CA30);
+    function createFrustrum(fx, fy, u0, v0, gamma) {
+      const near = 1.0;
+      const far = 10.0;
+      const wx = 1.0/fx;
+      const wy = 1.0/fy;
+      const points = [];
+      for (var i = 0; i < 4; i++) {
+        const ds = [0, 1, 1, 0, 2, 2, 0];
+        const xs = [[0, -1,  1, 0, -1,  1, 0],
+                    [0,  1,  1, 0,  1,  1, 0],
+                    [0, -1,  1, 0, -1,  1, 0],
+                    [0, -1, -1, 0, -1, -1, 0]];
+        const ys = [[0, -1, -1, 0, -1, -1, 0],
+                    [0, -1,  1, 0, -1,  1, 0],
+                    [0,  1,  1, 0,  1,  1, 0],
+                    [0,  1, -1, 0,  1, -1, 0]];
+        for (var j = 0; j < 8; j++) {
+          var d = 0;
+          if (ds[j] == 1) {d = near;} else if (ds[j] == 2) {d = far;}
+          var y = wy * ys[i][j] * d + v0 * d;
+          var x = wx * xs[i][j] * d + u0 * d + gamma * y;
+          var z = d;
+          points.push( new THREE.Vector3( x, y, z ) );
+        }
+      }
 
+      const geometry = new THREE.BufferGeometry().setFromPoints( points );
+      return geometry
+    }
+    const lineCA30 = new THREE.Line( createFrustrum(1.0, 0.5), new THREE.LineBasicMaterial( { color: 0x000000 } ) );
+    sceneCA30.add( lineCA30 );
+    const ballmatCA30 = new THREE.MeshPhongMaterial( { color: 0xff0000 } );
+    const ballCA30 = new THREE.Mesh( new THREE.SphereGeometry( 1.0, 32, 32 ), ballmatCA30);
+    ballCA30.position.z = 3.0;
+    sceneCA30.add( ballCA30 );
+    cameraCA30.position.y = -5;
+    cameraCA30.position.z = 3;
+    cameraCA30.position.x = 3
+    cameraCA30.up.set(0, 0, 1);
+    const controlsCA30 = new THREE.OrbitControls(cameraCA30, rendererCA30.domElement);
+    controlsCA30.target.set(0, 0, 0);
+    controlsCA30.update();
+    function updateCA30() {
+        // inputs
+        var fx = parseFloat(document.getElementById("s0_CA30").value) / 100.0 * 3.0 + 0.5;
+        var fy = parseFloat(document.getElementById("s1_CA30").value) / 100.0 * 3.0 + 0.5;
+        var u0 = parseFloat(document.getElementById("s2_CA30").value) / 100.0 * 2.0 - 1.0;
+        var v0 = parseFloat(document.getElementById("s3_CA30").value) / 100.0 * 2.0 - 1.0;
+        var gamma = parseFloat(document.getElementById("s4_CA30").value) / 100.0 * 2.0 - 1.0;
+        lineCA30.geometry.dispose();
+        lineCA30.geometry = createFrustrum(fx, fy, u0, v0, gamma);
+        rendererCA30.render( sceneCA30, cameraCA30 );
+    }
+    // CA31 init
+    // https://segments.ai/blog/simulating-cameras-three-js  very helpful for custom camera
+    const sceneCA31 = new THREE.Scene();
+    const matrixKCA31 = new THREE.Matrix3();
+    matrixKCA31.set(1.0, 0.0, 0.0,
+                     0.0, 1.0, 0.0,
+                     0.0, 0.0, 1.0);
+    // debug
+    const tempcamCA31 = new THREE.PerspectiveCamera( 45, W / H, 0.1, 1000 );
+    console.log("proper projection matrix");
+    console.log(tempcamCA31.projectionMatrix);
+    console.log("proper inverse projection matrix");
+    console.log(tempcamCA31.projectionMatrixInverse);
+    const pcameraCA31 = new PinholeCamera(matrixKCA31, W, H, W / H, 0.1, 1000);
+    const cameraCA31 = tempcamCA31;
+    const rendererCA31 = new THREE.WebGLRenderer();
+    rendererCA31.setSize( W, H);
+    rendererCA31.setClearColor( 0xffffff );
+    if (CA31) {
+        document.getElementById("canvasCA31").appendChild( rendererCA31.domElement );
+    }
+    sceneCA31.add(new THREE.AmbientLight(0x404040))
+    var lightCA31 = new THREE.PointLight( 0xffffff );
+    lightCA31.position.set( 0, 3, 0 );
+    sceneCA31.add(lightCA31);
+    const ballmatCA31 = new THREE.MeshPhongMaterial( { color: 0xff0000 } );
+    const ballCA31 = new THREE.Mesh( new THREE.SphereGeometry( 1.0, 32, 32 ), ballmatCA31);
+    ballCA31.position.z = 3.0;
+    sceneCA31.add( ballCA31 );
+    var gridCA31 = new THREE.GridHelper(20, 20, 0xcccccc, 0xeeeeee);
+    gridCA31.rotation.x = Math.PI / 2;
+    sceneCA31.add(gridCA31);
+    cameraCA31.position.y = 0;
+    cameraCA31.position.z = -1;
+    cameraCA31.position.x = 0;
+    cameraCA31.up.set(0, 1, 0);
+    cameraCA31.lookAt(0, 0, 1);
+    const controlsCA31 = new THREE.OrbitControls(cameraCA31, rendererCA31.domElement);
+    controlsCA31.target.set(0, 0, 0);
+    controlsCA31.update();
+    function updateCA31() {
+        // inputs
+        var fx = parseFloat(document.getElementById("s0_CA30").value) / 100.0 * 3.0 + 0.5;
+        var fy = parseFloat(document.getElementById("s1_CA30").value) / 100.0 * 3.0 + 0.5;
+        var u0 = parseFloat(document.getElementById("s2_CA30").value) / 100.0 * 2.0 - 1.0;
+        var v0 = parseFloat(document.getElementById("s3_CA30").value) / 100.0 * 2.0 - 1.0;
+        var gamma = parseFloat(document.getElementById("s4_CA30").value) / 100.0 * 2.0 - 1.0;
+        rendererCA31.render( sceneCA31, cameraCA31 );
+    }
 
     // requestAnimationFrame makes this function run once for every frame.
     // keep this function small to avoid slowing down the page.
@@ -556,6 +799,8 @@ input[type="range"] {
         if (CA00) { updateCA02(); }
         if (CA10) { updateCA10(); }
         if (CA20) { updateCA20(); }
+        if (CA30) { updateCA30(); }
+        if (CA31) { updateCA31(); }
     }
     animate();
 </script>
