@@ -474,7 +474,7 @@
             var order = document.getElementById("euler").value;
             var euler = new THREE.Euler( e0, e1, e2, order);
             var quat = new THREE.Quaternion();
-            quat.setFromEuler(euler);
+            quat.setFromEuler(euler); // TODO: find a more precise implementation (e.g. wrong for 180 deg)
             var qx = quat.x;
             var qy = quat.y;
             var qz = quat.z;
@@ -507,10 +507,18 @@
           if (ipidx != 1) {
             // to quaternion
             var tempw = 0.5 * Math.sqrt(1 + xx + yy + zz);
-            document.getElementById("q0").value = -(zy - yz) / (4 * tempw);
-            document.getElementById("q1").value = -(xz - zx) / (4 * tempw);
-            document.getElementById("q2").value = -(yx - xy) / (4 * tempw);
-            document.getElementById("q3").value = tempw;
+            var quat = new THREE.Quaternion();
+            var mat4 = new THREE.Matrix4();
+            mat4.set(xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, 0, 0, 0, 1);
+            quat.setFromRotationMatrix(mat4)
+            // document.getElementById("q0").value = -(zy - yz) / (4 * tempw);
+            // document.getElementById("q1").value = -(xz - zx) / (4 * tempw);
+            // document.getElementById("q2").value = -(yx - xy) / (4 * tempw);
+            // document.getElementById("q3").value = tempw;
+            document.getElementById("q0").value = quat.x;
+            document.getElementById("q1").value = quat.y;
+            document.getElementById("q2").value = quat.z;
+            document.getElementById("q3").value = quat.w;
           }
 
           if (ipidx != 2) {
