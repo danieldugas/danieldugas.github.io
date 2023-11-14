@@ -330,59 +330,86 @@
       var zx = 0.0;
       var zy = 0.0;
       var zz = 1.0;
+      var transform_matrices = [];
+      const MAX_TFS = 2;
 
     function transform_matrix_from_quaternion(qx, qy, qz, qw) {
     }
 
       // Creates the origin axes instances
-      const quat1 = new THREE.Quaternion();
-      quat1.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-      const quat2 = new THREE.Quaternion();
-      quat2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2);  
-      const AXL = 1.0;
-      const AXT = 0.02;
-      const origxaxismaterial = new THREE.MeshBasicMaterial( { color: 0xddbbbb } );
-      var origxaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
-      origxaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
-      origxaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat2);});
-      const origxaxis = new THREE.Mesh(origxaxiscylindergeom, origxaxismaterial);
-      origxaxis.position.set(0, 0, 0);
-      scene.add(origxaxis);
-      const origyaxismaterial = new THREE.MeshBasicMaterial( { color: 0xbbddbb } );
-      var origyaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
-      origyaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
-      const origyaxis = new THREE.Mesh(origyaxiscylindergeom, origyaxismaterial);
-      origyaxis.position.set(0, 0, 0);
-      scene.add(origyaxis);
-      const origzaxismaterial = new THREE.MeshBasicMaterial( { color: 0xbbbbdd } );
-      var origzaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
-      origzaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
-      origzaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat1);});
-      const origzaxis = new THREE.Mesh(origzaxiscylindergeom, origzaxismaterial);
-      origzaxis.position.set(0, 0, 0);
-      scene.add(origzaxis);
+      // const quat1 = new THREE.Quaternion();
+      // quat1.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+      // const quat2 = new THREE.Quaternion();
+      // quat2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2);  
+      // const AXL = 1.0;
+      // const AXT = 0.02;
+      // const origxaxismaterial = new THREE.MeshBasicMaterial( { color: 0xddbbbb } );
+      // var origxaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
+      // origxaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
+      // origxaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat2);});
+      // const origxaxis = new THREE.Mesh(origxaxiscylindergeom, origxaxismaterial);
+      // origxaxis.position.set(0, 0, 0);
+      // scene.add(origxaxis);
+      // const origyaxismaterial = new THREE.MeshBasicMaterial( { color: 0xbbddbb } );
+      // var origyaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
+      // origyaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
+      // const origyaxis = new THREE.Mesh(origyaxiscylindergeom, origyaxismaterial);
+      // origyaxis.position.set(0, 0, 0);
+      // scene.add(origyaxis);
+      // const origzaxismaterial = new THREE.MeshBasicMaterial( { color: 0xbbbbdd } );
+      // var origzaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
+      // origzaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
+      // origzaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat1);});
+      // const origzaxis = new THREE.Mesh(origzaxiscylindergeom, origzaxismaterial);
+      // origzaxis.position.set(0, 0, 0);
+      // scene.add(origzaxis);
       // Creates the user axes instances
-      const xaxismaterial = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
-      var xaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
-      xaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
-      xaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat2);});
-      const xaxis = new THREE.Mesh(xaxiscylindergeom, xaxismaterial);
-      xaxis.position.set(0, 0, 0);
-      scene.add(xaxis);
-      const yaxismaterial = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-      var yaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
-      yaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
-      const yaxis = new THREE.Mesh(yaxiscylindergeom, yaxismaterial);
-      yaxis.position.set(0, 0, 0);
-      scene.add(yaxis);
-      const zaxismaterial = new THREE.MeshBasicMaterial( { color: 0x0000ff } );
-      var zaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
-      zaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
-      zaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat1);});
-      const zaxis = new THREE.Mesh(zaxiscylindergeom, zaxismaterial);
-      zaxis.position.set(0, 0, 0);
-      scene.add(zaxis);
-
+      
+      function create_axes(scene, axes_list, AXL, AXT) {
+        const quat1 = new THREE.Quaternion();
+        quat1.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+        const quat2 = new THREE.Quaternion();
+        quat2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2);  
+        var xyz_axes = [];
+        const xaxismaterial = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+        var xaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
+        xaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
+        xaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat2);});
+        const xaxis = new THREE.Mesh(xaxiscylindergeom, xaxismaterial);
+        xaxis.position.set(0, 0, 0);
+        scene.add(xaxis);
+        const yaxismaterial = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+        var yaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
+        yaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
+        const yaxis = new THREE.Mesh(yaxiscylindergeom, yaxismaterial);
+        yaxis.position.set(0, 0, 0);
+        scene.add(yaxis);
+        const zaxismaterial = new THREE.MeshBasicMaterial( { color: 0x0000ff } );
+        var zaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
+        zaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
+        zaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat1);});
+        const zaxis = new THREE.Mesh(zaxiscylindergeom, zaxismaterial);
+        zaxis.position.set(0, 0, 0);
+        scene.add(zaxis);
+        xyz_axes.push(xaxis);
+        xyz_axes.push(yaxis);
+        xyz_axes.push(zaxis);
+        axes_list.push(xyz_axes);
+      }
+      // Creates the origin axes instances
+      var orig_axes = [];
+      create_axes(scene, orig_axes, 1.0, 0.02);
+      const origxaxis = orig_axes[0][0];
+      const origyaxis = orig_axes[0][1];
+      const origzaxis = orig_axes[0][2];
+      // Creates the user axes instances
+      var tf_axes = [];
+      for (var i = 1; i < MAX_TFS; i++) {
+        create_axes(scene, tf_axes, 1.0, 0.02);
+        var mat4 = new THREE.Matrix4();
+        mat4.identity();
+        transform_matrices.push(mat4);
+      }
 
       // instantiate a loader
       const loader = new THREE.OBJLoader2();
@@ -411,34 +438,48 @@
         }
       );
 
-      // Called when a field gets updated by the user. Argument is the index of the form element which has been updated
+      // Called when a field gets updated by the user. Argument is the index of the form element which has been updated\
+      // converts the input into the universal format (matrix4), then back into every other field
       function update(Ti, ipidx) {
+        var xx = transform_matrices[Ti].elements[0];
+        var xy = transform_matrices[Ti].elements[1];
+        var xz = transform_matrices[Ti].elements[2];
+        var yx = transform_matrices[Ti].elements[4];
+        var yy = transform_matrices[Ti].elements[5];
+        var yz = transform_matrices[Ti].elements[6];
+        var zx = transform_matrices[Ti].elements[8];
+        var zy = transform_matrices[Ti].elements[9];
+        var zz = transform_matrices[Ti].elements[10];
+        var tx = transform_matrices[Ti].elements[12];
+        var ty = transform_matrices[Ti].elements[13];
+        var tz = transform_matrices[Ti].elements[14];
+
           // convert any input into Matrix4
           if (ipidx == 6) {
-            var t0 = document.getElementById("T0t0").value * 1.0;
-            var t1 = document.getElementById("T0t1").value * 1.0;
-            var t2 = document.getElementById("T0t2").value * 1.0;
+            var t0 = document.getElementById("T" + toString(Ti) + "t0").value * 1.0;
+            var t1 = document.getElementById("T" + toString(Ti) + "t1").value * 1.0;
+            var t2 = document.getElementById("T" + toString(Ti) + "t2").value * 1.0;
             tx = t0;
             ty = t1;
             tz = t2;
           }
           if (ipidx == 0) {
-            xx = document.getElementById("T0m00").value * 1.0;
-            yx = document.getElementById("T0m01").value * 1.0;
-            zx = document.getElementById("T0m02").value * 1.0;
-            xy = document.getElementById("T0m10").value * 1.0;
-            yy = document.getElementById("T0m11").value * 1.0;
-            zy = document.getElementById("T0m12").value * 1.0;
-            xz = document.getElementById("T0m20").value * 1.0;
-            yz = document.getElementById("T0m21").value * 1.0;
-            zz = document.getElementById("T0m22").value * 1.0;
+            xx = document.getElementById("T" + toString(Ti) + "m00").value * 1.0;
+            yx = document.getElementById("T" + toString(Ti) + "m01").value * 1.0;
+            zx = document.getElementById("T" + toString(Ti) + "m02").value * 1.0;
+            xy = document.getElementById("T" + toString(Ti) + "m10").value * 1.0;
+            yy = document.getElementById("T" + toString(Ti) + "m11").value * 1.0;
+            zy = document.getElementById("T" + toString(Ti) + "m12").value * 1.0;
+            xz = document.getElementById("T" + toString(Ti) + "m20").value * 1.0;
+            yz = document.getElementById("T" + toString(Ti) + "m21").value * 1.0;
+            zz = document.getElementById("T" + toString(Ti) + "m22").value * 1.0;
 
           }
           if (ipidx == 1) {
-            var qx = document.getElementById("T0q0").value * 1.0;
-            var qy = document.getElementById("T0q1").value * 1.0;
-            var qz = document.getElementById("T0q2").value * 1.0;
-            var qw = document.getElementById("T0q3").value * 1.0;
+            var qx = document.getElementById("T" + toString(Ti) + "q0").value * 1.0;
+            var qy = document.getElementById("T" + toString(Ti) + "q1").value * 1.0;
+            var qz = document.getElementById("T" + toString(Ti) + "q2").value * 1.0;
+            var qw = document.getElementById("T" + toString(Ti) + "q3").value * 1.0;
             // rot matrix from quaternion
             // [1 - 2 * qy * qy - 2 * qz * qz,     2 * qx * qy - 2 * qz * qw,     2 * qx * qz + 2 * qy * qw, 0]
             // [    2 * qx * qy + 2 * qz * qw, 1 - 2 * qx * qx - 2 * qz * qz,     2 * qy * qz - 2 * qx * qw, 0]
@@ -465,16 +506,16 @@
             //         [0, 0, 0, 1],
             //     ]
             // )
-            var ux = document.getElementById("T0a0").value * 1.0;
-            var uy = document.getElementById("T0a1").value * 1.0;
-            var uz = document.getElementById("T0a2").value * 1.0;
+            var ux = document.getElementById("T" + toString(Ti) + "a0").value * 1.0;
+            var uy = document.getElementById("T" + toString(Ti) + "a1").value * 1.0;
+            var uz = document.getElementById("T" + toString(Ti) + "a2").value * 1.0;
             norm = Math.sqrt(ux * ux + uy * uy + uz * uz);
             if (norm > 0) {
               ux /= norm;
               uy /= norm;
               uz /= norm;
             }
-            var angle = InputToRad(document.getElementById("T0a3").value * 1.0);
+            var angle = InputToRad(document.getElementById("T" + toString(Ti) + "a3").value * 1.0);
             var cos = Math.cos(angle);
             var sin = Math.sin(angle);
             xx = ux * ux * (1 - cos) + cos;
@@ -489,9 +530,9 @@
           }
           if (ipidx == 3) {
             // Axis
-            var ux = document.getElementById("T0r0").value * 1.0;
-            var uy = document.getElementById("T0r1").value * 1.0;
-            var uz = document.getElementById("T0r2").value * 1.0;
+            var ux = document.getElementById("T" + toString(Ti) + "r0").value * 1.0;
+            var uy = document.getElementById("T" + toString(Ti) + "r1").value * 1.0;
+            var uz = document.getElementById("T" + toString(Ti) + "r2").value * 1.0;
             norm = Math.sqrt(ux * ux + uy * uy + uz * uz);
             if (norm > 0) {
               ux /= norm;
@@ -512,10 +553,10 @@
             zz = uz * uz * (1 - cos) + cos;
           }
           if (ipidx == 4) {
-            e0 = InputToRad(document.getElementById("T0e0").value * 1.0);
-            e1 = InputToRad(document.getElementById("T0e1").value * 1.0);
-            e2 = InputToRad(document.getElementById("T0e2").value * 1.0);
-            var order = document.getElementById("T0euler").value;
+            e0 = InputToRad(document.getElementById("T" + toString(Ti) + "e0").value * 1.0);
+            e1 = InputToRad(document.getElementById("T" + toString(Ti) + "e1").value * 1.0);
+            e2 = InputToRad(document.getElementById("T" + toString(Ti) + "e2").value * 1.0);
+            var order = document.getElementById("T" + toString(Ti) + "euler").value;
             var euler = new THREE.Euler( e0, e1, e2, order);
             var quat = new THREE.Quaternion();
             quat.setFromEuler(euler); // TODO: find a more precise implementation (e.g. wrong for 180 deg)
@@ -534,18 +575,22 @@
             zz = 1 - 2 * qx * qx - 2 * qy * qy;
           }
 
+          // ASSIGN -------------------------
+          transform_matrices[Ti].set(xx, yx, zx, tx, xy, yy, zy, ty, xz, yz, zz, tz, 0, 0, 0, 1);
+
+          // OUTPUT  -----------------------
           // Convert Matrix 4 into any output and update displays
           if (ipidx != 0)
           {
-            document.getElementById("T0m00").value = xx;
-            document.getElementById("T0m01").value = yx;
-            document.getElementById("T0m02").value = zx;
-            document.getElementById("T0m10").value = xy;
-            document.getElementById("T0m11").value = yy;
-            document.getElementById("T0m12").value = zy;
-            document.getElementById("T0m20").value = xz;
-            document.getElementById("T0m21").value = yz;
-            document.getElementById("T0m22").value = zz;
+            document.getElementById("T" + toString(Ti) + "m00").value = xx;
+            document.getElementById("T" + toString(Ti) + "m01").value = yx;
+            document.getElementById("T" + toString(Ti) + "m02").value = zx;
+            document.getElementById("T" + toString(Ti) + "m10").value = xy;
+            document.getElementById("T" + toString(Ti) + "m11").value = yy;
+            document.getElementById("T" + toString(Ti) + "m12").value = zy;
+            document.getElementById("T" + toString(Ti) + "m20").value = xz;
+            document.getElementById("T" + toString(Ti) + "m21").value = yz;
+            document.getElementById("T" + toString(Ti) + "m22").value = zz;
           }
 
           if (ipidx != 1) {
@@ -555,14 +600,14 @@
             var mat4 = new THREE.Matrix4();
             mat4.set(xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, 0, 0, 0, 1);
             quat.setFromRotationMatrix(mat4)
-            // document.getElementById("T0q0").value = -(zy - yz) / (4 * tempw);
-            // document.getElementById("T0q1").value = -(xz - zx) / (4 * tempw);
-            // document.getElementById("T0q2").value = -(yx - xy) / (4 * tempw);
-            // document.getElementById("T0q3").value = tempw;
-            document.getElementById("T0q0").value = quat.x;
-            document.getElementById("T0q1").value = quat.y;
-            document.getElementById("T0q2").value = quat.z;
-            document.getElementById("T0q3").value = quat.w;
+            // document.getElementById("T" + toString(Ti) + "q0").value = -(zy - yz) / (4 * tempw);
+            // document.getElementById("T" + toString(Ti) + "q1").value = -(xz - zx) / (4 * tempw);
+            // document.getElementById("T" + toString(Ti) + "q2").value = -(yx - xy) / (4 * tempw);
+            // document.getElementById("T" + toString(Ti) + "q3").value = tempw;
+            document.getElementById("T" + toString(Ti) + "q0").value = quat.x;
+            document.getElementById("T" + toString(Ti) + "q1").value = quat.y;
+            document.getElementById("T" + toString(Ti) + "q2").value = quat.z;
+            document.getElementById("T" + toString(Ti) + "q3").value = quat.w;
           }
 
           if (ipidx != 2) {
@@ -577,10 +622,10 @@
             var ux = (yz - zy) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
             var uy = (zx - xz) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
             var uz = (xy - yx) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
-            document.getElementById("T0a3").value = InputFromRad(angle);
-            document.getElementById("T0a0").value = ux;
-            document.getElementById("T0a1").value = uy;
-            document.getElementById("T0a2").value = uz;
+            document.getElementById("T" + toString(Ti) + "a3").value = InputFromRad(angle);
+            document.getElementById("T" + toString(Ti) + "a0").value = ux;
+            document.getElementById("T" + toString(Ti) + "a1").value = uy;
+            document.getElementById("T" + toString(Ti) + "a2").value = uz;
           }
 
           if (ipidx != 3) {
@@ -588,9 +633,9 @@
             var ux = (yz - zy) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
             var uy = (zx - xz) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
             var uz = (xy - yx) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
-            document.getElementById("T0r0").value = ux * angle;
-            document.getElementById("T0r1").value = uy * angle;
-            document.getElementById("T0r2").value = uz * angle;
+            document.getElementById("T" + toString(Ti) + "r0").value = ux * angle;
+            document.getElementById("T" + toString(Ti) + "r1").value = uy * angle;
+            document.getElementById("T" + toString(Ti) + "r2").value = uz * angle;
           }
 
           if (ipidx != 4) {
@@ -603,11 +648,11 @@
               ,xz  ,yz  ,zz ,0
               ,0   ,0   ,0  ,1
             );
-            var order = document.getElementById("T0euler").value;
+            var order = document.getElementById("T" + toString(Ti) + "euler").value;
             euler.setFromRotationMatrix(rotmat, order);
-            document.getElementById("T0e0").value = InputFromRad(euler.x);
-            document.getElementById("T0e1").value = InputFromRad(euler.y);
-            document.getElementById("T0e2").value = InputFromRad(euler.z);
+            document.getElementById("T" + toString(Ti) + "e0").value = InputFromRad(euler.x);
+            document.getElementById("T" + toString(Ti) + "e1").value = InputFromRad(euler.y);
+            document.getElementById("T" + toString(Ti) + "e2").value = InputFromRad(euler.z);
           }
 
           // set unit spans to either (radians) or (degrees)
@@ -670,9 +715,14 @@
         requestAnimationFrame( animate );
         var slider = document.getElementById("myRange");
         param = slider.value / 100.;
+        for (var i = 1; i < MAX_TFS; i++) {
+        var xaxis = tf_axes[i][0];
+        var yaxis = tf_axes[i][1];
+        var zaxis = tf_axes[i][2];
         xaxis.scale.set(param, param, param);
         yaxis.scale.set(param, param, param);
         zaxis.scale.set(param, param, param);
+        }
         origxaxis.scale.set(param, param, param);
         origyaxis.scale.set(param, param, param);
         origzaxis.scale.set(param, param, param);
@@ -684,19 +734,36 @@
                     '0.000, 0.000, 0.000, 1.000]';
         info = document.getElementById("info").innerHTML = text;
         // Move axes
-        xaxis.position.set(tx, ty, tz);
-        yaxis.position.set(tx, ty, tz);
-        zaxis.position.set(tx, ty, tz);
-        const rotationMatrix = new THREE.Matrix4();
-        rotationMatrix.set( 
-           xx  ,yx  ,zx ,0
-          ,xy  ,yy  ,zy ,0
-          ,xz  ,yz  ,zz ,0
-          ,0   ,0   ,0  ,1
-        );
-        xaxis.rotation.setFromRotationMatrix(rotationMatrix);
-        yaxis.rotation.setFromRotationMatrix(rotationMatrix);
-        zaxis.rotation.setFromRotationMatrix(rotationMatrix);
+        for (var i = 1; i < MAX_TFS; i++) {
+          var xaxis = tf_axes[i][0];
+          var yaxis = tf_axes[i][1];
+          var zaxis = tf_axes[i][2];
+          var xx = transform_matrices[Ti].elements[0];
+          var xy = transform_matrices[Ti].elements[1];
+          var xz = transform_matrices[Ti].elements[2];
+          var yx = transform_matrices[Ti].elements[4];
+          var yy = transform_matrices[Ti].elements[5];
+          var yz = transform_matrices[Ti].elements[6];
+          var zx = transform_matrices[Ti].elements[8];
+          var zy = transform_matrices[Ti].elements[9];
+          var zz = transform_matrices[Ti].elements[10];
+          var tx = transform_matrices[Ti].elements[12];
+          var ty = transform_matrices[Ti].elements[13];
+          var tz = transform_matrices[Ti].elements[14];
+          xaxis.position.set(tx, ty, tz);
+          yaxis.position.set(tx, ty, tz);
+          zaxis.position.set(tx, ty, tz);
+          const rotationMatrix = new THREE.Matrix4();
+          rotationMatrix.set( 
+            xx  ,yx  ,zx ,0
+            ,xy  ,yy  ,zy ,0
+            ,xz  ,yz  ,zz ,0
+            ,0   ,0   ,0  ,1
+          );
+          xaxis.rotation.setFromRotationMatrix(rotationMatrix);
+          yaxis.rotation.setFromRotationMatrix(rotationMatrix);
+          zaxis.rotation.setFromRotationMatrix(rotationMatrix);
+        }
         // re-render canvas
         renderer.render( scene, activecamera );
       }
