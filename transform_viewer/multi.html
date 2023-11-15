@@ -19,8 +19,18 @@
         flex-grow: 2;
         max-height: 100vh;
         overflow-y: clip;
+        position: relative;
       }
 
+      .canvaslabels {
+        position: absolute;
+        text-align: center;
+        z-index: 100;
+        width: 100%;
+        height: 100%;
+        display:block;
+        pointer-events: none;
+      }
 
       /* change font for whole page */
       body {
@@ -102,6 +112,7 @@
         padding: 10px;
         margin: 10px;
       }
+
     </style>
   </head>
   <body>
@@ -254,7 +265,11 @@
         <button type="button" onclick="planeview(1);">Y Plane View</button>
         <button type="button" onclick="planeview(2);">Z Plane View</button>
       </div>
-      <div id="canvas" class="canvaspanel"></div>
+      <div id="canvas" class="canvaspanel">
+        <div id="canvaslabels" class="canvaslabels">
+          <div class="label" style="color: rgb(144, 144, 144); position: absolute; user-select: none; transform: translate(1146.22px, 222.947px); z-index: 5;" draggable="false">C</div>
+        </div>
+      </div>
     </div>
 
     <script src="js/three.min.js"></script>
@@ -290,6 +305,17 @@
         var show = document.getElementById("showgrid");
         grid.visible = show.checked;
       }
+
+      function mat4_to_log(mat4) {
+              var str = "";
+              for (var i = 0; i < 4; i++) {
+                for (var j = 0; j < 4; j++) {
+                  str += mat4.elements[i+ j * 4].toFixed(3) + " ";
+                }
+                str += "\n";
+              }
+              return str;
+            }
 
       function standardview() {
         camera.position.y = -5;
@@ -574,9 +600,15 @@
           var tf_chain = [];
           var current_child = descendant;
           var iter = 0;
+          
+          if (descendant == "DEBUG") { console.log("Debug descendant in ancestor:"); }
           while (true) {
             var current_parent = this.get_parent_of(current_child);
             var tf = this.get_parent_tf_of(current_child);
+            
+            if (descendant == "DEBUG") {
+              console.log(i, `${current_child} in ${current_parent}` + "\n" + mat4_to_log(tf));
+            }
             tf_chain.push(tf);
             if (current_parent == ancestor) {
               break;
@@ -586,9 +618,12 @@
             }
             current_child = current_parent;
           }
+          
+          if (descendant == "DEBUG") { console.log("---------- debug end descendant in ancestor ----------"); }
           // tf chain [descendant in p1, p1 in p2, ..., pn in ancestor]
           var descendant_in_ancestor_tf = new THREE.Matrix4();
-          for (var i = 0; i < tf_chain.length; i++) {
+          descendant_in_ancestor_tf.copy(tf_chain[tf_chain.length - 1]);
+          for (var i = tf_chain.length - 2; i >= 0; i--) {
             descendant_in_ancestor_tf.multiply(tf_chain[i]);
           }
           return descendant_in_ancestor_tf;
@@ -615,8 +650,15 @@
           MRCA_in_A_tf.copy(A_in_MRCA_tf);
           MRCA_in_A_tf.getInverse(A_in_MRCA_tf);
           var B_in_A_tf = new THREE.Matrix4();
-          B_in_A_tf.multiply(B_in_MRCA_tf);
           B_in_A_tf.multiply(MRCA_in_A_tf);
+          B_in_A_tf.multiply(B_in_MRCA_tf);
+          if (A == "DEBUG" || B == "DEBUG") {
+            console.log("Debug A_in_B:");
+            console.log(`${A}_in_${MRCA}_tf` + "\n" + mat4_to_log(A_in_MRCA_tf));
+            console.log(`${B}_in_${MRCA}_tf` + "\n" + mat4_to_log(B_in_MRCA_tf));
+            console.log(`${MRCA}_in_${A}_tf` + "\n" + mat4_to_log(MRCA_in_A_tf));
+            console.log(`${B}_in_${A}_tf` + "\n" + mat4_to_log(B_in_A_tf));
+          }
           return B_in_A_tf;
         }
 
@@ -768,10 +810,12 @@
       const origzaxis = orig_axes[0][2];
       // Creates the user axes instances
       var tf_axes = [];
+      var axes_labels = [];
       var reference_frame = "parent";
       var visuals3d_need_update = false;
       for (var i = 0; i < MAX_AXS; i++) {
         create_axes(scene, tf_axes, 1.0, 0.02);
+        axes_labels.push("");
       }
       for (var i = 0; i < MAX_TFS; i++) {
         var mat4 = new THREE.Matrix4();
@@ -865,6 +909,7 @@
 
       function update_ref_frame() {
         reference_frame = document.getElementById("reference_frame_dropdown").value;
+        visuals3d_need_update = true;
       }
 
       // Called when a field gets updated by the user. Argument is the index of the form element which has been updated\
@@ -1179,9 +1224,11 @@
           for (var frame of frames) {
             Ai = n_axes_shown;
             var tf = tf_tree.get_B_in_A_tf(reference_frame, frame);
+            axes_labels[Ai] = frame;
             // skip null
             if (tf == null) {
               tf = eye4(); // hide axes at 0
+              axes_labels[Ai] = "";
             }
             var xaxis = tf_axes[Ai][0];
             var yaxis = tf_axes[Ai][1];
@@ -1215,7 +1262,7 @@
             n_axes_shown += 1;
           }
           document.getElementById("debug_frame_infos").innerHTML = debug_frame_info;
-          for (var Ai = n_axes_shown; Ai < MAX_TFS; Ai++) {
+          for (var Ai = n_axes_shown; Ai < MAX_AXS; Ai++) {
             var xaxis = tf_axes[Ai][0];
             var yaxis = tf_axes[Ai][1];
             var zaxis = tf_axes[Ai][2];
@@ -1225,18 +1272,45 @@
             xaxis.rotation.set(0, 0, 0);
             yaxis.rotation.set(0, 0, 0);
             zaxis.rotation.set(0, 0, 0);
+            axes_labels[Ai] = "";
           }
           visuals3d_need_update = false;
         }
         // re-render canvas
         renderer.render( scene, activecamera );
+        // re-render labels
+        // get position of originaxes in window space
+        var labelshtml = "";
+        for (var Ai = 0; Ai < MAX_AXS; Ai++) {
+          var xaxis = tf_axes[Ai][0];
+          var yaxis = tf_axes[Ai][1];
+          var zaxis = tf_axes[Ai][2];
+          var label = axes_labels[Ai];
+          var vector = new THREE.Vector3();
+          vector.setFromMatrixPosition( xaxis.matrixWorld );
+          vector.project( activecamera );
+          var width = document.getElementById("canvaslabels").offsetWidth;
+          var height = document.getElementById("canvaslabels").offsetHeight;
+          var px = Math.round( (   vector.x ) * width  / 2 );
+          var py = Math.round( ( - vector.y + 1 ) * height / 2 );
+          labelshtml = labelshtml + `<div class="label" style="color: rgb(144, 144, 144); position: relative; user-select: none; transform: translate(${px}px, ${py}px); z-index: 5;" draggable="false">${label}</div>`
+        }
+        document.getElementById("canvaslabels").innerHTML = labelshtml;
       }
       for (var Ti = 0; Ti < MAX_TFS; Ti++) {
         update(Ti, 6); // translation values in the form are saved on refresh. This applies them when loading the page.
         update(Ti, 0); // same for rot \
         update(Ti, 7); // same for names \
       }
-      
+      window.addEventListener( 'resize', onWindowResize, false );
+      function onWindowResize(){
+
+          const CF = Math.max((window.innerWidth - 500) / window.innerWidth, 0.5);
+          camera.aspect = window.innerWidth * CF / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize( window.innerWidth * CF, window.innerHeight );
+
+      }
       toggleGrid();
       animate();
     </script>
