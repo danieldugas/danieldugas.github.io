@@ -114,6 +114,18 @@
           <label><input type="radio" id="iformatrad" name="iformat" value="0" checked="" onchange="update(0, -1)">Radians</label>
           <label><input type="radio" id="iformatdeg" name="iformat" value="1" onchange="update(0, -1)">Degrees</label>
           </p>
+          <h3>TF Tree</h3>
+          <div id="tf_tree_errors"></div>
+          <div id="tf_tree_disp"></div>
+          <div id="test_tree_errors"></div>
+          <div id="test_tree_disp"></div>
+          <select id="reference_frame_dropdown" onchange="update_ref_frame()">
+            <option value="0" selected="">parent</option>
+            <option value="1">T0</option>
+            <option value="2">T1</option>
+            <option value="3">T2</option>
+          </select>
+          <div id="debug_frame_infos"></div>
           <div id="TFInputs">
             <div id="T0">
               <h3>T0</h3>
@@ -231,11 +243,6 @@
           <h3>Transforms in X</h3>
           <p><sup>parent</sup><sub>child</sub>M = </p>
           <div id="info">Description</div>
-          <h3>TF Tree</h3>
-          <div id="tf_tree_errors"></div>
-          <div id="tf_tree_disp"></div>
-          <div id="test_tree_errors"></div>
-          <div id="test_tree_disp"></div>
           
         </div>
         <h2>View Options</h2>
@@ -316,6 +323,13 @@
         controls.target.set(0, 0, 0);
         controls.screenSpacePanning = true;
         controls.update();
+      }
+
+
+      function eye4() {
+        var mat4 = new THREE.Matrix4();
+        mat4.identity();
+        return mat4;
       }
 
       class TFRelationship {
@@ -423,19 +437,36 @@
             var parent = relationship_list[i].parent;
             var child = relationship_list[i].child;
             var tf = relationship_list[i].tf;
-            this.add_relationship(parent, child, tf, errors, i);
+            this.add_relationship(parent, child, tf, errors, i, false);
           }
         }
 
-        add_relationship(parent, child, tf, errors, error_rel_index) {
+        add_relationship(parent, child, tf, errors, error_rel_index, is_inverse) {
+            var is_inverse_text = "";
+            if (is_inverse) {
+              is_inverse_text = " inverse";
+            }
+            if (parent == child) {
+              errors.push(new TreeBuildError(`can't add${is_inverse_text} relationship ${error_rel_index}, as it would create a self-parenting node`))
+              return false;
+            }
             //     detect double parents
             //          if rel.child is not root node, error
             //          get all relationships that try to parent child
             //     detect dupes
             //          same as detect double parents
             if (!this.is_root_node(child)) {
+              if (!is_inverse) { // try adding inverse relationship
+                var inverse_tf = new THREE.Matrix4();
+                inverse_tf.copy(tf);
+                inverse_tf.getInverse(tf);
+                if (this.add_relationship(child, parent, inverse_tf, errors, error_rel_index, true)) {
+                  return true;
+                }
+                return false;
+              }
               // TODO get all relationships that try to parent child
-              errors.push(new TreeBuildError(`can't add relationship ${error_rel_index}, as it would create a double-parent node`))
+              errors.push(new TreeBuildError(`can't add${is_inverse_text} relationship ${error_rel_index}, as it would create a double-parent node`))
               return false;
             }
             //     detect loops
@@ -443,7 +474,7 @@
             //          if rel.child == root_node(rel.parent) error
             //          relationship with F1 as child, and relationship with F6 as child get flagged
             if (child == this.get_root_node_of(parent)) {
-              errors.push(new TreeBuildError(`can't add relationship ${error_rel_index}, as it would create a loop`))
+              errors.push(new TreeBuildError(`can't add${is_inverse_text} relationship ${error_rel_index}, as it would create a loop`))
               return false;
             }
             //     add relationship to tree
@@ -500,10 +531,14 @@
       //          return F1
         get_root_node_of(node) {
           var current_node = node;
+          var iter = 0;
           while (true) {
             var parent = this.get_parent_of(current_node);
             if (parent == null) {
               return current_node;
+            }
+            if (iter++ > 10000) {
+              throw new Error("get_root_node_of() infinite loop");
             }
             current_node = parent;
           }
@@ -533,14 +568,21 @@
       //          if current_parent == ancestor: break
       //          return compose(tf_chain)
         get_descendant_in_ancestor_tf(ancestor, descendant) {
+          if (ancestor == descendant) {
+            return eye4();
+          }
           var tf_chain = [];
           var current_child = descendant;
+          var iter = 0;
           while (true) {
             var current_parent = this.get_parent_of(current_child);
             var tf = this.get_parent_tf_of(current_child);
             tf_chain.push(tf);
             if (current_parent == ancestor) {
               break;
+            }
+            if (iter++ > 10000) {
+              throw new Error("get_root_node_of() infinite loop");
             }
             current_child = current_parent;
           }
@@ -563,16 +605,19 @@
           if (root_node_A != root_node_B) {
             return null;
           }
+          if (A == B) {
+            return eye4();
+          }
           var MRCA = root_node_A;
           var A_in_MRCA_tf = this.get_descendant_in_ancestor_tf(MRCA, A);
           var B_in_MRCA_tf = this.get_descendant_in_ancestor_tf(MRCA, B);
-          var MRCA_in_B_tf = new THREE.Matrix4();
-          MRCA_in_B_tf.copy(B_in_MRCA_tf);
-          MRCA_in_B_tf.invert();
-          var A_in_B_tf = new THREE.Matrix4();
-          A_in_B_tf.multiply(A_in_MRCA_tf);
-          A_in_B_tf.multiply(MRCA_in_B_tf);
-          return A_in_B_tf;
+          var MRCA_in_A_tf = new THREE.Matrix4();
+          MRCA_in_A_tf.copy(A_in_MRCA_tf);
+          MRCA_in_A_tf.getInverse(A_in_MRCA_tf);
+          var B_in_A_tf = new THREE.Matrix4();
+          B_in_A_tf.multiply(B_in_MRCA_tf);
+          B_in_A_tf.multiply(MRCA_in_A_tf);
+          return B_in_A_tf;
         }
 
         as_html() {
@@ -619,6 +664,7 @@
       // var zz = 1.0;
       var transform_relationships = []; // [(parent_name, child_name, tf), ...]
       const MAX_TFS = 3;
+      const MAX_AXS = MAX_TFS * 2;
       
       // Create the input HTML
       var tfinputshtml = '';
@@ -722,8 +768,12 @@
       const origzaxis = orig_axes[0][2];
       // Creates the user axes instances
       var tf_axes = [];
-      for (var i = 0; i < MAX_TFS; i++) {
+      var reference_frame = "parent";
+      var visuals3d_need_update = false;
+      for (var i = 0; i < MAX_AXS; i++) {
         create_axes(scene, tf_axes, 1.0, 0.02);
+      }
+      for (var i = 0; i < MAX_TFS; i++) {
         var mat4 = new THREE.Matrix4();
         mat4.identity();
         transform_relationships.push(new TFRelationship("parent", "T" + i.toString(), mat4)); // initialize array to right size. update() will populate the fields.
@@ -761,13 +811,6 @@
 
       
 
-      // Test
-
-      function eye4() {
-        var mat4 = new THREE.Matrix4();
-        mat4.identity();
-        return mat4;
-      }
 
       if (false) {
         var relationships = [ // tree with loop
@@ -807,6 +850,21 @@
           error_text += error.message + "<br>";
         }
         document.getElementById("test_tree_errors").innerHTML = error_text;
+      }
+
+      function rebuild_tree() {
+        var errors = [];
+        tf_tree.build_tree(transform_relationships, errors);
+        document.getElementById("tf_tree_disp").innerHTML = tf_tree.as_html();
+        error_text = "";
+        for (var error of errors) {
+          error_text += error.message + "<br>";
+        }
+        document.getElementById("tf_tree_errors").innerHTML = error_text;
+      }
+
+      function update_ref_frame() {
+        reference_frame = document.getElementById("reference_frame_dropdown").value;
       }
 
       // Called when a field gets updated by the user. Argument is the index of the form element which has been updated\
@@ -948,18 +1006,27 @@
           if (ipidx == 7) {
             transform_relationships[Ti].parent = document.getElementById("T" + Ti.toString() + "parent").value;
             transform_relationships[Ti].child = document.getElementById("T" + Ti.toString() + "child").value;
-            var errors = [];
-            tf_tree.build_tree(transform_relationships, errors);
-            document.getElementById("tf_tree_disp").innerHTML = tf_tree.as_html();
-            error_text = "";
-            for (var error of errors) {
-              error_text += error.message + "<br>";
+            rebuild_tree();
+            // Update reference frame dropdown choices
+            var frames = tf_tree.get_unique_nodes();
+            var options_html = "";
+            for (var frame of frames) {
+              var is_selected = (frame == reference_frame);
+              var selected_text = ""
+              if (is_selected) {
+                selected_text = ` selected=""`
+              }
+              options_html = options_html + `<option value="${frame}"${selected_text}>${frame}</option>`
             }
-            document.getElementById("tf_tree_errors").innerHTML = error_text;
+            document.getElementById("reference_frame_dropdown").innerHTML = options_html;
+            update_ref_frame(); // ensure that the dropdown and variable match, even in edge cases (deleting selected)
           }
 
           // ASSIGN -------------------------
           transform_relationships[Ti].tf.set(xx, yx, zx, tx, xy, yy, zy, ty, xz, yz, zz, tz, 0, 0, 0, 1);
+          visuals3d_need_update = true;
+
+          rebuild_tree(); // necessary because inverse transforms are stored as copies in the tree
 
           // OUTPUT  -----------------------
           // Convert Matrix 4 into any output and update displays
@@ -1090,7 +1157,7 @@
         requestAnimationFrame( animate );
         var slider = document.getElementById("myRange");
         param = slider.value / 100.;
-        for (var Ai = 1; Ai < MAX_TFS; Ai++) {
+        for (var Ai = 0; Ai < MAX_AXS; Ai++) {
           var xaxis = tf_axes[Ai][0];
           var yaxis = tf_axes[Ai][1];
           var zaxis = tf_axes[Ai][2];
@@ -1103,45 +1170,63 @@
         origzaxis.scale.set(param, param, param);
 
         // update text and visuals
-       
         // Move axes
-        for (var Ai = 0; Ai < MAX_TFS; Ai++) {
-          var Ti = Ai;
-          var xaxis = tf_axes[Ai][0];
-          var yaxis = tf_axes[Ai][1];
-          var zaxis = tf_axes[Ai][2];
-          var xx = transform_relationships[Ti].tf.elements[0];
-          var xy = transform_relationships[Ti].tf.elements[1];
-          var xz = transform_relationships[Ti].tf.elements[2];
-          var yx = transform_relationships[Ti].tf.elements[4];
-          var yy = transform_relationships[Ti].tf.elements[5];
-          var yz = transform_relationships[Ti].tf.elements[6];
-          var zx = transform_relationships[Ti].tf.elements[8];
-          var zy = transform_relationships[Ti].tf.elements[9];
-          var zz = transform_relationships[Ti].tf.elements[10];
-          var tx = transform_relationships[Ti].tf.elements[12];
-          var ty = transform_relationships[Ti].tf.elements[13];
-          var tz = transform_relationships[Ti].tf.elements[14];
-          xaxis.position.set(tx, ty, tz);
-          yaxis.position.set(tx, ty, tz);
-          zaxis.position.set(tx, ty, tz);
-          const rotationMatrix = new THREE.Matrix4();
-          rotationMatrix.set( 
-            xx  ,yx  ,zx ,0
-            ,xy  ,yy  ,zy ,0
-            ,xz  ,yz  ,zz ,0
-            ,0   ,0   ,0  ,1
-          );
-          xaxis.rotation.setFromRotationMatrix(rotationMatrix);
-          yaxis.rotation.setFromRotationMatrix(rotationMatrix);
-          zaxis.rotation.setFromRotationMatrix(rotationMatrix); 
-          
-          
-          var text = '[' + xx.toFixed(3) + ', ' + yx.toFixed(3) + ', ' + zx.toFixed(3) +  ', ' + tx.toFixed(3) + '<br> ' +
-                   xy.toFixed(3) + ', ' + yy.toFixed(3) + ', ' + zy.toFixed(3) +  ', ' + ty.toFixed(3) + '<br> ' +
-                   xz.toFixed(3) + ', ' + yz.toFixed(3) + ', ' + zz.toFixed(3) +  ', ' + tz.toFixed(3) + '<br>' +
-                    '0.000, 0.000, 0.000, 1.000]';
-          info = document.getElementById("info").innerHTML = text;
+        if (visuals3d_need_update) {
+          var frames = tf_tree.get_unique_nodes();
+          var n_axes_shown = 0;
+          var debug_frame_info = "";
+          // for each frame
+          for (var frame of frames) {
+            Ai = n_axes_shown;
+            var tf = tf_tree.get_B_in_A_tf(reference_frame, frame);
+            // skip null
+            if (tf == null) {
+              tf = eye4(); // hide axes at 0
+            }
+            var xaxis = tf_axes[Ai][0];
+            var yaxis = tf_axes[Ai][1];
+            var zaxis = tf_axes[Ai][2];
+            var xx = tf.elements[0];
+            var xy = tf.elements[1];
+            var xz = tf.elements[2];
+            var yx = tf.elements[4];
+            var yy = tf.elements[5];
+            var yz = tf.elements[6];
+            var zx = tf.elements[8];
+            var zy = tf.elements[9];
+            var zz = tf.elements[10];
+            var tx = tf.elements[12];
+            var ty = tf.elements[13];
+            var tz = tf.elements[14];
+            debug_frame_info += `<p>${frame} in ${reference_frame}: ${tx}, ${ty}, ${tz}</p>`;
+            xaxis.position.set(tx, ty, tz);
+            yaxis.position.set(tx, ty, tz);
+            zaxis.position.set(tx, ty, tz);
+            const rotationMatrix = new THREE.Matrix4();
+            rotationMatrix.set( 
+              xx  ,yx  ,zx ,0
+              ,xy  ,yy  ,zy ,0
+              ,xz  ,yz  ,zz ,0
+              ,0   ,0   ,0  ,1
+            );
+            xaxis.rotation.setFromRotationMatrix(rotationMatrix);
+            yaxis.rotation.setFromRotationMatrix(rotationMatrix);
+            zaxis.rotation.setFromRotationMatrix(rotationMatrix);
+            n_axes_shown += 1;
+          }
+          document.getElementById("debug_frame_infos").innerHTML = debug_frame_info;
+          for (var Ai = n_axes_shown; Ai < MAX_TFS; Ai++) {
+            var xaxis = tf_axes[Ai][0];
+            var yaxis = tf_axes[Ai][1];
+            var zaxis = tf_axes[Ai][2];
+            xaxis.position.set(0, 0, 0);
+            yaxis.position.set(0, 0, 0);
+            zaxis.position.set(0, 0, 0);
+            xaxis.rotation.set(0, 0, 0);
+            yaxis.rotation.set(0, 0, 0);
+            zaxis.rotation.set(0, 0, 0);
+          }
+          visuals3d_need_update = false;
         }
         // re-render canvas
         renderer.render( scene, activecamera );
