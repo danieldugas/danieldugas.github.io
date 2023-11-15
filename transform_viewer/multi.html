@@ -114,115 +114,117 @@
           <label><input type="radio" id="iformatrad" name="iformat" value="0" checked="" onchange="update(0, -1)">Radians</label>
           <label><input type="radio" id="iformatdeg" name="iformat" value="1" onchange="update(0, -1)">Degrees</label>
           </p>
-          <div id="T0">
-            <h3>T0</h3>
-            <input type="string" id="T0parent" value="parent" oninput="update(0, 7)">
-            <input type="string" id="T0child" value="T0" oninput="update(0, 7)">
-            <p class="pi" id="T0ip6">Translation vector (xyz)
-            <br><span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T0t0" value="0" oninput="update(0, 6)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0t1" value="0" oninput="update(0, 6)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0t2" value="0" oninput="update(0, 6)">
-            </p>
-            <button type="button" onclick="eye();">Reset to Identity</button>
-            <p class="pi" id="T0ip0">Rotation matrix
-            <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m00" value="1" oninput="update(0, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m01" value="0" oninput="update(0, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m02" value="0" oninput="update(0, 0)"> &nbsp;
-            <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m10" value="0" oninput="update(0, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m11" value="1" oninput="update(0, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m12" value="0" oninput="update(0, 0)"> &nbsp;
-            <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m20" value="0" oninput="update(0, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m21" value="0" oninput="update(0, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m22" value="1" oninput="update(0, 0)">
-            </p>
-            <p class="pi" id="T0ip1">Quaternion (xyzw) 
-            <br>
-            <span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T0q0" value="0" oninput="update(0, 1)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0q1" value="0" oninput="update(0, 1)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0q2" value="0" oninput="update(0, 1)">
-            <span class="dl">w</span><input type="number" pattern="\d+(\.\d*)?" id="T0q3" value="1" oninput="update(0, 1)">
-            </p>
-            <p class="pi" id="T0ip2">Axis-angle (xyz, angle)<span class="angleunit" name="spananglei"> (radians)</span>
-            <br>
-            <span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T0a0" value="0" oninput="update(0, 2)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0a1" value="0" oninput="update(0, 2)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0a2" value="0" oninput="update(0, 2)">
-            <span class="dl">Angle<span class="angleunit" name="spananglei"> (radians)</span></span><input type="number" pattern="\d+(\.\d*)?" id="T0a3" value="0" oninput="update(0, 2)">
-            </p>
-            <p class="pi" id="T0ip3">Axis with angle magnitude<span class="angleunit" name="spananglei"> (radians)</span>
-            <br><span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T0r0" value="0" oninput="update(0, 3)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0r1" value="0" oninput="update(0, 3)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0r2" value="0" oninput="update(0, 3)">
-            </p>
-            <p class="pi" id="T0ip4">Euler angles of multiple axis rotations<span class="angleunit" name="spananglei"> (radians)</span>
-            <br>
-            <span class="sel"><select id="T0euler" onchange="update(0, 4)">
-            <option value="XYZ" selected="">XYZ</option>
-            <option value="XZY">XZY</option>
-            <option value="YXZ">YXZ</option>
-            <option value="YZX">YZX</option>
-            <option value="ZXY">ZXY</option>
-            <option value="ZYX">ZYX</option>
-            </select></span>
-            <span class="dl2">x</span><input type="number" pattern="\d+(\.\d*)?" id="T0e0" value="0" oninput="update(0, 4)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0e1" value="0" oninput="update(0, 4)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0e2" value="0" oninput="update(0, 4)">
-            </p>
-          </div>
-          <div id="T1">
-            <h3>T1</h3>
-            <input type="string" id="T1parent" value="parent" oninput="update(1, 7)">
-            <input type="string" id="T1child" value="T1" oninput="update(1, 7)">
-            <p class="pi" id="T1ip6">Translation vector (xyz)
-            <br><span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T1T1" value="0" oninput="update(1, 6)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1t1" value="0" oninput="update(1, 6)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1t2" value="0" oninput="update(1, 6)">
-            </p>
-            <button type="button" onclick="eye();">Reset to Identity</button>
-            <p class="pi" id="T1ip0">Rotation matrix
-            <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m00" value="1" oninput="update(1, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m01" value="0" oninput="update(1, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m02" value="0" oninput="update(1, 0)"> &nbsp;
-            <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m10" value="0" oninput="update(1, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m11" value="1" oninput="update(1, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m12" value="0" oninput="update(1, 0)"> &nbsp;
-            <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m20" value="0" oninput="update(1, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m21" value="0" oninput="update(1, 0)">
-            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m22" value="1" oninput="update(1, 0)">
-            </p>
-            <p class="pi" id="T1ip1">Quaternion (xyzw) 
-            <br>
-            <span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T1q0" value="0" oninput="update(1, 1)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1q1" value="0" oninput="update(1, 1)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1q2" value="0" oninput="update(1, 1)">
-            <span class="dl">w</span><input type="number" pattern="\d+(\.\d*)?" id="T1q3" value="1" oninput="update(1, 1)">
-            </p>
-            <p class="pi" id="T1ip2">Axis-angle (xyz, angle)<span class="angleunit" name="spananglei"> (radians)</span>
-            <br>
-            <span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T1a0" value="0" oninput="update(1, 2)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1a1" value="0" oninput="update(1, 2)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1a2" value="0" oninput="update(1, 2)">
-            <span class="dl">Angle<span class="angleunit" name="spananglei"> (radians)</span></span><input type="number" pattern="\d+(\.\d*)?" id="T1a3" value="0" oninput="update(1, 2)">
-            </p>
-            <p class="pi" id="T1ip3">Axis with angle magnitude<span class="angleunit" name="spananglei"> (radians)</span>
-            <br><span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T1r0" value="0" oninput="update(1, 3)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1r1" value="0" oninput="update(1, 3)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1r2" value="0" oninput="update(1, 3)">
-            </p>
-            <p class="pi" id="T1ip4">Euler angles of multiple axis rotations<span class="angleunit" name="spananglei"> (radians)</span>
-            <br>
-            <span class="sel"><select id="T1euler" onchange="update(1, 4)">
-            <option value="XYZ" selected="">XYZ</option>
-            <option value="XZY">XZY</option>
-            <option value="YXZ">YXZ</option>
-            <option value="YZX">YZX</option>
-            <option value="ZXY">ZXY</option>
-            <option value="ZYX">ZYX</option>
-            </select></span>
-            <span class="dl2">x</span><input type="number" pattern="\d+(\.\d*)?" id="T1e0" value="0" oninput="update(1, 4)">
-            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1e1" value="0" oninput="update(1, 4)">
-            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1e2" value="0" oninput="update(1, 4)">
-            </p>
+          <div id="TFInputs">
+            <div id="T0">
+              <h3>T0</h3>
+              <input type="string" id="T0parent" value="parent" oninput="update(0, 7)">
+              <input type="string" id="T0child" value="T0" oninput="update(0, 7)">
+              <p class="pi" id="T0ip6">Translation vector (xyz)
+              <br><span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T0t0" value="0" oninput="update(0, 6)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0t1" value="0" oninput="update(0, 6)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0t2" value="0" oninput="update(0, 6)">
+              </p>
+              <button type="button" onclick="eye(0);">Reset to Identity</button>
+              <p class="pi" id="T0ip0">Rotation matrix
+              <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m00" value="1" oninput="update(0, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m01" value="0" oninput="update(0, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m02" value="0" oninput="update(0, 0)"> &nbsp;
+              <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m10" value="0" oninput="update(0, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m11" value="1" oninput="update(0, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m12" value="0" oninput="update(0, 0)"> &nbsp;
+              <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m20" value="0" oninput="update(0, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m21" value="0" oninput="update(0, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T0m22" value="1" oninput="update(0, 0)">
+              </p>
+              <p class="pi" id="T0ip1">Quaternion (xyzw) 
+              <br>
+              <span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T0q0" value="0" oninput="update(0, 1)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0q1" value="0" oninput="update(0, 1)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0q2" value="0" oninput="update(0, 1)">
+              <span class="dl">w</span><input type="number" pattern="\d+(\.\d*)?" id="T0q3" value="1" oninput="update(0, 1)">
+              </p>
+              <p class="pi" id="T0ip2">Axis-angle (xyz, angle)<span class="angleunit" name="spananglei"> (radians)</span>
+              <br>
+              <span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T0a0" value="0" oninput="update(0, 2)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0a1" value="0" oninput="update(0, 2)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0a2" value="0" oninput="update(0, 2)">
+              <span class="dl">Angle<span class="angleunit" name="spananglei"> (radians)</span></span><input type="number" pattern="\d+(\.\d*)?" id="T0a3" value="0" oninput="update(0, 2)">
+              </p>
+              <p class="pi" id="T0ip3">Axis with angle magnitude<span class="angleunit" name="spananglei"> (radians)</span>
+              <br><span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T0r0" value="0" oninput="update(0, 3)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0r1" value="0" oninput="update(0, 3)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0r2" value="0" oninput="update(0, 3)">
+              </p>
+              <p class="pi" id="T0ip4">Euler angles of multiple axis rotations<span class="angleunit" name="spananglei"> (radians)</span>
+              <br>
+              <span class="sel"><select id="T0euler" onchange="update(0, 4)">
+              <option value="XYZ" selected="">XYZ</option>
+              <option value="XZY">XZY</option>
+              <option value="YXZ">YXZ</option>
+              <option value="YZX">YZX</option>
+              <option value="ZXY">ZXY</option>
+              <option value="ZYX">ZYX</option>
+              </select></span>
+              <span class="dl2">x</span><input type="number" pattern="\d+(\.\d*)?" id="T0e0" value="0" oninput="update(0, 4)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T0e1" value="0" oninput="update(0, 4)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T0e2" value="0" oninput="update(0, 4)">
+              </p>
+            </div>
+            <div id="T1">
+              <h3>T1</h3>
+              <input type="string" id="T1parent" value="parent" oninput="update(1, 7)">
+              <input type="string" id="T1child" value="T1" oninput="update(1, 7)">
+              <p class="pi" id="T1ip6">Translation vector (xyz)
+              <br><span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T1T1" value="0" oninput="update(1, 6)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1t1" value="0" oninput="update(1, 6)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1t2" value="0" oninput="update(1, 6)">
+              </p>
+              <button type="button" onclick="eye(1);">Reset to Identity</button>
+              <p class="pi" id="T1ip0">Rotation matrix
+              <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m00" value="1" oninput="update(1, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m01" value="0" oninput="update(1, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m02" value="0" oninput="update(1, 0)"> &nbsp;
+              <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m10" value="0" oninput="update(1, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m11" value="1" oninput="update(1, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m12" value="0" oninput="update(1, 0)"> &nbsp;
+              <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m20" value="0" oninput="update(1, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m21" value="0" oninput="update(1, 0)">
+              <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T1m22" value="1" oninput="update(1, 0)">
+              </p>
+              <p class="pi" id="T1ip1">Quaternion (xyzw) 
+              <br>
+              <span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T1q0" value="0" oninput="update(1, 1)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1q1" value="0" oninput="update(1, 1)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1q2" value="0" oninput="update(1, 1)">
+              <span class="dl">w</span><input type="number" pattern="\d+(\.\d*)?" id="T1q3" value="1" oninput="update(1, 1)">
+              </p>
+              <p class="pi" id="T1ip2">Axis-angle (xyz, angle)<span class="angleunit" name="spananglei"> (radians)</span>
+              <br>
+              <span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T1a0" value="0" oninput="update(1, 2)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1a1" value="0" oninput="update(1, 2)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1a2" value="0" oninput="update(1, 2)">
+              <span class="dl">Angle<span class="angleunit" name="spananglei"> (radians)</span></span><input type="number" pattern="\d+(\.\d*)?" id="T1a3" value="0" oninput="update(1, 2)">
+              </p>
+              <p class="pi" id="T1ip3">Axis with angle magnitude<span class="angleunit" name="spananglei"> (radians)</span>
+              <br><span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T1r0" value="0" oninput="update(1, 3)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1r1" value="0" oninput="update(1, 3)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1r2" value="0" oninput="update(1, 3)">
+              </p>
+              <p class="pi" id="T1ip4">Euler angles of multiple axis rotations<span class="angleunit" name="spananglei"> (radians)</span>
+              <br>
+              <span class="sel"><select id="T1euler" onchange="update(1, 4)">
+              <option value="XYZ" selected="">XYZ</option>
+              <option value="XZY">XZY</option>
+              <option value="YXZ">YXZ</option>
+              <option value="YZX">YZX</option>
+              <option value="ZXY">ZXY</option>
+              <option value="ZYX">ZYX</option>
+              </select></span>
+              <span class="dl2">x</span><input type="number" pattern="\d+(\.\d*)?" id="T1e0" value="0" oninput="update(1, 4)">
+              <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T1e1" value="0" oninput="update(1, 4)">
+              <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T1e2" value="0" oninput="update(1, 4)">
+              </p>
+            </div>
           </div>
         </div>
         <div>
@@ -318,53 +320,85 @@
       // [xz, yz, zz, z]
       // [ 0,  0,  0, 1]
       var param = 0.0;
-      var tx = 0.0;
-      var ty = 0.0;
-      var tz = 0.0;
-      var xx = 1.0;
-      var xy = 0.0;
-      var xz = 0.0;
-      var yx = 0.0;
-      var yy = 1.0;
-      var yz = 0.0;
-      var zx = 0.0;
-      var zy = 0.0;
-      var zz = 1.0;
+      // var tx = 0.0;
+      // var ty = 0.0;
+      // var tz = 0.0;
+      // var xx = 1.0;
+      // var xy = 0.0;
+      // var xz = 0.0;
+      // var yx = 0.0;
+      // var yy = 1.0;
+      // var yz = 0.0;
+      // var zx = 0.0;
+      // var zy = 0.0;
+      // var zz = 1.0;
       var transform_matrices = [];
+      var transform_relationships = []; // [(parent_name, child_name), ...]
       const MAX_TFS = 2;
-
-    function transform_matrix_from_quaternion(qx, qy, qz, qw) {
-    }
-
-      // Creates the origin axes instances
-      // const quat1 = new THREE.Quaternion();
-      // quat1.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-      // const quat2 = new THREE.Quaternion();
-      // quat2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2);  
-      // const AXL = 1.0;
-      // const AXT = 0.02;
-      // const origxaxismaterial = new THREE.MeshBasicMaterial( { color: 0xddbbbb } );
-      // var origxaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
-      // origxaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
-      // origxaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat2);});
-      // const origxaxis = new THREE.Mesh(origxaxiscylindergeom, origxaxismaterial);
-      // origxaxis.position.set(0, 0, 0);
-      // scene.add(origxaxis);
-      // const origyaxismaterial = new THREE.MeshBasicMaterial( { color: 0xbbddbb } );
-      // var origyaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
-      // origyaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
-      // const origyaxis = new THREE.Mesh(origyaxiscylindergeom, origyaxismaterial);
-      // origyaxis.position.set(0, 0, 0);
-      // scene.add(origyaxis);
-      // const origzaxismaterial = new THREE.MeshBasicMaterial( { color: 0xbbbbdd } );
-      // var origzaxiscylindergeom = new THREE.CylinderGeometry(AXL * AXT, AXL * AXT, AXL, 32 );
-      // origzaxiscylindergeom.vertices.forEach((v) => {v.y += AXL / 2;});
-      // origzaxiscylindergeom.vertices.forEach((v) => {v.applyQuaternion(quat1);});
-      // const origzaxis = new THREE.Mesh(origzaxiscylindergeom, origzaxismaterial);
-      // origzaxis.position.set(0, 0, 0);
-      // scene.add(origzaxis);
-      // Creates the user axes instances
       
+      // Create the input HTML
+      var tfinputshtml = '';
+      for (var Ti = 0; Ti < MAX_TFS; Ti++) {
+        var divhtml = `<div id="T${Ti}">
+            <h3>T${Ti}</h3>
+            <input type="string" id="T${Ti}parent" value="parent" oninput="update(${Ti}, 7)">
+            <input type="string" id="T${Ti}child" value="T${Ti}" oninput="update(${Ti}, 7)">
+            <p class="pi" id="T${Ti}ip6">Translation vector (xyz)
+            <br><span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}t0" value="0" oninput="update(${Ti}, 6)">
+            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}t1" value="0" oninput="update(${Ti}, 6)">
+            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}t2" value="0" oninput="update(${Ti}, 6)">
+            </p>
+            <button type="button" onclick="eye(${Ti});">Reset to Identity</button>
+            <p class="pi" id="T${Ti}ip0">Rotation matrix
+            <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m00" value="1" oninput="update(${Ti}, 0)">
+            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m01" value="0" oninput="update(${Ti}, 0)">
+            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m02" value="0" oninput="update(${Ti}, 0)"> &nbsp;
+            <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m10" value="0" oninput="update(${Ti}, 0)">
+            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m11" value="1" oninput="update(${Ti}, 0)">
+            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m12" value="0" oninput="update(${Ti}, 0)"> &nbsp;
+            <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m20" value="0" oninput="update(${Ti}, 0)">
+            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m21" value="0" oninput="update(${Ti}, 0)">
+            <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m22" value="1" oninput="update(${Ti}, 0)">
+            </p>
+            <p class="pi" id="T${Ti}ip1">Quaternion (xyzw) 
+            <br>
+            <span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}q0" value="0" oninput="update(${Ti}, 1)">
+            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}q1" value="0" oninput="update(${Ti}, 1)">
+            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}q2" value="0" oninput="update(${Ti}, 1)">
+            <span class="dl">w</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}q3" value="1" oninput="update(${Ti}, 1)">
+            </p>
+            <p class="pi" id="T${Ti}ip2">Axis-angle (xyz, angle)<span class="angleunit" name="spananglei"> (radians)</span>
+            <br>
+            <span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}a0" value="0" oninput="update(${Ti}, 2)">
+            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}a1" value="0" oninput="update(${Ti}, 2)">
+            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}a2" value="0" oninput="update(${Ti}, 2)">
+            <span class="dl">Angle<span class="angleunit" name="spananglei"> (radians)</span></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}a3" value="0" oninput="update(${Ti}, 2)">
+            </p>
+            <p class="pi" id="T${Ti}ip3">Axis with angle magnitude<span class="angleunit" name="spananglei"> (radians)</span>
+            <br><span class="dl">Axis x</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}r0" value="0" oninput="update(${Ti}, 3)">
+            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}r1" value="0" oninput="update(${Ti}, 3)">
+            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}r2" value="0" oninput="update(${Ti}, 3)">
+            </p>
+            <p class="pi" id="T${Ti}ip4">Euler angles of multiple axis rotations<span class="angleunit" name="spananglei"> (radians)</span>
+            <br>
+            <span class="sel"><select id="T${Ti}euler" onchange="update(${Ti}, 4)">
+            <option value="XYZ" selected="">XYZ</option>
+            <option value="XZY">XZY</option>
+            <option value="YXZ">YXZ</option>
+            <option value="YZX">YZX</option>
+            <option value="ZXY">ZXY</option>
+            <option value="ZYX">ZYX</option>
+            </select></span>
+            <span class="dl2">x</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}e0" value="0" oninput="update(${Ti}, 4)">
+            <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}e1" value="0" oninput="update(${Ti}, 4)">
+            <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}e2" value="0" oninput="update(${Ti}, 4)">
+            </p>
+          </div>
+        </div>`;
+        tfinputshtml += divhtml;
+      }
+      document.getElementById("TFInputs").innerHTML = tfinputshtml;
+
       function create_axes(scene, axes_list, AXL, AXT) {
         const quat1 = new THREE.Quaternion();
         quat1.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
@@ -404,11 +438,12 @@
       const origzaxis = orig_axes[0][2];
       // Creates the user axes instances
       var tf_axes = [];
-      for (var i = 1; i < MAX_TFS; i++) {
+      for (var i = 0; i < MAX_TFS; i++) {
         create_axes(scene, tf_axes, 1.0, 0.02);
         var mat4 = new THREE.Matrix4();
         mat4.identity();
         transform_matrices.push(mat4);
+        transform_relationships.push(["parent", "T" + i.toString()]); // initialize array to right size. update() will populate the fields.
       }
 
       // instantiate a loader
@@ -438,6 +473,278 @@
         }
       );
 
+      
+
+      class TreeBuildError {
+        constructor(message) {
+          this.message = message;
+          this.name = "TreeBuildError";
+        }
+      }
+
+      class TFRelationship {
+        constructor(parent, child, tf) {
+          this.parent = parent;
+          this.child = child;
+          this.tf = tf;
+        }
+      }
+      
+      class TFTree {
+        // TF Tree structure
+      // root nodes (unparented transforms)
+      // other nodes have exactly one parent
+      // API
+      //    get_unique_nodes() -> [node, node, ...]
+      //        for each pair: Set().add(parent).add(child)
+      //    get_root_nodes() -> [node, node, ...]
+      //        for each node in get unique nodes(): set.add(root node(node))
+      //    get_children_of(node) -> [node, node, ...]
+      //        for each pair: if parent == node: set.add(child)
+      //    get_parent_of(node) -> node
+      //        for each pair: if child == node: return parent
+      //    get_parent_tf_of(node) -> Matrix4
+      //        for each pair: if child == node: return tf
+      //    is_root_node(node) -> bool
+      //        return get_parent(node) == None
+      //    get_root_node_of(node) -> node
+      //          get parent(A) -> F4
+      //          ...
+      //          get parent(F1) -> None
+      //          return F1
+      //    get_descendant_in_ancestor_tf(ancestor, descendant):
+      //          var tf_chain = []
+      //          current_child = descendant
+      //          while true:
+      //          current_parent = get_parent(current_child)
+      //          tf = get_parent_tf(current_child)
+      //          tf_chain.push(tf)
+      //          if current_parent == ancestor: break
+      //          return compose(tf_chain)
+
+      // build tree from relationships ()
+      //     for each relationship (rel.parent, rel.child, tf)
+      //     detect dupes
+      //          same as detect double parents
+      //     detect double parents
+      //          if rel.child is not root node, error
+      //          get all relationships that try to parent child
+      //     detect loops
+      //          assuming no double parents, only way to get loop is descendant gets parented to its root (e.g (p:F6, c:F1))
+      //          if rel.child == root_node(rel.parent) error
+      //          relationship with F1 as child, and relationship with F6 as child get flagged
+      //     add relationship to tree
+
+      // get B in A (A, B)   
+      //    
+      //                        F6 - ...
+      //                      /
+      //   * F1 - F2 - F3 - F5 - B - ...
+      //            \
+      //              F4 - A - ...
+      //
+      //   * F7 - F8
+      //
+      //     - root node (A) != root node(B)? return null
+      //     - MRCA (A, B)? (can use root node to simplify code, less efficient)
+      //     - Descendant in Ancestor tf(A, MRCA) -> A in F1
+      //     - Descendant in Ancestor tf(A, MRCA) -> B in F1
+      //     - return compose([A in F1, F1 in B])
+
+      // display tree
+      //      list root nodes
+      //      recurse get children(node)
+
+      // examples
+      // var relationships = [ // valid tree
+      //   ["F1", "F2", eye4()],
+      //   ["F2", "F3", eye4()],
+      //   ["F3", "F5", eye4()],
+      //   ["F5", "B", eye4()],
+      //   ["F2", "F4", eye4()],
+      //   ["F4", "A", eye4()],
+      //   ["F7", "F8", eye4()],
+      // ]
+      // var errors = [];
+      // var tree = build_tree(relationships, errors);
+
+        constructor(relationship_list, errors) {
+          this.relationships = [];
+          this.build_tree(relationship_list, errors);
+        }
+
+        build_tree(relationship_list, errors) {
+          this.relationships = [];
+          for (var i = 0; i < relationship_list.length; i++) {
+            var parent = relationship_list[i][0];
+            var child = relationship_list[i][1];
+            var tf = relationship_list[i][2];
+            this.add_relationship(parent, child, tf, errors, i);
+          }
+        }
+
+        add_relationship(parent, child, tf, errors, error_rel_index) {
+            //     detect double parents
+            //          if rel.child is not root node, error
+            //          get all relationships that try to parent child
+            //     detect dupes
+            //          same as detect double parents
+            if (!this.is_root_node(child)) {
+              // TODO get all relationships that try to parent child
+              errors.push(new TreeBuildError(`can't add relationship ${error_rel_index}, as it would create a double-parent node`))
+              return false;
+            }
+            //     detect loops
+            //          assuming no double parents, only way to get loop is descendant gets parented to its root (e.g (p:F6, c:F1))
+            //          if rel.child == root_node(rel.parent) error
+            //          relationship with F1 as child, and relationship with F6 as child get flagged
+            if (child == this.get_root_node_of(parent)) {
+              errors.push(new TreeBuildError(`can't add relationship ${error_rel_index}, as it would create a loop`))
+              return false;
+            }
+            //     add relationship to tree
+            this.relationships.push(new TFRelationship(parent, child, tf));
+            return true;
+        }
+
+      // API
+      // get_unique_nodes() -> [node, node, ...]
+      //        for each pair: Set().add(parent).add(child)
+        get_unique_nodes() {
+          var nodes = new Set();
+          for (var i = 0; i < this.relationships.length; i++) {
+            nodes.add(this.relationships[i].parent);
+            nodes.add(this.relationships[i].child);
+          }
+          return nodes;
+        }
+      //    get_children_of(node) -> [node, node, ...]
+      //        for each pair: if parent == node: set.add(child)
+        get_children_of(node) {
+          var nodes = new Set();
+          for (var i = 0; i < this.relationships.length; i++) {
+            if (this.relationships[i].parent == node) {
+              nodes.add(this.relationships[i].child);
+            }
+          }
+          return nodes;
+        }
+      //    get_parent_of(node) -> node
+      //        for each pair: if child == node: return parent
+        get_parent_of(node) {
+          for (var i = 0; i < this.relationships.length; i++) {
+            if (this.relationships[i].child == node) {
+              return this.relationships[i].parent;
+            }
+          }
+          return null;
+        }
+      //    get_parent_tf_of(node) -> Matrix4
+      //        for each pair: if child == node: return tf
+        get_parent_tf_of(node) {
+          for (var i = 0; i < this.relationships.length; i++) {
+            if (this.relationships[i].child == node) {
+              return this.relationships[i].tf;
+            }
+          }
+          return null;
+        }
+      //    get_root_node_of(node) -> node
+      //          get parent(A) -> F4
+      //          ...
+      //          get parent(F1) -> None
+      //          return F1
+        get_root_node_of(node) {
+          var current_node = node;
+          while (true) {
+            var parent = this.get_parent_of(current_node);
+            if (parent == null) {
+              return current_node;
+            }
+            current_node = parent;
+          }
+        }
+      //    get_root_nodes() -> [node, node, ...]
+      //        for each node in get unique nodes(): set.add(root node(node))
+        get_root_nodes() {
+          var nodes = new Set();
+          var unique_nodes = this.get_unique_nodes();
+          for (var node of unique_nodes) {
+            nodes.add(this.get_root_node_of(node));
+          }
+          return nodes;
+        }
+      //    is_root_node(node) -> bool
+      //        return get_parent(node) == None
+        is_root_node(node) {
+          return this.get_parent_of(node) == null;
+        }
+      //    get_descendant_in_ancestor_tf(ancestor, descendant):
+      //          var tf_chain = []
+      //          current_child = descendant
+      //          while true:
+      //          current_parent = get_parent(current_child)
+      //          tf = get_parent_tf(current_child)
+      //          tf_chain.push(tf)
+      //          if current_parent == ancestor: break
+      //          return compose(tf_chain)
+        get_descendant_in_ancestor_tf(ancestor, descendant) {
+          var tf_chain = [];
+          var current_child = descendant;
+          while (true) {
+            var current_parent = this.get_parent_of(current_child);
+            var tf = this.get_parent_tf_of(current_child);
+            tf_chain.push(tf);
+            if (current_parent == ancestor) {
+              break;
+            }
+            current_child = current_parent;
+          }
+          // tf chain [descendant in p1, p1 in p2, ..., pn in ancestor]
+          return compose(tf_chain);
+        }
+      } // TFTree
+
+      // Test
+
+      function eye4() {
+        var mat4 = new THREE.Matrix4();
+        mat4.identity();
+        return mat4;
+      }
+
+      if (true) {
+        var relationships = [ // tree with loop
+          ["F1", "F2", eye4()],
+          ["F2", "F3", eye4()],
+          ["F3", "F5", eye4()],
+          ["F5", "B", eye4()],
+          ["F5", "F6", eye4()],
+          ["F2", "F4", eye4()],
+          ["F4", "A", eye4()],
+          ["F7", "F8", eye4()],
+          ["F6", "F1", eye4()],
+        ]
+        var errors = [];
+        var tree = new TFTree(relationships, errors);
+        console.log(errors);
+      }
+      var relationships = [ // valid tree
+        ["F1", "F2", eye4()],
+        ["F2", "F3", eye4()],
+        ["F3", "F5", eye4()],
+        ["F5", "B", eye4()],
+        ["F5", "F6", eye4()],
+        ["F2", "F4", eye4()],
+        ["F4", "A", eye4()],
+        ["F7", "F8", eye4()],
+      ]
+      var errors = [];
+      var tree = new TFTree(relationships, errors);
+      console.log(errors);
+      console.log(tree.get_unique_nodes());
+      console.log(tree.get_root_nodes());
+
       // Called when a field gets updated by the user. Argument is the index of the form element which has been updated\
       // converts the input into the universal format (matrix4), then back into every other field
       function update(Ti, ipidx) {
@@ -456,30 +763,30 @@
 
           // convert any input into Matrix4
           if (ipidx == 6) {
-            var t0 = document.getElementById("T" + toString(Ti) + "t0").value * 1.0;
-            var t1 = document.getElementById("T" + toString(Ti) + "t1").value * 1.0;
-            var t2 = document.getElementById("T" + toString(Ti) + "t2").value * 1.0;
+            var t0 = document.getElementById("T" + Ti.toString() + "t0").value * 1.0;
+            var t1 = document.getElementById("T" + Ti.toString() + "t1").value * 1.0;
+            var t2 = document.getElementById("T" + Ti.toString() + "t2").value * 1.0;
             tx = t0;
             ty = t1;
             tz = t2;
           }
           if (ipidx == 0) {
-            xx = document.getElementById("T" + toString(Ti) + "m00").value * 1.0;
-            yx = document.getElementById("T" + toString(Ti) + "m01").value * 1.0;
-            zx = document.getElementById("T" + toString(Ti) + "m02").value * 1.0;
-            xy = document.getElementById("T" + toString(Ti) + "m10").value * 1.0;
-            yy = document.getElementById("T" + toString(Ti) + "m11").value * 1.0;
-            zy = document.getElementById("T" + toString(Ti) + "m12").value * 1.0;
-            xz = document.getElementById("T" + toString(Ti) + "m20").value * 1.0;
-            yz = document.getElementById("T" + toString(Ti) + "m21").value * 1.0;
-            zz = document.getElementById("T" + toString(Ti) + "m22").value * 1.0;
+            xx = document.getElementById("T" + Ti.toString() + "m00").value * 1.0;
+            yx = document.getElementById("T" + Ti.toString() + "m01").value * 1.0;
+            zx = document.getElementById("T" + Ti.toString() + "m02").value * 1.0;
+            xy = document.getElementById("T" + Ti.toString() + "m10").value * 1.0;
+            yy = document.getElementById("T" + Ti.toString() + "m11").value * 1.0;
+            zy = document.getElementById("T" + Ti.toString() + "m12").value * 1.0;
+            xz = document.getElementById("T" + Ti.toString() + "m20").value * 1.0;
+            yz = document.getElementById("T" + Ti.toString() + "m21").value * 1.0;
+            zz = document.getElementById("T" + Ti.toString() + "m22").value * 1.0;
 
           }
           if (ipidx == 1) {
-            var qx = document.getElementById("T" + toString(Ti) + "q0").value * 1.0;
-            var qy = document.getElementById("T" + toString(Ti) + "q1").value * 1.0;
-            var qz = document.getElementById("T" + toString(Ti) + "q2").value * 1.0;
-            var qw = document.getElementById("T" + toString(Ti) + "q3").value * 1.0;
+            var qx = document.getElementById("T" + Ti.toString() + "q0").value * 1.0;
+            var qy = document.getElementById("T" + Ti.toString() + "q1").value * 1.0;
+            var qz = document.getElementById("T" + Ti.toString() + "q2").value * 1.0;
+            var qw = document.getElementById("T" + Ti.toString() + "q3").value * 1.0;
             // rot matrix from quaternion
             // [1 - 2 * qy * qy - 2 * qz * qz,     2 * qx * qy - 2 * qz * qw,     2 * qx * qz + 2 * qy * qw, 0]
             // [    2 * qx * qy + 2 * qz * qw, 1 - 2 * qx * qx - 2 * qz * qz,     2 * qy * qz - 2 * qx * qw, 0]
@@ -506,16 +813,16 @@
             //         [0, 0, 0, 1],
             //     ]
             // )
-            var ux = document.getElementById("T" + toString(Ti) + "a0").value * 1.0;
-            var uy = document.getElementById("T" + toString(Ti) + "a1").value * 1.0;
-            var uz = document.getElementById("T" + toString(Ti) + "a2").value * 1.0;
+            var ux = document.getElementById("T" + Ti.toString() + "a0").value * 1.0;
+            var uy = document.getElementById("T" + Ti.toString() + "a1").value * 1.0;
+            var uz = document.getElementById("T" + Ti.toString() + "a2").value * 1.0;
             norm = Math.sqrt(ux * ux + uy * uy + uz * uz);
             if (norm > 0) {
               ux /= norm;
               uy /= norm;
               uz /= norm;
             }
-            var angle = InputToRad(document.getElementById("T" + toString(Ti) + "a3").value * 1.0);
+            var angle = InputToRad(document.getElementById("T" + Ti.toString() + "a3").value * 1.0);
             var cos = Math.cos(angle);
             var sin = Math.sin(angle);
             xx = ux * ux * (1 - cos) + cos;
@@ -530,9 +837,9 @@
           }
           if (ipidx == 3) {
             // Axis
-            var ux = document.getElementById("T" + toString(Ti) + "r0").value * 1.0;
-            var uy = document.getElementById("T" + toString(Ti) + "r1").value * 1.0;
-            var uz = document.getElementById("T" + toString(Ti) + "r2").value * 1.0;
+            var ux = document.getElementById("T" + Ti.toString() + "r0").value * 1.0;
+            var uy = document.getElementById("T" + Ti.toString() + "r1").value * 1.0;
+            var uz = document.getElementById("T" + Ti.toString() + "r2").value * 1.0;
             norm = Math.sqrt(ux * ux + uy * uy + uz * uz);
             if (norm > 0) {
               ux /= norm;
@@ -553,10 +860,10 @@
             zz = uz * uz * (1 - cos) + cos;
           }
           if (ipidx == 4) {
-            e0 = InputToRad(document.getElementById("T" + toString(Ti) + "e0").value * 1.0);
-            e1 = InputToRad(document.getElementById("T" + toString(Ti) + "e1").value * 1.0);
-            e2 = InputToRad(document.getElementById("T" + toString(Ti) + "e2").value * 1.0);
-            var order = document.getElementById("T" + toString(Ti) + "euler").value;
+            e0 = InputToRad(document.getElementById("T" + Ti.toString() + "e0").value * 1.0);
+            e1 = InputToRad(document.getElementById("T" + Ti.toString() + "e1").value * 1.0);
+            e2 = InputToRad(document.getElementById("T" + Ti.toString() + "e2").value * 1.0);
+            var order = document.getElementById("T" + Ti.toString() + "euler").value;
             var euler = new THREE.Euler( e0, e1, e2, order);
             var quat = new THREE.Quaternion();
             quat.setFromEuler(euler); // TODO: find a more precise implementation (e.g. wrong for 180 deg)
@@ -582,15 +889,15 @@
           // Convert Matrix 4 into any output and update displays
           if (ipidx != 0)
           {
-            document.getElementById("T" + toString(Ti) + "m00").value = xx;
-            document.getElementById("T" + toString(Ti) + "m01").value = yx;
-            document.getElementById("T" + toString(Ti) + "m02").value = zx;
-            document.getElementById("T" + toString(Ti) + "m10").value = xy;
-            document.getElementById("T" + toString(Ti) + "m11").value = yy;
-            document.getElementById("T" + toString(Ti) + "m12").value = zy;
-            document.getElementById("T" + toString(Ti) + "m20").value = xz;
-            document.getElementById("T" + toString(Ti) + "m21").value = yz;
-            document.getElementById("T" + toString(Ti) + "m22").value = zz;
+            document.getElementById("T" + Ti.toString() + "m00").value = xx;
+            document.getElementById("T" + Ti.toString() + "m01").value = yx;
+            document.getElementById("T" + Ti.toString() + "m02").value = zx;
+            document.getElementById("T" + Ti.toString() + "m10").value = xy;
+            document.getElementById("T" + Ti.toString() + "m11").value = yy;
+            document.getElementById("T" + Ti.toString() + "m12").value = zy;
+            document.getElementById("T" + Ti.toString() + "m20").value = xz;
+            document.getElementById("T" + Ti.toString() + "m21").value = yz;
+            document.getElementById("T" + Ti.toString() + "m22").value = zz;
           }
 
           if (ipidx != 1) {
@@ -600,14 +907,14 @@
             var mat4 = new THREE.Matrix4();
             mat4.set(xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, 0, 0, 0, 1);
             quat.setFromRotationMatrix(mat4)
-            // document.getElementById("T" + toString(Ti) + "q0").value = -(zy - yz) / (4 * tempw);
-            // document.getElementById("T" + toString(Ti) + "q1").value = -(xz - zx) / (4 * tempw);
-            // document.getElementById("T" + toString(Ti) + "q2").value = -(yx - xy) / (4 * tempw);
-            // document.getElementById("T" + toString(Ti) + "q3").value = tempw;
-            document.getElementById("T" + toString(Ti) + "q0").value = quat.x;
-            document.getElementById("T" + toString(Ti) + "q1").value = quat.y;
-            document.getElementById("T" + toString(Ti) + "q2").value = quat.z;
-            document.getElementById("T" + toString(Ti) + "q3").value = quat.w;
+            // document.getElementById("T" + Ti.toString() + "q0").value = -(zy - yz) / (4 * tempw);
+            // document.getElementById("T" + Ti.toString() + "q1").value = -(xz - zx) / (4 * tempw);
+            // document.getElementById("T" + Ti.toString() + "q2").value = -(yx - xy) / (4 * tempw);
+            // document.getElementById("T" + Ti.toString() + "q3").value = tempw;
+            document.getElementById("T" + Ti.toString() + "q0").value = quat.x;
+            document.getElementById("T" + Ti.toString() + "q1").value = quat.y;
+            document.getElementById("T" + Ti.toString() + "q2").value = quat.z;
+            document.getElementById("T" + Ti.toString() + "q3").value = quat.w;
           }
 
           if (ipidx != 2) {
@@ -622,10 +929,10 @@
             var ux = (yz - zy) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
             var uy = (zx - xz) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
             var uz = (xy - yx) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
-            document.getElementById("T" + toString(Ti) + "a3").value = InputFromRad(angle);
-            document.getElementById("T" + toString(Ti) + "a0").value = ux;
-            document.getElementById("T" + toString(Ti) + "a1").value = uy;
-            document.getElementById("T" + toString(Ti) + "a2").value = uz;
+            document.getElementById("T" + Ti.toString() + "a3").value = InputFromRad(angle);
+            document.getElementById("T" + Ti.toString() + "a0").value = ux;
+            document.getElementById("T" + Ti.toString() + "a1").value = uy;
+            document.getElementById("T" + Ti.toString() + "a2").value = uz;
           }
 
           if (ipidx != 3) {
@@ -633,9 +940,9 @@
             var ux = (yz - zy) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
             var uy = (zx - xz) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
             var uz = (xy - yx) / Math.sqrt((yz - zy) * (yz - zy) + (zx - xz) * (zx - xz) + (xy - yx) * (xy - yx));
-            document.getElementById("T" + toString(Ti) + "r0").value = ux * angle;
-            document.getElementById("T" + toString(Ti) + "r1").value = uy * angle;
-            document.getElementById("T" + toString(Ti) + "r2").value = uz * angle;
+            document.getElementById("T" + Ti.toString() + "r0").value = ux * angle;
+            document.getElementById("T" + Ti.toString() + "r1").value = uy * angle;
+            document.getElementById("T" + Ti.toString() + "r2").value = uz * angle;
           }
 
           if (ipidx != 4) {
@@ -648,11 +955,11 @@
               ,xz  ,yz  ,zz ,0
               ,0   ,0   ,0  ,1
             );
-            var order = document.getElementById("T" + toString(Ti) + "euler").value;
+            var order = document.getElementById("T" + Ti.toString() + "euler").value;
             euler.setFromRotationMatrix(rotmat, order);
-            document.getElementById("T" + toString(Ti) + "e0").value = InputFromRad(euler.x);
-            document.getElementById("T" + toString(Ti) + "e1").value = InputFromRad(euler.y);
-            document.getElementById("T" + toString(Ti) + "e2").value = InputFromRad(euler.z);
+            document.getElementById("T" + Ti.toString() + "e0").value = InputFromRad(euler.x);
+            document.getElementById("T" + Ti.toString() + "e1").value = InputFromRad(euler.y);
+            document.getElementById("T" + Ti.toString() + "e2").value = InputFromRad(euler.z);
           }
 
           // set unit spans to either (radians) or (degrees)
@@ -670,18 +977,10 @@
           }
       }
 
-      function eye() {
-        xx = 1;
-        xy = 0;
-        xz = 0;
-        yx = 0;
-        yy = 1;
-        yz = 0;
-        zx = 0;
-        zy = 0;
-        zz = 1;
+      function eye(Ti) {
+        transform_matrices[Ti].identity();
 
-        update(0, -1); // update all input values
+        update(Ti, -1); // update all input values
       }
 
       function InputToRad(x)
@@ -715,29 +1014,26 @@
         requestAnimationFrame( animate );
         var slider = document.getElementById("myRange");
         param = slider.value / 100.;
-        for (var i = 1; i < MAX_TFS; i++) {
-        var xaxis = tf_axes[i][0];
-        var yaxis = tf_axes[i][1];
-        var zaxis = tf_axes[i][2];
-        xaxis.scale.set(param, param, param);
-        yaxis.scale.set(param, param, param);
-        zaxis.scale.set(param, param, param);
+        for (var Ai = 1; Ai < MAX_TFS; Ai++) {
+          var xaxis = tf_axes[Ai][0];
+          var yaxis = tf_axes[Ai][1];
+          var zaxis = tf_axes[Ai][2];
+          xaxis.scale.set(param, param, param);
+          yaxis.scale.set(param, param, param);
+          zaxis.scale.set(param, param, param);
         }
         origxaxis.scale.set(param, param, param);
         origyaxis.scale.set(param, param, param);
         origzaxis.scale.set(param, param, param);
 
         // update text and visuals
-        var text = '[' + xx.toFixed(3) + ', ' + yx.toFixed(3) + ', ' + zx.toFixed(3) +  ', ' + tx.toFixed(3) + '<br> ' +
-                   xy.toFixed(3) + ', ' + yy.toFixed(3) + ', ' + zy.toFixed(3) +  ', ' + ty.toFixed(3) + '<br> ' +
-                   xz.toFixed(3) + ', ' + yz.toFixed(3) + ', ' + zz.toFixed(3) +  ', ' + tz.toFixed(3) + '<br>' +
-                    '0.000, 0.000, 0.000, 1.000]';
-        info = document.getElementById("info").innerHTML = text;
+       
         // Move axes
-        for (var i = 1; i < MAX_TFS; i++) {
-          var xaxis = tf_axes[i][0];
-          var yaxis = tf_axes[i][1];
-          var zaxis = tf_axes[i][2];
+        for (var Ai = 0; Ai < MAX_TFS; Ai++) {
+          var Ti = Ai;
+          var xaxis = tf_axes[Ai][0];
+          var yaxis = tf_axes[Ai][1];
+          var zaxis = tf_axes[Ai][2];
           var xx = transform_matrices[Ti].elements[0];
           var xy = transform_matrices[Ti].elements[1];
           var xz = transform_matrices[Ti].elements[2];
@@ -762,7 +1058,14 @@
           );
           xaxis.rotation.setFromRotationMatrix(rotationMatrix);
           yaxis.rotation.setFromRotationMatrix(rotationMatrix);
-          zaxis.rotation.setFromRotationMatrix(rotationMatrix);
+          zaxis.rotation.setFromRotationMatrix(rotationMatrix); 
+          
+          
+          var text = '[' + xx.toFixed(3) + ', ' + yx.toFixed(3) + ', ' + zx.toFixed(3) +  ', ' + tx.toFixed(3) + '<br> ' +
+                   xy.toFixed(3) + ', ' + yy.toFixed(3) + ', ' + zy.toFixed(3) +  ', ' + ty.toFixed(3) + '<br> ' +
+                   xz.toFixed(3) + ', ' + yz.toFixed(3) + ', ' + zz.toFixed(3) +  ', ' + tz.toFixed(3) + '<br>' +
+                    '0.000, 0.000, 0.000, 1.000]';
+          info = document.getElementById("info").innerHTML = text;
         }
         // re-render canvas
         renderer.render( scene, activecamera );
