@@ -741,10 +741,17 @@
       // Create the input HTML
       var tfinputshtml = '';
       for (var Ti = 0; Ti < MAX_TFS; Ti++) {
-        var divhtml = `<div id="T${Ti}">
-            <h3 id="T${Ti}title">T${Ti}</h3>
-            <input type="string" id="T${Ti}parent" value="parent" oninput="update(${Ti}, 7)">
+        var divhtml = `<div class="tfinput" id="T${Ti}">
+            <div>
+            <b><span id="T${Ti}title">T${Ti}</span></b>
+              <div>
+              <button type="button" onclick="eye(${Ti});">Reset to Identity</button>
+              <button type="button" onclick="delete_transform(${Ti});">Delete</button>
+              </div>
+            </div>
             <input type="string" id="T${Ti}child" value="T${Ti}" oninput="update(${Ti}, 7)">
+            in
+            <input type="string" id="T${Ti}parent" value="parent" oninput="update(${Ti}, 7)">
             <select id="T${Ti}imode" onchange="update_which_inputs_are_visible(${Ti})">
               <option value="quaternion" selected="">quaternion</option>
               <option value="euler">euler</option>
@@ -804,13 +811,11 @@
             <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}e2" value="0" oninput="update(${Ti}, 4)">
             </p>
             <p class="pi" id="T${Ti}ip8">
-            ABB<input type="string" style="width: 100%;" id="T${Ti}abb" value="[[423.818, 46.092, 210.4], [0, 0.6087614, 0.7933533, 0]]" oninput="update(${Ti}, 8)">
+            ABB<input type="string" style="width: 98%;" id="T${Ti}abb" value="[[423.818, 46.092, 210.4], [0, 0.6087614, 0.7933533, 0]]" oninput="update(${Ti}, 8)">
             </p>
             <p class="pi" id="T${Ti}ip9">
-            Compas<input type="string" style="width: 100%;" id="T${Ti}compas" value="Frame((3500, 400, 1200), (1.000, 0.000, 0.000), (0.000, 1.000, 0.000))" oninput="update(${Ti}, 9)">
+            Compas<input type="string" style="width: 98%;" id="T${Ti}compas" value="Frame((3500, 400, 1200), (1.000, 0.000, 0.000), (0.000, 1.000, 0.000))" oninput="update(${Ti}, 9)">
             </p>
-            <button type="button" onclick="eye(${Ti});">Reset to Identity</button>
-            <button type="button" onclick="delete_transform(${Ti});">Delete</button>
           </div>
         </div>`;
         tfinputshtml += divhtml;
