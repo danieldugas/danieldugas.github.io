@@ -90,6 +90,11 @@
         margin: 3px;
       }
 
+      /* button color on click */
+      button:active {
+        background-color: #faf6f6;
+      }
+
       /* dropdown looking flat */
       select {
         background-color: #fdeded;
@@ -113,6 +118,13 @@
         margin: 10px;
       }
 
+      /* border around tf inputs */
+      #TFInputs {
+        border: 1px solid #cccccc;
+        border-radius: 10px;
+        padding: 10px;
+        margin: 10px;
+      }
     </style>
   </head>
   <body>
@@ -135,6 +147,15 @@
             <option value="1">T0</option>
             <option value="2">T1</option>
             <option value="3">T2</option>
+          </select>
+          <select id="frameinfomode" onchange="update_ref_frame()"> <!-- update ref frame to force update of frame infos -->
+            <option value="quaternion" selected="">quaternion (xyzw)</option>
+            <!-- <option value="euler">euler</option> -->
+            <!-- <option value="matrix">matrix</option> -->
+            <!-- <option value="axisangle">axis-angle</option> -->
+            <!-- <option value="axismagnitude">axis-magnitude</option> -->
+            <option value="ABB">ABB</option>
+            <option value="compas">compas</option>
           </select>
           <div id="debug_frame_infos"></div>
           <div id="TFInputs">
@@ -249,12 +270,7 @@
               </p>
             </div>
           </div>
-        </div>
-        <div>
-          <h3>Transforms in X</h3>
-          <p><sup>parent</sup><sub>child</sub>M = </p>
-          <div id="info">Description</div>
-          
+          <button type="button" onclick="add_transform();">Add Transform</button>
         </div>
         <h2>View Options</h2>
           <!-- axes scaling: make sure text is vertically centered -->
@@ -279,7 +295,7 @@
     <script src="js/FileSaver.js"></script>
     <script>
       // Our Javascript will go here.
-      const CF = Math.max((window.innerWidth - 500) / window.innerWidth, 0.5); // what percentage of the window horizontally the canvas should fill -> 500px for the sidebar, or 50/50 split if the screen is too small
+      const CF = Math.max((window.innerWidth - 800) / window.innerWidth, 0.5); // what percentage of the window horizontally the canvas should fill -> 500px for the sidebar, or 50/50 split if the screen is too small
       const DEBUGSHAPES = false;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera( 75, window.innerWidth * CF / window.innerHeight, 0.1, 1000 );
@@ -359,10 +375,11 @@
       }
 
       class TFRelationship {
-        constructor(parent, child, tf) {
+        constructor(parent, child, tf, is_active=true) {
           this.parent = parent;
           this.child = child;
           this.tf = tf;
+          this.is_active = is_active;
         }
       }
 
@@ -463,7 +480,10 @@
             var parent = relationship_list[i].parent;
             var child = relationship_list[i].child;
             var tf = relationship_list[i].tf;
-            this.add_relationship(parent, child, tf, errors, i, false);
+            var is_active = relationship_list[i].is_active;
+            if (is_active) {
+              this.add_relationship(parent, child, tf, errors, i, false);
+            }
           }
         }
 
@@ -666,20 +686,30 @@
           var html = "";
           var root_nodes = this.get_root_nodes();
           for (var root_node of root_nodes) {
-            html += this.as_html_helper(root_node, 0);
+            html += this.as_html_helper(root_node, 0, []);
           }
           return html;
         }
 
-        as_html_helper(node, depth) {
+        as_html_helper(node, depth, is_last_at_depth) {
           var html = "";
           for (var i = 0; i < depth; i++) {
-            html += "&nbsp;&nbsp;&nbsp;&nbsp;";
+            var is_last = is_last_at_depth[i];
+            var belonging_char = "?"
+            if (!is_last && i == (depth - 1)) { belonging_char = "├"; }
+            if (is_last && i == (depth - 1)) { belonging_char = "└"; }
+            if (is_last && i != (depth - 1)) { belonging_char = ""; }
+            if (!is_last && i != (depth - 1)) { belonging_char = "│"; }
+            html += "&nbsp;&nbsp;" + belonging_char;
           }
           html += node + "<br>";
           var children = this.get_children_of(node);
           for (var child of children) {
-            html += this.as_html_helper(child, depth + 1);
+            var is_last_child = child == Array.from(children).pop();
+            // copy is_last_at_depth and add is_last_child at the end
+            var is_child_last_at_depth = is_last_at_depth.slice();
+            is_child_last_at_depth.push(is_last_child);
+            html += this.as_html_helper(child, depth + 1, is_child_last_at_depth);
           }
           return html;
         }
@@ -704,23 +734,31 @@
       // var zx = 0.0;
       // var zy = 0.0;
       // var zz = 1.0;
-      var transform_relationships = []; // [(parent_name, child_name, tf), ...]
-      const MAX_TFS = 3;
+      var transform_relationships = []; // [(parent_name, child_name, tf, is_active), ...]
+      const MAX_TFS = 10;
       const MAX_AXS = MAX_TFS * 2;
       
       // Create the input HTML
       var tfinputshtml = '';
       for (var Ti = 0; Ti < MAX_TFS; Ti++) {
         var divhtml = `<div id="T${Ti}">
-            <h3>T${Ti}</h3>
+            <h3 id="T${Ti}title">T${Ti}</h3>
             <input type="string" id="T${Ti}parent" value="parent" oninput="update(${Ti}, 7)">
             <input type="string" id="T${Ti}child" value="T${Ti}" oninput="update(${Ti}, 7)">
+            <select id="T${Ti}imode" onchange="update_which_inputs_are_visible(${Ti})">
+              <option value="quaternion" selected="">quaternion</option>
+              <option value="euler">euler</option>
+              <option value="matrix">matrix</option>
+              <option value="axisangle">axis-angle</option>
+              <option value="axismagnitude">axis-magnitude</option>
+              <option value="ABB">ABB</option>
+              <option value="compas">compas</option>
+            </select>
             <p class="pi" id="T${Ti}ip6">Translation vector (xyz)
             <br><span class="dl">x</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}t0" value="0" oninput="update(${Ti}, 6)">
             <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}t1" value="0" oninput="update(${Ti}, 6)">
             <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}t2" value="0" oninput="update(${Ti}, 6)">
             </p>
-            <button type="button" onclick="eye(${Ti});">Reset to Identity</button>
             <p class="pi" id="T${Ti}ip0">Rotation matrix
             <br><span class="dl"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m00" value="1" oninput="update(${Ti}, 0)">
             <span class="dl2"></span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}m01" value="0" oninput="update(${Ti}, 0)">
@@ -765,6 +803,14 @@
             <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}e1" value="0" oninput="update(${Ti}, 4)">
             <span class="dl2">z</span><input type="number" pattern="\d+(\.\d*)?" id="T${Ti}e2" value="0" oninput="update(${Ti}, 4)">
             </p>
+            <p class="pi" id="T${Ti}ip8">
+            ABB<input type="string" style="width: 100%;" id="T${Ti}abb" value="[[423.818, 46.092, 210.4], [0, 0.6087614, 0.7933533, 0]]" oninput="update(${Ti}, 8)">
+            </p>
+            <p class="pi" id="T${Ti}ip9">
+            Compas<input type="string" style="width: 100%;" id="T${Ti}compas" value="Frame((3500, 400, 1200), (1.000, 0.000, 0.000), (0.000, 1.000, 0.000))" oninput="update(${Ti}, 9)">
+            </p>
+            <button type="button" onclick="eye(${Ti});">Reset to Identity</button>
+            <button type="button" onclick="delete_transform(${Ti});">Delete</button>
           </div>
         </div>`;
         tfinputshtml += divhtml;
@@ -820,7 +866,8 @@
       for (var i = 0; i < MAX_TFS; i++) {
         var mat4 = new THREE.Matrix4();
         mat4.identity();
-        transform_relationships.push(new TFRelationship("parent", "T" + i.toString(), mat4)); // initialize array to right size. update() will populate the fields.
+        var is_active = false
+        transform_relationships.push(new TFRelationship("parent", "T" + i.toString(), mat4, is_active)); // initialize array to right size. update() will populate the fields.
       }
       var errors = [];
       var tf_tree = new TFTree(transform_relationships, errors);
@@ -907,11 +954,231 @@
         document.getElementById("tf_tree_errors").innerHTML = error_text;
       }
 
+      function parse_abb(to_parse) {
+        // ABB style [[x_mm, y_mm, z_mm], [qw, qx, qy, qz]]
+        var tx_ty_tz_qx_qy_qz_qw = null;
+        // strip outer brackets
+        function strip_brackets(string) {
+          var output = "";
+          // first, remove spaces around brackets
+          output = string.replace(/\s*\[\s*/g, "[");
+          output = output.replace(/\s*\]\s*/g, "]");
+          output = output.replace(/^\[/, "");
+          output = output.replace(/\]$/, "");
+          return output;
+        }
+        to_parse = strip_brackets(to_parse);
+        // split into two parts
+        var parts = to_parse.split("],[");
+        if (parts.length != 2) {
+          console.log("ERROR: ABB style transform must have two parts");
+          return tx_ty_tz_qx_qy_qz_qw;
+        }
+        // first part is translation
+        var translation = strip_brackets(parts[0]);
+        var translation_parts = translation.split(",");
+        // second is wxyz
+        var quaternion = strip_brackets(parts[1]);
+        var quaternion_parts = quaternion.split(",");
+        if (translation_parts.length != 3) {
+          console.log("ERROR: ABB style translation must have three parts");
+          return tx_ty_tz_qx_qy_qz_qw;
+        }
+        if (quaternion_parts.length != 4) {
+          console.log("ERROR: ABB style quaternion must have four parts");
+          return tx_ty_tz_qx_qy_qz_qw;
+        }
+        // convert string to decimal
+        tx = parseFloat(translation_parts[0]) / 1000.0;
+        ty = parseFloat(translation_parts[1]) / 1000.0;
+        tz = parseFloat(translation_parts[2]) / 1000.0;
+        // convert string to decimal
+        qw = parseFloat(quaternion_parts[0]);
+        qx = parseFloat(quaternion_parts[1]);
+        qy = parseFloat(quaternion_parts[2]);
+        qz = parseFloat(quaternion_parts[3]);
+        return [tx, ty, tz, qx, qy, qz, qw];
+      }
+
+      function to_abb(tx, ty, tz, qx, qy, qz, qw) {
+        return `[[${tx * 1000}, ${ty * 1000}, ${tz * 1000}], [${qw}, ${qx}, ${qy}, ${qz}]]`;
+      }
+
+      function parse_compas(to_parse) {
+        // Compas style Frame((x, y, z), (xx, xy, xz), (yx, yy, yz))
+        var tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz = null;
+        to_parse = to_parse.replace("Frame", "");
+        // strip outer brackets
+        function strip_paren(string) {
+          var output = "";
+          // first, remove spaces around brackets
+          output = string.replace(/\s*\(\s*/g, "(");
+          output = output.replace(/\s*\)\s*/g, ")");
+          output = output.replace(/^\(/, "");
+          output = output.replace(/\)$/, "");
+          return output;
+        }
+        to_parse = strip_paren(to_parse);
+        // split into two parts
+        var parts = to_parse.split("),(");
+        if (parts.length != 3) {
+          console.log("ERROR: compas style frame must have three parts");
+          return tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz;
+        }
+        // first part is translation
+        var translation = strip_paren(parts[0]);
+        var translation_parts = translation.split(",");
+        // second is x axis
+        var xvec = strip_paren(parts[1]);
+        var xvec_parts = xvec.split(",");
+        // third is y axis
+        var yvec = strip_paren(parts[2]);
+        var yvec_parts = yvec.split(",");
+        if (translation_parts.length != 3) {
+          console.log("ERROR: compas style translation must have three parts");
+          return tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz;
+        }
+        if (xvec_parts.length != 3) {
+          console.log("ERROR: compas style x axis must have three parts");
+          return tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz;
+        }
+        if (yvec_parts.length != 3) {
+          console.log("ERROR: compas style y axis must have three parts");
+          return tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz;
+        }
+        // convert string to decimal
+        tx = parseFloat(translation_parts[0]);
+        ty = parseFloat(translation_parts[1]);
+        tz = parseFloat(translation_parts[2]);
+        // convert string to decimal
+        xx = parseFloat(xvec_parts[0]);
+        xy = parseFloat(xvec_parts[1]);
+        xz = parseFloat(xvec_parts[2]);
+        // convert string to decimal
+        yx = parseFloat(yvec_parts[0]);
+        yy = parseFloat(yvec_parts[1]);
+        yz = parseFloat(yvec_parts[2]);
+        // z axis is x cross y
+        zx = xy * yz - xz * yy;
+        zy = xz * yx - xx * yz;
+        zz = xx * yy - xy * yx;
+        return [tx, ty, tz, xx, xy, xz, yx, yy, yz, zx, zy, zz];
+      }
+
+      function to_compas(tx, ty, tz, xx, xy, xz, yx, yy, yz) {
+        return `Frame((${tx}, ${ty}, ${tz}), (${xx}, ${xy}, ${xz}), (${yx}, ${yy}, ${yz}))`;
+      }
+
+      function quaternion_to_mat4(qx, qy, qz, qw) {
+        // rot matrix from quaternion
+        // [1 - 2 * qy * qy - 2 * qz * qz,     2 * qx * qy - 2 * qz * qw,     2 * qx * qz + 2 * qy * qw, 0]
+        // [    2 * qx * qy + 2 * qz * qw, 1 - 2 * qx * qx - 2 * qz * qz,     2 * qy * qz - 2 * qx * qw, 0]
+        // [    2 * qx * qz - 2 * qy * qw,     2 * qy * qz + 2 * qx * qw, 1 - 2 * qx * qx - 2 * qy * qy, 0]
+        // [0, 0, 0, 1]
+        var xx_xy_xz_yx_yy_yz_zx_zy_zz = [
+          1 - 2 * qy * qy - 2 * qz * qz,
+          2 * qx * qy + 2 * qz * qw,
+          2 * qx * qz - 2 * qy * qw,
+          2 * qx * qy - 2 * qz * qw,
+          1 - 2 * qx * qx - 2 * qz * qz,
+          2 * qy * qz + 2 * qx * qw,
+          2 * qx * qz + 2 * qy * qw,
+          2 * qy * qz - 2 * qx * qw,
+          1 - 2 * qx * qx - 2 * qy * qy
+        ]
+        return xx_xy_xz_yx_yy_yz_zx_zy_zz
+      }
+
+      function mat4_to_quat_xyzw(xx, xy, xz, yx, yy, yz, zx, zy, zz) {
+        var tempw = 0.5 * Math.sqrt(1 + xx + yy + zz);
+        var quat = new THREE.Quaternion();
+        var mat4 = new THREE.Matrix4();
+        mat4.set(xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, 0, 0, 0, 1);
+        quat.setFromRotationMatrix(mat4);
+        return quat;
+      }
+
+      function add_transform() {
+        // find first inactive transform and make it active
+        for (var i = 0; i < MAX_TFS; i++) {
+          if (!transform_relationships[i].is_active) {
+            transform_relationships[i].is_active = true;
+            update(i, -1);
+            break;
+          }
+        }
+        update_which_transforms_are_visible();
+      }
+
+      function delete_transform(Ti) {
+        transform_relationships[Ti].is_active = false;
+        eye(Ti);
+        update_which_transforms_are_visible();
+      }
+
+      function update_which_transforms_are_visible(){
+        for (var i = 0; i < MAX_TFS; i++) {
+          if (transform_relationships[i].is_active) {
+            document.getElementById("T" + i.toString()).style.display = "block";
+          } else {
+            document.getElementById("T" + i.toString()).style.display = "none";
+          }
+        }
+        update_ref_frame_dropdown();
+      }
+
       function update_ref_frame() {
         reference_frame = document.getElementById("reference_frame_dropdown").value;
         visuals3d_need_update = true;
       }
+      
+      function update_ref_frame_dropdown() {
+        // Update reference frame dropdown choices
+        var frames = tf_tree.get_unique_nodes();
+        var options_html = "";
+        for (var frame of frames) {
+          var is_selected = (frame == reference_frame);
+          var selected_text = ""
+          if (is_selected) {
+            selected_text = ` selected=""`
+          }
+          options_html = options_html + `<option value="${frame}"${selected_text}>${frame}</option>`
+        }
+        document.getElementById("reference_frame_dropdown").innerHTML = options_html;
+        update_ref_frame(); // ensure that the dropdown and variable match, even in edge cases (deleting selected)
+      }
 
+      function update_which_inputs_are_visible(Ti) {
+        var imode = document.getElementById("T" + Ti.toString() + "imode").value;
+        //          mat   quat  axis  axismag  euler  ---    trans ---    ABB    compas 
+        var show = [true, false, false, false, false, false, true, false, false, false];
+        if (imode == "quaternion") {
+          show = [false, true, false, false, false, false, true, false, false, false];
+        } else if (imode == "euler") {
+          show = [false, false, false, false, true, false, true, false, false, false];
+        } else if (imode == "matrix") {
+          show = [true, false, false, false, false, false, true, false, false, false];
+        } else if (imode == "axisangle") {
+          show = [false, false, true, false, false, false, true, false, false, false];
+        } else if (imode == "axismagnitude") {
+          show = [false, false, false, true, false, false, true, false, false, false];
+        } else if (imode == "ABB") {
+          show = [false, false, false, false, false, false, false, false, true, false];
+        } else if (imode == "compas") {
+          show = [false, false, false, false, false, false, false, false, false, true];
+        }
+
+        for (var i = 0; i < show.length; i++) {
+          var element = document.getElementById("T" + Ti.toString() + "ip" + i.toString());
+          if (element != null) {
+            if (show[i]) {
+              element.style.display = "block";
+            } else {
+              element.style.display = "none";
+            }
+          }
+        }
+      }
       // Called when a field gets updated by the user. Argument is the index of the form element which has been updated\
       // converts the input into the universal format (matrix4), then back into every other field
       function update(Ti, ipidx) {
@@ -954,20 +1221,16 @@
             var qy = document.getElementById("T" + Ti.toString() + "q1").value * 1.0;
             var qz = document.getElementById("T" + Ti.toString() + "q2").value * 1.0;
             var qw = document.getElementById("T" + Ti.toString() + "q3").value * 1.0;
-            // rot matrix from quaternion
-            // [1 - 2 * qy * qy - 2 * qz * qz,     2 * qx * qy - 2 * qz * qw,     2 * qx * qz + 2 * qy * qw, 0]
-            // [    2 * qx * qy + 2 * qz * qw, 1 - 2 * qx * qx - 2 * qz * qz,     2 * qy * qz - 2 * qx * qw, 0]
-            // [    2 * qx * qz - 2 * qy * qw,     2 * qy * qz + 2 * qx * qw, 1 - 2 * qx * qx - 2 * qy * qy, 0]
-            // [0, 0, 0, 1]
-            xx = 1 - 2 * qy * qy - 2 * qz * qz;
-            xy = 2 * qx * qy + 2 * qz * qw;
-            xz = 2 * qx * qz - 2 * qy * qw;
-            yx = 2 * qx * qy - 2 * qz * qw;
-            yy = 1 - 2 * qx * qx - 2 * qz * qz;
-            yz = 2 * qy * qz + 2 * qx * qw;
-            zx = 2 * qx * qz + 2 * qy * qw;
-            zy = 2 * qy * qz - 2 * qx * qw;
-            zz = 1 - 2 * qx * qx - 2 * qy * qy;
+            var xx_xy_xz_yx_yy_yz_zx_zy_zz = quaternion_to_mat4(qx, qy, qz, qw);
+            xx = xx_xy_xz_yx_yy_yz_zx_zy_zz[0];
+            xy = xx_xy_xz_yx_yy_yz_zx_zy_zz[1];
+            xz = xx_xy_xz_yx_yy_yz_zx_zy_zz[2];
+            yx = xx_xy_xz_yx_yy_yz_zx_zy_zz[3];
+            yy = xx_xy_xz_yx_yy_yz_zx_zy_zz[4];
+            yz = xx_xy_xz_yx_yy_yz_zx_zy_zz[5];
+            zx = xx_xy_xz_yx_yy_yz_zx_zy_zz[6];
+            zy = xx_xy_xz_yx_yy_yz_zx_zy_zz[7];
+            zz = xx_xy_xz_yx_yy_yz_zx_zy_zz[8];
           }
           if (ipidx == 2) {
             // Axis angle
@@ -1038,33 +1301,64 @@
             var qy = quat.y;
             var qz = quat.z;
             var qw = quat.w;
-            xx = 1 - 2 * qy * qy - 2 * qz * qz;
-            xy = 2 * qx * qy + 2 * qz * qw;
-            xz = 2 * qx * qz - 2 * qy * qw;
-            yx = 2 * qx * qy - 2 * qz * qw;
-            yy = 1 - 2 * qx * qx - 2 * qz * qz;
-            yz = 2 * qy * qz + 2 * qx * qw;
-            zx = 2 * qx * qz + 2 * qy * qw;
-            zy = 2 * qy * qz - 2 * qx * qw;
-            zz = 1 - 2 * qx * qx - 2 * qy * qy;
+            var xx_xy_xz_yx_yy_yz_zx_zy_zz = quaternion_to_mat4(qx, qy, qz, qw);
+            xx = xx_xy_xz_yx_yy_yz_zx_zy_zz[0];
+            xy = xx_xy_xz_yx_yy_yz_zx_zy_zz[1];
+            xz = xx_xy_xz_yx_yy_yz_zx_zy_zz[2];
+            yx = xx_xy_xz_yx_yy_yz_zx_zy_zz[3];
+            yy = xx_xy_xz_yx_yy_yz_zx_zy_zz[4];
+            yz = xx_xy_xz_yx_yy_yz_zx_zy_zz[5];
+            zx = xx_xy_xz_yx_yy_yz_zx_zy_zz[6];
+            zy = xx_xy_xz_yx_yy_yz_zx_zy_zz[7];
+            zz = xx_xy_xz_yx_yy_yz_zx_zy_zz[8];
           }
-          if (ipidx == 7) {
+          if (ipidx == 7) { // parent / child names
             transform_relationships[Ti].parent = document.getElementById("T" + Ti.toString() + "parent").value;
             transform_relationships[Ti].child = document.getElementById("T" + Ti.toString() + "child").value;
+            document.getElementById("T" + Ti.toString() + "title").innerHTML = transform_relationships[Ti].child + " in " + transform_relationships[Ti].parent;
             rebuild_tree();
-            // Update reference frame dropdown choices
-            var frames = tf_tree.get_unique_nodes();
-            var options_html = "";
-            for (var frame of frames) {
-              var is_selected = (frame == reference_frame);
-              var selected_text = ""
-              if (is_selected) {
-                selected_text = ` selected=""`
-              }
-              options_html = options_html + `<option value="${frame}"${selected_text}>${frame}</option>`
+            update_ref_frame_dropdown();
+          }
+          if (ipidx == 8) { // ABB style [[x_mm, y_mm, z_mm], [qw, qx, qy, qz]]
+            var to_parse = document.getElementById("T" + Ti.toString() + "abb").value;
+            tx_ty_tz_qx_qy_qz_qw = parse_abb(to_parse);
+            if (tx_ty_tz_qx_qy_qz_qw != null) {
+              tx = tx_ty_tz_qx_qy_qz_qw[0];
+              ty = tx_ty_tz_qx_qy_qz_qw[1];
+              tz = tx_ty_tz_qx_qy_qz_qw[2];
+              qx = tx_ty_tz_qx_qy_qz_qw[3];
+              qy = tx_ty_tz_qx_qy_qz_qw[4];
+              qz = tx_ty_tz_qx_qy_qz_qw[5];
+              qw = tx_ty_tz_qx_qy_qz_qw[6];
+              var xx_xy_xz_yx_yy_yz_zx_zy_zz = quaternion_to_mat4(qx, qy, qz, qw);
+              xx = xx_xy_xz_yx_yy_yz_zx_zy_zz[0];
+              xy = xx_xy_xz_yx_yy_yz_zx_zy_zz[1];
+              xz = xx_xy_xz_yx_yy_yz_zx_zy_zz[2];
+              yx = xx_xy_xz_yx_yy_yz_zx_zy_zz[3];
+              yy = xx_xy_xz_yx_yy_yz_zx_zy_zz[4];
+              yz = xx_xy_xz_yx_yy_yz_zx_zy_zz[5];
+              zx = xx_xy_xz_yx_yy_yz_zx_zy_zz[6];
+              zy = xx_xy_xz_yx_yy_yz_zx_zy_zz[7];
+              zz = xx_xy_xz_yx_yy_yz_zx_zy_zz[8];
             }
-            document.getElementById("reference_frame_dropdown").innerHTML = options_html;
-            update_ref_frame(); // ensure that the dropdown and variable match, even in edge cases (deleting selected)
+          }
+          if (ipidx == 9) { // compas style
+            var to_parse = document.getElementById("T" + Ti.toString() + "compas").value;
+            tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz = parse_compas(to_parse);
+            if (tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz != null) {
+              tx = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[0];
+              ty = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[1];
+              tz = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[2];
+              xx = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[3];
+              xy = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[4];
+              xz = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[5];
+              yx = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[6];
+              yy = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[7];
+              yz = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[8];
+              zx = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[9];
+              zy = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[10];
+              zz = tx_ty_tz_xx_xy_xz_yx_yy_yz_zx_zy_zz[11];
+            }
           }
 
           // ASSIGN -------------------------
@@ -1075,6 +1369,12 @@
 
           // OUTPUT  -----------------------
           // Convert Matrix 4 into any output and update displays
+          if (ipidx != 6)
+          {
+            document.getElementById("T" + Ti.toString() + "t0").value = tx;
+            document.getElementById("T" + Ti.toString() + "t1").value = ty;
+            document.getElementById("T" + Ti.toString() + "t2").value = tz;
+          }
           if (ipidx != 0)
           {
             document.getElementById("T" + Ti.toString() + "m00").value = xx;
@@ -1148,6 +1448,24 @@
             document.getElementById("T" + Ti.toString() + "e0").value = InputFromRad(euler.x);
             document.getElementById("T" + Ti.toString() + "e1").value = InputFromRad(euler.y);
             document.getElementById("T" + Ti.toString() + "e2").value = InputFromRad(euler.z);
+          }
+
+          if (ipidx != 8) {
+            // to quaternion
+            var tempw = 0.5 * Math.sqrt(1 + xx + yy + zz);
+            var quat = new THREE.Quaternion();
+            var mat4 = new THREE.Matrix4();
+            mat4.set(xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, 0, 0, 0, 1);
+            quat.setFromRotationMatrix(mat4);
+            // to abb notation
+            var abb_text = to_abb(tx, ty, tz, quat.x, quat.y, quat.z, quat.w);
+            document.getElementById("T" + Ti.toString() + "abb").value = abb_text;
+          }
+          
+          if (ipidx != 9) {
+            // to compas notation
+            var compas_text = to_compas(tx, ty, tz, xx, xy, xz, yx, yy, yz);
+            document.getElementById("T" + Ti.toString() + "compas").value = compas_text;
           }
 
           // set unit spans to either (radians) or (degrees)
@@ -1245,7 +1563,22 @@
             var tx = tf.elements[12];
             var ty = tf.elements[13];
             var tz = tf.elements[14];
-            debug_frame_info += `<p>${frame} in ${reference_frame}: ${tx}, ${ty}, ${tz}</p>`;
+            if (frame != reference_frame) {
+              var frameinfomode = document.getElementById("frameinfomode").value;
+              var frameinfotext = "";
+              if (frameinfomode == "quaternion") {
+                var quat = mat4_to_quat_xyzw(xx, xy, xz, yx, yy, yz, zx, zy, zz);
+                frameinfotext = `[${tx.toFixed(2)}, ${ty.toFixed(2)}, ${tz.toFixed(2)}], [${quat.x.toFixed(2)}, ${quat.y.toFixed(2)}, ${quat.z.toFixed(2)}, ${quat.w.toFixed(2)}]`;
+              } else if (frameinfomode == "ABB") {
+                var quat = mat4_to_quat_xyzw(xx, xy, xz, yx, yy, yz, zx, zy, zz);
+                frameinfotext = `[[${(tx * 1000.).toFixed(2)}, ${(ty * 1000.).toFixed(2)}, ${(tz * 1000.).toFixed(2)}], [${quat.w.toFixed(2)}, ${quat.x.toFixed(2)}, ${quat.y.toFixed(2)}, ${quat.z.toFixed(2)}]]`;
+              } else if (frameinfomode == "compas") {
+                frameinfotext = `Frame((${tx}, ${ty}, ${tz}), (${xx}, ${xy}, ${xz}), (${yx}, ${yy}, ${yz}))`;
+              } else {
+                frameinfotext = `${tx}, ${ty}, ${tz}`;
+              }
+              debug_frame_info += `<p>${frame} in ${reference_frame}: ${frameinfotext}</p>`;
+            }
             xaxis.position.set(tx, ty, tz);
             yaxis.position.set(tx, ty, tz);
             zaxis.position.set(tx, ty, tz);
@@ -1297,10 +1630,12 @@
         }
         document.getElementById("canvaslabels").innerHTML = labelshtml;
       }
+      add_transform();
       for (var Ti = 0; Ti < MAX_TFS; Ti++) {
         update(Ti, 6); // translation values in the form are saved on refresh. This applies them when loading the page.
         update(Ti, 0); // same for rot \
         update(Ti, 7); // same for names \
+        update_which_inputs_are_visible(Ti); // same for input mode
       }
       window.addEventListener( 'resize', onWindowResize, false );
       function onWindowResize(){
