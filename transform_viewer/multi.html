@@ -773,7 +773,7 @@
               <button type="button" onclick="delete_transform(${Ti});">Delete</button>
               </div>
             </div>
-            <input type="string" id="T${Ti}child" value="T${Ti}" oninput="update(${Ti}, 7)">
+            <input type="string" id="T${Ti}child" value="child ${Ti}" oninput="update(${Ti}, 7)">
             in
             <input type="string" id="T${Ti}parent" value="parent" oninput="update(${Ti}, 7)">
             <select id="T${Ti}imode" onchange="update_which_inputs_are_visible(${Ti})">
@@ -1659,7 +1659,20 @@
         }
         document.getElementById("canvaslabels").innerHTML = labelshtml;
       }
+      // add two arbitrary transforms
       add_transform();
+      add_transform();
+      // initialize transforms in a cool pattern
+      for (var Ti = 0; Ti < MAX_TFS; Ti++) {
+        var angle = Ti * Math.PI / 3;
+        var r = 2 + Ti / 2; 
+        var x = r * Math.cos(angle);
+        var y = r * Math.sin(angle);
+        transform_relationships[Ti].tf.elements[12] = x;
+        transform_relationships[Ti].tf.elements[13] = y;
+        update(Ti, -1);
+      }
+      // update all visuals to match input states
       for (var Ti = 0; Ti < MAX_TFS; Ti++) {
         update(Ti, 6); // translation values in the form are saved on refresh. This applies them when loading the page.
         update(Ti, 0); // same for rot \
