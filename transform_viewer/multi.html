@@ -15,8 +15,16 @@
         overflow-y: scroll;
         max-height: 98vh;
       }
+      .rsidepanel {
+        flex-grow: 1;
+        background-color: #ffffff;
+        padding: 10px;
+        border-left: 5px solid red;
+        overflow-y: scroll;
+        max-height: 98vh;
+      }
       .canvaspanel {
-        flex-grow: 2;
+        flex-grow: 1;
         max-height: 100vh;
         overflow-y: clip;
         position: relative;
@@ -125,6 +133,18 @@
         padding: 10px;
         margin: 10px;
       }
+
+      #tf_tree_disp {
+        border: 1px solid #cccccc;
+        border-radius: 10px;
+        padding: 10px;
+        margin: 10px;
+      }
+
+      /* smaller font */
+      #debug_frame_infos {
+        font-size: 0.8em;
+      }
     </style>
   </head>
   <body>
@@ -137,27 +157,7 @@
           <label><input type="radio" id="iformatrad" name="iformat" value="0" checked="" onchange="update(0, -1)">Radians</label>
           <label><input type="radio" id="iformatdeg" name="iformat" value="1" onchange="update(0, -1)">Degrees</label>
           </p>
-          <h3>TF Tree</h3>
-          <div id="tf_tree_errors"></div>
-          <div id="tf_tree_disp"></div>
-          <div id="test_tree_errors"></div>
-          <div id="test_tree_disp"></div>
-          <select id="reference_frame_dropdown" onchange="update_ref_frame()">
-            <option value="0" selected="">parent</option>
-            <option value="1">T0</option>
-            <option value="2">T1</option>
-            <option value="3">T2</option>
-          </select>
-          <select id="frameinfomode" onchange="update_ref_frame()"> <!-- update ref frame to force update of frame infos -->
-            <option value="quaternion" selected="">quaternion (xyzw)</option>
-            <!-- <option value="euler">euler</option> -->
-            <!-- <option value="matrix">matrix</option> -->
-            <!-- <option value="axisangle">axis-angle</option> -->
-            <!-- <option value="axismagnitude">axis-magnitude</option> -->
-            <option value="ABB">ABB</option>
-            <option value="compas">compas</option>
-          </select>
-          <div id="debug_frame_infos"></div>
+          Transforms:
           <div id="TFInputs">
             <div id="T0">
               <h3>T0</h3>
@@ -286,6 +286,30 @@
           <div class="label" style="color: rgb(144, 144, 144); position: absolute; user-select: none; transform: translate(1146.22px, 222.947px); z-index: 5;" draggable="false">C</div>
         </div>
       </div>
+      <div class="rsidepanel">
+        <h3>TF Tree</h3>
+          <div id="tf_tree_errors"></div>
+          <div id="tf_tree_disp"></div>
+          <div id="test_tree_errors"></div>
+          <div id="test_tree_disp"></div>
+          Reference frame:
+          <select id="reference_frame_dropdown" onchange="update_ref_frame()">
+            <option value="0" selected="">parent</option>
+            <option value="1">T0</option>
+            <option value="2">T1</option>
+            <option value="3">T2</option>
+          </select>
+          <select id="frameinfomode" onchange="update_ref_frame()"> <!-- update ref frame to force update of frame infos -->
+            <option value="quaternion" selected="">quaternion (xyzw)</option>
+            <!-- <option value="euler">euler</option> -->
+            <!-- <option value="matrix">matrix</option> -->
+            <!-- <option value="axisangle">axis-angle</option> -->
+            <!-- <option value="axismagnitude">axis-magnitude</option> -->
+            <option value="ABB">ABB</option>
+            <option value="compas">compas</option>
+          </select>
+          <div><p id="debug_frame_infos"></p></div>
+      </div>
     </div>
 
     <script src="js/three.min.js"></script>
@@ -295,7 +319,7 @@
     <script src="js/FileSaver.js"></script>
     <script>
       // Our Javascript will go here.
-      const CF = Math.max((window.innerWidth - 800) / window.innerWidth, 0.5); // what percentage of the window horizontally the canvas should fill -> 500px for the sidebar, or 50/50 split if the screen is too small
+      const CF = 0.5; // what percentage of the window horizontally the canvas should fill -> 500px for the sidebar, or 50/50 split if the screen is too small
       const DEBUGSHAPES = false;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera( 75, window.innerWidth * CF / window.innerHeight, 0.1, 1000 );
@@ -742,8 +766,8 @@
       var tfinputshtml = '';
       for (var Ti = 0; Ti < MAX_TFS; Ti++) {
         var divhtml = `<div class="tfinput" id="T${Ti}">
-            <div>
-            <b><span id="T${Ti}title">T${Ti}</span></b>
+            <div style="display: flex; justify-content: space-between;">
+              <div><b><span id="T${Ti}title">T${Ti}</span></b></div>
               <div>
               <button type="button" onclick="eye(${Ti});">Reset to Identity</button>
               <button type="button" onclick="delete_transform(${Ti});">Delete</button>
@@ -1582,7 +1606,7 @@
               } else {
                 frameinfotext = `${tx}, ${ty}, ${tz}`;
               }
-              debug_frame_info += `<p>${frame} in ${reference_frame}: ${frameinfotext}</p>`;
+              debug_frame_info += `<p>${frame} in ${reference_frame}:<br>${frameinfotext}</p>`;
             }
             xaxis.position.set(tx, ty, tz);
             yaxis.position.set(tx, ty, tz);
@@ -1645,12 +1669,13 @@
       window.addEventListener( 'resize', onWindowResize, false );
       function onWindowResize(){
 
-          const CF = Math.max((window.innerWidth - 500) / window.innerWidth, 0.5);
+          const CF = Math.max((window.innerWidth - 1000) / window.innerWidth, 0.50);
           camera.aspect = window.innerWidth * CF / window.innerHeight;
           camera.updateProjectionMatrix();
           renderer.setSize( window.innerWidth * CF, window.innerHeight );
 
       }
+      onWindowResize();
       toggleGrid();
       animate();
     </script>
