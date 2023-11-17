@@ -1654,8 +1654,11 @@
           var width = document.getElementById("canvaslabels").offsetWidth;
           var height = document.getElementById("canvaslabels").offsetHeight;
           var px = Math.round( (   vector.x ) * width  / 2 );
-          var py = Math.round( ( - vector.y + 1 ) * height / 2 );
-          labelshtml = labelshtml + `<div class="label" style="color: rgb(144, 144, 144); position: relative; user-select: none; transform: translate(${px}px, ${py}px); z-index: 5;" draggable="false">${label}</div>`
+          var py = Math.round( ( - vector.y ) * height / 2 );
+          if (px < -(width / 2.) || px > (width / 2.) || py < -(height / 2.) || py > (height / 2.)) {
+            continue;
+          }
+          labelshtml = labelshtml + `<div class="label" style="color: rgb(144, 144, 144); position: absolute; top: 50%; left: 50%; user-select: none; transform: translate(${px}px, ${py}px); z-index: 5;" draggable="false">${label}</div>`
         }
         document.getElementById("canvaslabels").innerHTML = labelshtml;
       }
