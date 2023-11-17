@@ -3,8 +3,10 @@
     <meta charset="utf-8">
     <title>3D TF Visualizer</title>
     <style>
-      body { margin: 0; }
-
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
 
       /* sidepanel style */
       .sidepanel {
@@ -13,7 +15,7 @@
         padding: 10px;
         border-right: 5px solid red;
         overflow-y: scroll;
-        max-height: 98vh;
+        max-height: 100vh;
       }
       .rsidepanel {
         flex-grow: 1;
@@ -21,7 +23,7 @@
         padding: 10px;
         border-left: 5px solid red;
         overflow-y: scroll;
-        max-height: 98vh;
+        max-height: 100vh;
       }
       .canvaspanel {
         max-height: 100vh;
@@ -298,7 +300,7 @@
               </p>
             </div>
           </div>
-          <button type="button" onclick="add_transform();">Add Transform</button>
+          <button id="addtfbutton" type="button" onclick="add_transform();">Add Transform</button>
         </div>
         <h2>View Options</h2>
           <!-- axes scaling: make sure text is vertically centered -->
@@ -309,6 +311,8 @@
         <button type="button" onclick="planeview(0);">X Plane View</button>
         <button type="button" onclick="planeview(1);">Y Plane View</button>
         <button type="button" onclick="planeview(2);">Z Plane View</button>
+        <!-- add empty div to fix weird issue where overflow makes the panel longer than the screen -->
+        <div style="padding-bottom: 20px;"></div>
       </div>
       <div id="canvas" class="canvaspanel">
         <div id="canvaslabels" class="canvaslabels">
@@ -338,6 +342,8 @@
             <option value="compas">compas</option>
           </select>
           <div><p id="debug_frame_infos"></p></div>
+          <!-- add empty div to fix weird issue where overflow makes the panel longer than the screen -->
+          <div style="padding-bottom: 20px;"></div>
       </div>
     </div>
 
@@ -788,7 +794,7 @@
       // var zy = 0.0;
       // var zz = 1.0;
       var transform_relationships = []; // [(parent_name, child_name, tf, is_active), ...]
-      const MAX_TFS = 10;
+      const MAX_TFS = 30;
       const MAX_AXS = MAX_TFS * 2;
       
       // Create the input HTML
@@ -1186,6 +1192,19 @@
           } else {
             document.getElementById("T" + i.toString()).style.display = "none";
           }
+        }
+        // hide/show add transform button if we're at max
+        var all_active = true;
+        for (var i = 0; i < transform_relationships.length; i++) {
+          if (!transform_relationships[i].is_active) {
+            all_active = false;
+            break;
+          }
+        }
+        if (all_active) {
+          document.getElementById("addtfbutton").style.display = "none";
+        } else {
+          document.getElementById("addtfbutton").style.display = "block";
         }
         update_ref_frame_dropdown();
       }
