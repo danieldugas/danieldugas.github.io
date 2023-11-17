@@ -305,6 +305,7 @@
           <!-- axes scaling: make sure text is vertically centered -->
           <input type="range" min="0" max="100" value="100" class="slider" id="myRange">Scale Axes
           <label><input type="checkbox" id="showgrid" name="igrid" value="0" checked="" onchange="toggleGrid()">Grid</label>
+          <br>
         <button type="button" onclick="standardview();">Standard View</button>
         <button type="button" onclick="planeview(0);">X Plane View</button>
         <button type="button" onclick="planeview(1);">Y Plane View</button>
@@ -1697,6 +1698,7 @@
         // re-render labels
         // get position of originaxes in window space
         var labelshtml = "";
+        var previous_pos = [];
         for (var Ai = 0; Ai < MAX_AXS; Ai++) {
           var xaxis = tf_axes[Ai][0];
           var yaxis = tf_axes[Ai][1];
@@ -1712,7 +1714,14 @@
           if (px < -(width / 2.) || px > (width / 2.) || py < -(height / 2.) || py > (height / 2.)) {
             continue;
           }
+          var OVERLAP = 20;
+          for (var i = 0; i < previous_pos.length; i++) {
+            if (Math.abs(px - previous_pos[i][0]) < OVERLAP && Math.abs(py - previous_pos[i][1] < OVERLAP)) {
+              py += OVERLAP;
+            }
+          }
           labelshtml = labelshtml + `<div class="label" style="color: rgb(144, 144, 144); position: absolute; top: 50%; left: 50%; user-select: none; transform: translate(${px}px, ${py}px); z-index: 5;" draggable="false">${label}</div>`
+          previous_pos.push([px, py]);
         }
         document.getElementById("canvaslabels").innerHTML = labelshtml;
       }
