@@ -7,6 +7,7 @@ export async function reloadFunc() {
   this.scene.remove(this.scene.getObjectByName("MuJoCo Root"));
   [this.model, this.state, this.simulation, this.bodies, this.lights] =
     await loadSceneFromURL(this.mujoco, this.params.scene, this);
+  this.set_mocap_keyframe();
   this.simulation.forward();
   for (let i = 0; i < this.updateGUICallbacks.length; i++) {
     this.updateGUICallbacks[i](this.model, this.simulation, this.params);
@@ -31,6 +32,60 @@ export function setupGUI(parentContext) {
     "Hammock": "hammock.xml", "Balloons": "balloons.xml", "Hand": "shadow_hand/scene_right.xml",
     "Flag": "flag.xml", "Mug": "mug.xml", "Tendon": "model_with_tendon.xml"
   }).name('Example Scene').onChange(reload);
+
+  // Add a debug menu
+  const displayDebugMenu = () => {
+    if (parentContext.params.debug) {
+      const debugMenu = document.createElement('div');
+      debugMenu.style.position = 'absolute';
+      debugMenu.style.top = '10px';
+      debugMenu.style.left = '10px';
+      debugMenu.style.color = 'white';
+      debugMenu.style.font = 'normal 18px Arial';
+      debugMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+      debugMenu.style.padding = '10px';
+      debugMenu.style.borderRadius = '10px';
+      debugMenu.style.display = 'flex';
+      debugMenu.style.flexDirection = 'column';
+      debugMenu.style.alignItems = 'center';
+      debugMenu.style.justifyContent = 'center';
+      debugMenu.style.width = '400px';
+      debugMenu.style.height = '400px';
+      debugMenu.style.overflow = 'auto';
+      debugMenu.style.zIndex = '1000';
+
+      const debugMenuTitle = document.createElement('div');
+      debugMenuTitle.style.font = 'bold 24px Arial';
+      debugMenuTitle.innerHTML = 'Debug Menu';
+      debugMenu.appendChild(debugMenuTitle);
+
+      debugMenu.appendChild(parentContext.DBG_div_element);
+      
+      // close button
+      const debugMenuCloseButton = document.createElement('button');
+      debugMenuCloseButton.innerHTML = 'Close';
+      debugMenuCloseButton.style.position = 'absolute';
+      debugMenuCloseButton.style.top = '10px';
+      debugMenuCloseButton.style.right = '10px';
+      debugMenuCloseButton.style.zIndex = '1001';
+      debugMenuCloseButton.onclick = () => {
+        debugMenu.remove();
+      }
+      debugMenu.appendChild(debugMenuCloseButton);
+
+      document.body.appendChild(debugMenu);
+    } else {
+      document.body.removeChild(document.body.lastChild);
+    }
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'F2') {
+      parentContext.params.debug = !parentContext.params.debug;
+      displayDebugMenu();
+      event.preventDefault();
+    }
+  });
+
 
   // Add a help menu.
   // Parameters:
@@ -178,6 +233,7 @@ export function setupGUI(parentContext) {
   //  Can also be triggered by pressing backspace.
   const resetSimulation = () => {
     parentContext.simulation.resetData();
+    parentContext.set_mocap_keyframe();
     parentContext.simulation.forward();
   };
   simulationFolder.add({reset: () => { resetSimulation(); }}, 'reset').name('Reset');
@@ -209,6 +265,7 @@ export function setupGUI(parentContext) {
   // Add sliders for ctrlnoiserate and ctrlnoisestd; min = 0, max = 2, step = 0.01.
   simulationFolder.add(parentContext.params, 'ctrlnoiserate', 0.0, 2.0, 0.01).name('Noise rate' );
   simulationFolder.add(parentContext.params, 'ctrlnoisestd' , 0.0, 2.0, 0.01).name('Noise scale');
+  simulationFolder.add(parentContext.params, 'rlactscale' , 0.0, 5.0, 0.01).name('RL Action scale');
 
   let textDecoder = new TextDecoder("utf-8");
   let nullChar    = textDecoder.decode(new ArrayBuffer(1));
@@ -287,6 +344,24 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
     let textDecoder = new TextDecoder("utf-8");
     let fullString = textDecoder.decode(model.names);
     let names = fullString.split(textDecoder.decode(new ArrayBuffer(1)));
+    
+    // model.names is an array of utf values, with 0 as a separator.
+    // first we split the array at each 0, then we decode each subarray into a string,
+    // and store the index of the first character as a key
+    // (since model.name_bodyadr contains the index of the first character of the body name).
+    let current = [];
+    let current_firstchar_index = 0;
+    let name_index = {};
+    for (let i = 0; i < model.names.length; i++) {
+      if (model.names[i] == 0) {
+        name_index[current_firstchar_index] = textDecoder.decode(new Uint8Array(current));
+        current = [];
+        current_firstchar_index = i + 1;
+      } else {
+        current.push(model.names[i]);
+      }
+    }
+    model.DBG_name_index = name_index;
 
     // Create the root object.
     let mujocoRoot = new THREE.Group();
@@ -321,7 +396,7 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
       // Create the body if it doesn't exist.
       if (!(b in bodies)) {
         bodies[b] = new THREE.Group();
-        bodies[b].name = names[model.name_bodyadr[b]];
+        bodies[b].name = name_index[model.name_bodyadr[b]];
         bodies[b].bodyID = b;
         bodies[b].has_custom_mesh = false;
       }
