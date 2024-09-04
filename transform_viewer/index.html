@@ -156,12 +156,12 @@
           <p class="pi" id="ip4">Euler angles of multiple axis rotations<span class="angleunit" name="spananglei"> (radians)</span>
           <br>
           <span class="sel"><select id="euler" onchange="update(4)">
-          <option value="XYZ" selected="">XYZ</option>
-          <option value="XZY">XZY</option>
-          <option value="YXZ">YXZ</option>
-          <option value="YZX">YZX</option>
-          <option value="ZXY">ZXY</option>
-          <option value="ZYX">ZYX</option>
+          <option value="XYZ" selected="">xy'z'' (ZYX)</option>
+          <option value="XZY">xz'y'' (YZX)</option>
+          <option value="YXZ">yx'z'' (ZXY)</option>
+          <option value="YZX">yz'x'' (XZY)</option>
+          <option value="ZXY">zx'y'' (YXZ)</option>
+          <option value="ZYX">zy'x'' (XYZ)</option>
           </select></span>
           <span class="dl2">x</span><input type="number" pattern="\d+(\.\d*)?" id="e0" value="0" oninput="update(4)">
           <span class="dl2">y</span><input type="number" pattern="\d+(\.\d*)?" id="e1" value="0" oninput="update(4)">
