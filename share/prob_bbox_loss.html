@@ -11,9 +11,6 @@
             padding: 20px;
             text-align: center;
         }
-        #plotArea {
-            border: 1px solid #ccc;
-        }
         #slidersContainer {
             display: flex;
             flex-wrap: wrap;
@@ -29,6 +26,10 @@
         .slider-label {
             min-width: 100px;
         }
+        #sideBySide {
+            display: flex;
+            justify-content: space-between;
+        }
     </style>
 </head>
 <body>
@@ -37,10 +38,9 @@
     <p>Probabilities of points belonging to the object:</p>
     <div id="slidersContainer"></div>
     
-    <p>Boxes - probability of individual point belonging to the object</p>
-    <p>Red line - probability of box lower limit being at that point</p>
-    <p>Blue line - expected value of the box lower limit</p>
-    <svg id="plotArea" width="800" height="400" viewBox="0 0 800 400">
+    <div id="sideBySide">
+    <div id="leftDiv">
+    <svg id="plotArea" class="svgplot" width="800" height="400" viewBox="0 0 800 400">
         <line id="bottomAxis" x1="50" y1="350" x2="750" y2="350" stroke="black" stroke-width="2"/>
         <line id="verticalAxis" x1="50" y1="50" x2="50" y2="350" stroke="black" stroke-width="2"/>
         <!-- 0 - 1 label on vertical Axis -->
@@ -51,10 +51,14 @@
         <path id="horizontalLine" fill="none" stroke="red" stroke-width="2"/>
         <path id="verticalLine" fill="none" stroke="blue" stroke-width="2"/>
     </svg>
+    <p>Boxes - probability of individual point belonging to the object</p>
+    <p>Red line - probability of box lower limit being at that point</p>
+    <p>Blue line - expected value of the box lower limit</p>
+    </div>
 
-    <p>Black line - error of box lower limit depending only on point 2</p>
+    <div id="rightDiv">
     <!-- SVG Line plot of f(x) where x is 0 to 1, f(x) is exp(x) -->
-     <svg id="plotArea2" width="400" height="400" viewBox="0 0 400 400">
+     <svg id="plotArea2" class="svgplot" width="400" height="400" viewBox="0 0 400 400">
         <line id="bottomAxis" x1="50" y1="350" x2="350" y2="350" stroke="black" stroke-width="2"/>
         <line id="verticalAxis" x1="50" y1="50" x2="50" y2="350" stroke="black" stroke-width="2"/>
         <text x="30" y="355" font-size="12">0</text>
@@ -66,6 +70,9 @@
         <!-- Circle at the current value -->
         <circle id="errorCircle" cx="50" cy="350" r="5" fill="black"/>
     </svg>
+    <p>Black line - error of box lower limit depending only on point 2</p>
+    </div>
+    </div>
 
     <script>
         // Configuration
