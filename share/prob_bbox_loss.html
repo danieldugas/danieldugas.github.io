@@ -50,6 +50,9 @@
         
         <path id="horizontalLine" fill="none" stroke="red" stroke-width="2"/>
         <path id="verticalLine" fill="none" stroke="blue" stroke-width="2"/>
+        <!-- little vertical blue bar below the axis at 7 to show the true bbox limit -->
+        <path d="M585,350 L585,355" stroke="blue" stroke-width="2"/>
+        <text x="585" y="365" font-size="12">true min. limit</text>
     </svg>
     <p>Boxes - probability of individual point belonging to the object</p>
     <p>Red line - probability of box lower limit being at that point</p>
@@ -66,11 +69,10 @@
         <text x="150" y="365" font-size="12">point 2 probability</text>
         <text x="350" y="365" font-size="12">1</text>
         
-        <path id="errorLine" fill="none" stroke="black" stroke-width="2"/>
-        <!-- Circle at the current value -->
-        <circle id="errorCircle" cx="50" cy="350" r="5" fill="black"/>
+        <!-- <path id="errorLine" fill="none" stroke="black" stroke-width="2"/>
+        <circle id="errorCircle" cx="50" cy="350" r="5" fill="black"/> -->
     </svg>
-    <p>Black line - error of box lower limit depending only on point 2</p>
+    <p>Orange line - error of box lower limit depending only on point 2</p>
     </div>
     </div>
 
@@ -161,6 +163,28 @@
 
                 // Add event listener
                 slider.addEventListener('input', updatePlot);
+
+                // Create error line and error circles
+                const plotArea2 = document.getElementById('plotArea2');
+                const errorLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                errorLine.id = `errorLine{${i}}`;
+                errorLine.setAttribute('fill', 'none');
+                errorLine.setAttribute('stroke', `hsl(${i * 360 / NUM_BOXES}, 70%, 60%)`);
+                errorLine.setAttribute('stroke-width', '2');
+                errorLine.setAttribute('stroke-opacity', '0.1');
+                if (i == 1) {
+                    errorLine.setAttribute('stroke-opacity', '1');
+                }
+                plotArea2.appendChild(errorLine);
+                const errorCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                errorCircle.id = `errorCircle{${i}}`;
+                errorCircle.setAttribute('r', '5');
+                errorCircle.setAttribute('fill', `hsl(${i * 360 / NUM_BOXES}, 70%, 60%)`);
+                errorCircle.setAttribute('fill-opacity', '0.1');
+                if (i == 1) {
+                    errorCircle.setAttribute('fill-opacity', '1');
+                }
+                plotArea2.appendChild(errorCircle);
             }
 
             // Initial plot
@@ -178,29 +202,31 @@
             // Compute error for any value of slider 0
             const trueLimit = 7.0;
             const error = Math.abs(expectedLimit - trueLimit);
-            const BOX_I = 1;
-            // possible values are linspace(0, 1, 100)
-            const pValues = Array.from({length: 100}, (_, i) => i / 100);
-            const errors = pValues.map(p => {
-                const boxHeightsCopy = boxHeights.slice();
-                boxHeightsCopy[BOX_I] = p;
-                const bboxProbabilitiesCopy = computeRecursiveLine(boxHeightsCopy);
-                const expectedLimitCopy = computeExpectedLimit(bboxProbabilitiesCopy);
-                return Math.abs(expectedLimitCopy - trueLimit);
-            });
-            // update errorLine
-            const errorLine = document.getElementById('errorLine');
-            let errorPathData = `M50,${350 - errors[0] * 30} `;
-            for (let i = 1; i < errors.length; i++) {
-                const x = 50 + i * 3;
-                const y = 350 - errors[i] * 30;
-                errorPathData += `L${x},${y} `;
+            for (let BOX_I = 0; BOX_I < NUM_BOXES; BOX_I++) { 
+                // possible values are linspace(0, 1, 100)
+                const pValues = Array.from({length: 100}, (_, i) => i / 100);
+                const errors = pValues.map(p => {
+                    const boxHeightsCopy = boxHeights.slice();
+                    boxHeightsCopy[BOX_I] = p;
+                    const bboxProbabilitiesCopy = computeRecursiveLine(boxHeightsCopy);
+                    const expectedLimitCopy = computeExpectedLimit(bboxProbabilitiesCopy);
+                    return Math.abs(expectedLimitCopy - trueLimit);
+                });
+                // update errorLine
+                const errorLine = document.getElementById(`errorLine{${BOX_I}}`);
+                let errorPathData = `M50,${350 - errors[0] * 30} `;
+                for (let i = 1; i < errors.length; i++) {
+                    const x = 50 + i * 3;
+                    const y = 350 - errors[i] * 30;
+                    errorPathData += `L${x},${y} `;
+                }
+                errorLine.setAttribute('d', errorPathData);
+                // update error Circle
+                const errorCircle = document.getElementById(`errorCircle{${BOX_I}}`);
+                errorCircle.setAttribute('cx', 50 + boxHeights[BOX_I] * 3 * 100);
+                errorCircle.setAttribute('cy', 350 - error * 30);
             }
-            errorLine.setAttribute('d', errorPathData);
-            // update error Circle
-            const errorCircle = document.getElementById('errorCircle');
-            errorCircle.setAttribute('cx', 50 + boxHeights[BOX_I] * 3 * 100);
-            errorCircle.setAttribute('cy', 350 - error * 30);
+           
 
             
             
@@ -222,10 +248,11 @@
                 
                 // Build line path
                 const boxCenterX = MARGIN + (i + 1) * BOX_WIDTH + BOX_WIDTH * 0.4;
+                const boxLX = MARGIN + (i + 1) * BOX_WIDTH - BOX_WIDTH * 0.1;
                 const lineY = 350 - lineHeight * 300;
                 
-                // linePathData += `L${boxCenterX},${currentY} L${boxCenterX},${lineY} `;
-                linePathData += `L${boxCenterX},${lineY} `;
+                linePathData += `L${boxLX},${currentY} L${boxLX},${lineY} `;
+                // linePathData += `L${boxCenterX},${lineY} `;
                 
                 // Update current Y for next iteration
                 currentY = lineY;
