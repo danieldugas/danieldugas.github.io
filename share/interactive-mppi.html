@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive MPPI Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.18.2/plotly.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+
+        .plot {
+            width: 100%;
+            height: 500px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="container mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Interactive MPPI Visualization</h1>
+        
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4">Toy Problem 1: Reaching Target</h2>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <h3 class="font-bold">Parameters</h3>
+                    <div class="space-y-2">
+                        <div>
+                            <label>Noise Level (σ):</label>
+                            <input type="range" id="noise-level" min="0.1" max="2" step="0.1" value="1" class="w-full">
+                            <span id="noise-level-value">1.0</span>
+                        </div>
+                        <div>
+                            <label>Temperature (τ):</label>
+                            <input type="range" id="temperature" min="0.01" max="10" step="0.01" value="1" class="w-full">
+                            <span id="temperature-value">1.0</span>
+                        </div>
+                        <div>
+                            <label>Horizon Steps:</label>
+                            <input type="number" id="horizon-steps" min="5" max="50" value="10" class="w-full border p-1">
+                        </div>
+                        <div>
+                            <label>Cost Function Smoothness:</label>
+                            <input type="range" id="cost-smoothness" min="0" max="1" step="0.1" value="0.0" class="w-full">
+                            <span id="cost-smoothness-value">0.0</span>
+                        </div>
+                        <div>
+                            <label>MC Samples:</label>
+                            <input type="number" id="mc-samples" min="10" max="1000" value="100" class="w-full border p-1">
+                        </div>
+                        <div>
+                            <label>Number of Iterations:</label>
+                            <span id="n-iters-value">0</span>
+                        </div>
+                        <button id="simulate-btn" class="bg-blue-500 text-white px-4 py-2 rounded">Reset</button>
+                        <button id="iterate-btn" class="bg-blue-500 text-white px-4 py-2 rounded">Iterate</button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="font-bold">MPPI Equations</h3>
+                    <pre id="mppi-equations" class="bg-gray-100 p-2 rounded text-sm">
+u_MPPI = ∑(u_i * exp(-c(τ_i)/τ)) / ∑(exp(-c(τ_i)/τ))
+c(τ): Cost function
+τ: Temperature parameter
+                    </pre>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <!-- <div id="trajectory-plot"></div> -->
+                <!-- <div id="cost-plot" class="mt-2"></div> -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div id="trajectory-plot" class="plot"></div>
+                    <div id="cost-plot" class="mt-2 plot"></div>
+                </div>
+                <div id="mppi-metrics" class="mt-2 text-sm"></div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4">Toy Problem 2: Drunken Spider</h2>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <h3 class="font-bold">Parameters</h3>
+                    <div class="space-y-2">
+                        <div>
+                            <label>Noise Level (σ):</label>
+                            <input type="range" id="noise-level2" min="0.1" max="2" step="0.1" value="1" class="w-full">
+                            <span id="noise-level2-value">1.0</span>
+                        </div>
+                        <div>
+                            <label>Temperature (τ):</label>
+                            <input type="range" id="temperature2" min="0.01" max="10" step="0.01" value="1" class="w-full">
+                            <span id="temperature2-value">1.0</span>
+                        </div>
+                        <div>
+                            <label>Horizon Steps:</label>
+                            <input type="number" id="horizon-steps2" min="5" max="50" value="10" class="w-full border p-1">
+                        </div>
+                        <div>
+                            <label>Cost Function Smoothness:</label>
+                            <input type="range" id="cost-smoothness2" min="0" max="1" step="0.1" value="0.0" class="w-full">
+                            <span id="cost-smoothness2-value">0.0</span>
+                        </div>
+                        <div>
+                            <label>MC Samples:</label>
+                            <input type="number" id="mc-samples2" min="10" max="1000" value="100" class="w-full border p-1">
+                        </div>
+                        <div>
+                            <label>Number of Iterations:</label>
+                            <span id="n-iters2-value">0</span>
+                        </div>
+                        <button id="simulate-btn2" class="bg-blue-500 text-white px-4 py-2 rounded">Reset</button>
+                        <button id="iterate-btn2" class="bg-blue-500 text-white px-4 py-2 rounded">Iterate</button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="font-bold">MPPI Equations</h3>
+                    <pre id="mppi-equations2" class="bg-gray-100 p-2 rounded text-sm">
+u_MPPI = ∑(u_i * exp(-c(τ_i)/τ)) / ∑(exp(-c(τ_i)/τ))
+c(τ): Cost function
+τ: Temperature parameter
+                    </pre>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div id="trajectory-plot2" class="plot"></div>
+                    <div id="cost-plot2" class="plot mt-2"></div>
+                </div>
+                <!-- <div id="trajectory-plot2"></div> -->
+                <!-- <div id="cost-plot2" class="mt-2"></div> -->
+                <div id="mppi-metrics2" class="mt-2 text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class MPPISolver {
+            constructor(suffix) {
+                this.noise = 0;
+                this.temperature = 0;
+                this.horizonSteps = 0;
+                this.costSmoothness = 0;
+                this.trajectoryCount = 0;
+                this.suffix = suffix;
+            }
+
+            generateInitialControl() {
+                const initialControl = [];
+
+                for (let t = 0; t < this.horizonSteps; t++) {
+                    initialControl.push(0);
+                }
+                return initialControl;
+            }
+
+            generateControlEpsilons(initialControl) {
+                const controlEpsilons = []; 
+                for (let k = 0; k < this.trajectoryCount; k++) {
+                    const epsilon = [];
+                    for (let t = 0; t < this.horizonSteps; t++) {
+                        epsilon.push(this.noise * (Math.random() * 2 - 1));
+                    }
+                    controlEpsilons.push(epsilon);
+                }
+                return controlEpsilons;
+            }
+
+            generateTrajectories(initialControl) {
+                const trajectories = [];
+                const controls = [];
+                
+                for (let k = 0; k < this.trajectoryCount; k++) {
+                    // Add control noise
+                    const controlWithNoise = initialControl.map(control => 
+                        control + this.noise * (Math.random() * 2 - 1)
+                    );
+                    controls.push(controlWithNoise);
+                    
+                    let trajectory = this.generateSingleTrajectory(controlWithNoise);
+                    trajectories.push(trajectory);
+                }
+                
+                return { trajectories, controls };
+            }
+
+            generateSingleTrajectory(control) {
+                let x = 0;
+                const trajectory = [{x: 0, step: 0}];
+                
+                for (let step = 1; step < this.horizonSteps; step++) {
+                    x += control[step]; // + randomStep;
+                    
+                    trajectory.push({x, step});
+                }
+                
+                return trajectory;
+            }
+
+            computeCost(trajectory) {
+                if (this.suffix == "") {
+                    const finalX = trajectory[trajectory.length - 1].x;
+                    if (finalX >= 10) {
+                        return 0;
+                    } else {
+                        if (this.costSmoothness == 0) {
+                            return 1;
+                        }
+                        const finalX_0_10 = Math.min(10, Math.max(0, finalX));
+                        return 1 - Math.exp(-(1./this.costSmoothness) * (10.0 - finalX_0_10) / 10.);
+                    }
+                } else if (this.suffix == "2") {
+                    const finalX = trajectory[trajectory.length - 1].x;
+                    if (finalX >= 4.8 && finalX <= 5.2) {
+                        return 0;
+                    } else if (finalX >= -6 && finalX <= -4) {
+                        return 0.5;
+                    } else {
+                        if (this.costSmoothness == 0) {
+                            return 1;
+                        }
+                        if (finalX > 0 && finalX <= 5.2) {
+                            const finalX_0_48 = Math.min(4.8, Math.max(0, finalX));
+                            return 1 - Math.exp(-(1./this.costSmoothness) * (4.8 - finalX_0_48) / 4.8);
+                        } else if (finalX < 0 && finalX >= -6) {
+                            const finalX_0_6 = Math.min(4, Math.max(0, -finalX));
+                            return 1 - Math.exp(-(1./this.costSmoothness) * (4.0 - finalX_0_6) / 4.) / 2.;
+                        }
+                        return 1;
+                    }
+                }
+            }
+
+            computeMPPITrajectory(trajectories, controls) {
+                // Compute costs for each trajectory
+                const costs = trajectories.map(traj => 
+                    this.computeCost(traj)
+                );
+
+                // Compute weights using soft-max
+                const weights = costs.map(cost => 
+                    Math.exp(-cost / this.temperature)
+                );
+
+                // Normalize weights
+                const totalWeight = weights.reduce((a, b) => a + b, 0);
+                const normalizedWeights = weights.map(w => w / totalWeight);
+
+                // Compute weighted average control
+                const mppiControl = [];
+                for (let t = 0; t < this.horizonSteps; t++) {
+                    for (let k = 0; k < this.trajectoryCount; k++) {
+                        if (!mppiControl[t]) {
+                            mppiControl[t] = 0;
+                        }
+                        mppiControl[t] += controls[k][t] * normalizedWeights[k];
+                    }
+                }
+
+                // Generate MPPI trajectory
+                const mppiTrajectory = this.generateSingleTrajectory(mppiControl);
+
+                return {
+                    mppiTrajectory,
+                    mppiControl,
+                    weights: normalizedWeights,
+                    controls,
+                    averageCost: costs.reduce((a, b) => a + b, 0) / costs.length
+                };
+            }
+
+            plotTrajectories(trajectories, mppiTrajectory, weights) {
+                // Target region background
+                const targetRegionTrace = {
+                    x: [0, this.horizonSteps],
+                    y: [10, 10],
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: {color: 'rgba(0, 255, 0, 0.2)', width: 0},
+                    fill: 'tonexty',
+                    fillcolor: 'rgba(255, 0, 0, 0.1)'
+                };
+
+                // Individual trajectory traces
+                const trajectoryTraces = trajectories.map((traj, index) => ({
+                    x: traj.map(point => point.step),
+                    y: traj.map(point => point.x),
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: {
+                        color: `rgba(0, 0, 255, ${weights[index] * 10})`,
+                        width: 1
+                    },
+                    hoverinfo: 'none'
+                }));
+
+                // MPPI trajectory trace
+                const mppiTrajectoryTrace = {
+                    x: mppiTrajectory.map(point => point.step),
+                    y: mppiTrajectory.map(point => point.x),
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: {
+                        color: 'red',
+                        width: 3
+                    },
+                    name: 'MPPI Trajectory'
+                };
+
+                const traces = [
+                    // targetRegionTrace,
+                    ...trajectoryTraces,
+                    mppiTrajectoryTrace
+                ];
+
+                const layout = {
+                    title: 'MPPI Trajectories (Random Walk)',
+                    xaxis: {title: 'Steps'},
+                    yaxis: {title: 'x Position', range: [-10, 20]},
+                    shapes: [
+                        // {
+                        //     type: 'rect',
+                        //     xref: 'paper',
+                        //     yref: 'y',
+                        //     x0: 0,
+                        //     y0: 10,
+                        //     x1: 1,
+                        //     y1: 20,
+                        //     fillcolor: 'rgba(0, 255, 0, 0.1)',
+                        //     opacity: 0.2,
+                        //     line: {width: 0}
+                        // }
+                    ]
+                };
+
+                Plotly.newPlot('trajectory-plot' + this.suffix, traces, layout);
+            }
+
+            plotControls(controls, weights, mppiControl) {
+            }
+
+            plotCostDistribution(trajectories) {
+                // y axis: final X of each trajectory
+                // x axis: cost of each trajectory
+                const costs = trajectories.map(traj => 
+                    this.computeCost(traj)
+                );
+                const finalXs = trajectories.map(traj => 
+                    traj[traj.length - 1].x
+                );
+
+                const trace = {
+                    x: costs,
+                    y: finalXs,
+                    type: 'scatter',
+                    mode: 'markers',
+                    marker: {
+                        size: 5
+                    }
+                };
+
+                // add theoretical cost curve final X from -10 to 20
+                const theoreticalFinalXs = [];
+                for (let finalX = -10; finalX <= 20; finalX += 0.1) {
+                    theoreticalFinalXs.push(finalX);
+                }
+                const theoreticalCosts = theoreticalFinalXs.map(finalX => 
+                    this.computeCost([{x: finalX, step: 0}])
+                );
+
+                const theoreticalTrace = {
+                    x: theoreticalCosts,
+                    y: theoreticalFinalXs,
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: {
+                        color: 'black',
+                        width: 1,
+                        dash: 'dash'
+                    },
+                    name: 'Theoretical Cost Curve'
+                };
+
+                const layout = {
+                    title: 'Cost Distribution',
+                    xaxis: {title: 'Cost', range: [-0.5, 1.5]},
+                    yaxis: {title: 'Final X Position'}
+                };
+
+                // Plotly.newPlot('cost-plot' + this.suffix, [trace], layout);
+                Plotly.newPlot('cost-plot' + this.suffix, [trace, theoreticalTrace], layout);
+
+
+
+            }
+
+            updateMetrics(averageCost, mppiControl) {
+                // Update metrics
+                document.getElementById('mppi-metrics' + this.suffix).innerHTML = `
+                    <p>Average Trajectory Cost: ${averageCost.toFixed(2)}</p>
+                    <p>MPPI Trajectory Cost: ${this.computeCost(this.generateSingleTrajectory(mppiControl)).toFixed(2)}</p>
+                    <p>Params: Noise=${this.noise}, Temp=${this.temperature}, Cost Smoothness=${this.costSmoothness}</p>
+                `;
+                document.getElementById('n-iters'+this.suffix+'-value').textContent = this.nIterations;
+            }
+       
+            setParams(noise, temperature, horizonSteps, costSmoothness, trajectoryCount) {
+                this.noise = noise;
+                this.temperature = temperature;
+                this.horizonSteps = horizonSteps;
+                this.costSmoothness = costSmoothness;
+                this.trajectoryCount = trajectoryCount;
+            }
+
+            simulateInitial() {
+                const solver = this;
+                const suffix = solver.suffix;
+
+                // Gather parameters
+                const noise = parseFloat(document.getElementById('noise-level' + suffix).value);
+                const temperature = parseFloat(document.getElementById('temperature' + suffix).value);
+                const horizonSteps = parseInt(document.getElementById('horizon-steps' + suffix).value);
+                const costSmoothness = parseFloat(document.getElementById('cost-smoothness' + suffix).value);
+                const trajectoryCount = parseInt(document.getElementById('mc-samples' + suffix).value);
+
+                solver.setParams(
+                    0, 
+                    temperature, 
+                    horizonSteps, 
+                    costSmoothness,
+                    trajectoryCount
+                );
+
+                // Generate trajectories with baseline control
+                const initialControl = solver.generateInitialControl();
+                const { trajectories, controls } = solver.generateTrajectories(initialControl);
+                
+                solver.setParams(
+                    noise, 
+                    temperature, 
+                    horizonSteps, 
+                    costSmoothness,
+                    trajectoryCount
+                );
+
+                // Compute MPPI trajectory
+                const { 
+                    mppiTrajectory, 
+                    mppiControl, 
+                    weights, 
+                    controls: processedControls,
+                    averageCost 
+                } = solver.computeMPPITrajectory(trajectories, controls);
+                solver.currentControl = mppiControl;
+                solver.nIterations = 0;
+
+                // Plot trajectories
+                solver.plotTrajectories(trajectories, mppiTrajectory, weights);
+
+                // Plot controls
+                // solver.plotControls(processedControls, weights, mppiControl);
+
+                solver.plotCostDistribution(trajectories);
+
+                solver.updateMetrics(averageCost, mppiControl);
+            }
+
+            iterate() {
+                const solver = this;
+                const suffix = solver.suffix;
+
+                // Generate trajectories with baseline control
+                const { trajectories, controls } = solver.generateTrajectories(this.currentControl);
+
+                // Compute MPPI trajectory
+                const { 
+                    mppiTrajectory, 
+                    mppiControl, 
+                    weights, 
+                    controls: processedControls,
+                    averageCost 
+                } = solver.computeMPPITrajectory(trajectories, controls);
+                solver.currentControl = mppiControl;
+                solver.nIterations++;
+
+                // Plot trajectories
+                solver.plotTrajectories(trajectories, mppiTrajectory, weights);
+
+                // Plot controls
+                // solver.plotControls(processedControls, weights, mppiControl);
+
+                solver.plotCostDistribution(trajectories);
+
+                solver.updateMetrics(averageCost, mppiControl);
+            }
+        }
+
+
+        const solver1 = new MPPISolver(
+            ""
+        );
+
+        // Create solver
+        const solver2 = new MPPISolver(
+            "2"
+        );
+
+        document.getElementById('simulate-btn').addEventListener('click', () => {
+
+            // Create solver
+            const solver = solver1;
+
+            solver.simulateInitial();
+        });
+
+
+        document.getElementById('simulate-btn2').addEventListener('click', () => {
+            const solver = solver2;
+            
+            solver.simulateInitial();
+        });
+
+        document.getElementById('iterate-btn').addEventListener('click', () => {
+            solver1.iterate();
+        });
+
+        document.getElementById('iterate-btn2').addEventListener('click', () => {
+            solver2.iterate();
+        });
+
+
+        // Event listeners for input sliders
+        ['noise-level', 'temperature', 'cost-smoothness'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                document.getElementById(`${id}-value`).textContent = e.target.value;
+                solver1.simulateInitial();
+            });
+        });
+            
+        ['noise-level2', 'temperature2', 'cost-smoothness2'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                document.getElementById(`${id}-value`).textContent = e.target.value;
+                solver2.simulateInitial();
+            });
+        });
+
+        // Initial simulation
+        document.getElementById('simulate-btn').click();
+        document.getElementById('simulate-btn2').click();
+    </script>
+</body>
+</html>
