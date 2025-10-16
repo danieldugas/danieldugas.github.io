@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TD Bootstrapping Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: inline-block;
+            width: 150px;
+            font-weight: 600;
+            color: #555;
+        }
+        input[type="range"] {
+            width: 200px;
+            vertical-align: middle;
+        }
+        input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #canvas {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            display: block;
+            margin: 20px auto;
+            background: white;
+        }
+        .iteration-info {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin: 20px 0;
+        }
+        .legend {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        .legend-item {
+            display: inline-block;
+            margin-right: 20px;
+            margin-bottom: 10px;
+        }
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+        .trajectories {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+        .trajectories h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TD Bootstrapping: Value Function Propagation</h1>
+        
+        <div class="trajectories">
+            <h3>Fixed Dataset (3 Trajectories):</h3>
+            <div>1. <strong>Short path:</strong> Start → S1 → S2 → Goal</div>
+            <div>2. <strong>Long path:</strong> Start → L1 → L2 → S1 → S2 → Goal</div>
+            <div>3. <strong>Offshoot path:</strong> Start → S1 → S2 → Off → Terminal</div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Goal Reward:</label>
+                <input type="range" id="goalReward" min="-10" max="10" step="0.5" value="1">
+                <input type="number" id="goalRewardNum" min="-10" max="10" step="0.5" value="1">
+            </div>
+            <div class="control-group">
+                <label>Edge Reward:</label>
+                <input type="range" id="edgeReward" min="-2" max="2" step="0.1" value="-0.1">
+                <input type="number" id="edgeRewardNum" min="-2" max="2" step="0.1" value="-0.1">
+            </div>
+            <div class="control-group">
+                <label>Learning Rate (α):</label>
+                <input type="range" id="alpha" min="0.01" max="1" step="0.01" value="0.5">
+                <input type="number" id="alphaNum" min="0.01" max="1" step="0.01" value="0.5">
+            </div>
+            <div class="control-group">
+                <label>Discount (γ):</label>
+                <input type="range" id="gamma" min="0" max="1" step="0.01" value="0.9">
+                <input type="number" id="gammaNum" min="0" max="1" step="0.01" value="0.9">
+            </div>
+            <div style="margin-top: 20px;">
+                <button id="reset">Reset Values</button>
+                <button id="step">Step Forward</button>
+                <button id="run">Run 10 Steps</button>
+            </div>
+        </div>
+
+        <div class="iteration-info">
+            Iteration: <span id="iteration">0</span>
+        </div>
+
+        <canvas id="canvas" width="1000" height="600"></canvas>
+
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-color" style="background: #808080;"></span>
+                Start State (Grey)
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #00FF00;"></span>
+                Goal State (Green)
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #FF6B6B;"></span>
+                Terminal State
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: linear-gradient(to right, rgb(0, 100, 255), rgb(148, 0, 211));"></span>
+                Value Gradient (Blue → Purple)
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // State positions
+        const states = {
+            start: { x: 100, y: 300, name: 'Start' },
+            s1: { x: 300, y: 300, name: 'S1' },
+            s2: { x: 500, y: 300, name: 'S2' },
+            goal: { x: 700, y: 300, name: 'Goal' },
+            l1: { x: 250, y: 150, name: 'L1' },
+            l2: { x: 400, y: 150, name: 'L2' },
+            off: { x: 650, y: 450, name: 'Off' },
+            term: { x: 850, y: 450, name: 'Term' }
+        };
+
+        // Edges (bidirectional)
+        const edges = [
+            ['start', 's1'],
+            ['s1', 's2'],
+            ['s2', 'goal'],
+            ['start', 'l1'],
+            ['l1', 'l2'],
+            ['l2', 's1'],
+            ['s2', 'off'],
+            ['off', 'term']
+        ];
+
+        // Trajectories
+        const trajectories = [
+            ['start', 's1', 's2', 'goal'],
+            ['start', 'l1', 'l2', 's1', 's2', 'goal'],
+            ['start', 's1', 's2', 'off', 'term']
+        ];
+
+        // Value function
+        let values = {};
+        let iteration = 0;
+
+        // Parameters
+        let goalReward = 1;
+        let edgeReward = -0.1;
+        let alpha = 0.5;
+        let gamma = 0.9;
+
+        // Initialize values
+        function initValues() {
+            values = {};
+            for (let state in states) {
+                if (state === 'goal') {
+                    values[state] = goalReward;
+                } else {
+                    values[state] = 0;
+                }
+            }
+            iteration = 0;
+            updateIterationDisplay();
+        }
+
+        // TD update
+        function tdStep() {
+            const newValues = { ...values };
+            
+            // Process each trajectory
+            for (let traj of trajectories) {
+                for (let i = 0; i < traj.length - 1; i++) {
+                    const state = traj[i];
+                    const nextState = traj[i + 1];
+                    
+                    // Determine reward
+                    let reward = edgeReward;
+                    if (nextState === 'goal') {
+                        reward += goalReward;
+                    }
+                    
+                    // TD update: V(s) ← V(s) + α[r + γV(s') - V(s)]
+                    const tdError = reward + gamma * values[nextState] - values[state];
+                    newValues[state] = values[state] + alpha * tdError;
+                }
+            }
+            
+            // Keep goal and terminal states fixed
+            newValues['goal'] = goalReward;
+            newValues['term'] = 0;
+            
+            values = newValues;
+            iteration++;
+            updateIterationDisplay();
+            draw();
+        }
+
+        function runSteps(n) {
+            for (let i = 0; i < n; i++) {
+                tdStep();
+            }
+        }
+
+        function updateIterationDisplay() {
+            document.getElementById('iteration').textContent = iteration;
+        }
+
+        // Get color based on value
+        function getStateColor(state) {
+            if (state === 'start') return '#808080'; // Grey
+            if (state === 'goal') return '#00FF00'; // Bright green
+            if (state === 'term') return '#FF6B6B'; // Red for terminal
+            
+            // For other states, interpolate between bright blue and bright purple based on value
+            const value = values[state];
+            const maxValue = goalReward;
+            const minValue = Math.min(0, goalReward);
+            
+            // Normalize value to 0-1 range
+            let t = maxValue !== minValue ? (value - minValue) / (maxValue - minValue) : 0;
+            t = Math.max(0, Math.min(1, t)); // Clamp to 0-1
+            
+            // Interpolate from bright blue (0, 100, 255) to bright purple (148, 0, 211)
+            const r = Math.round(0 + t * 148);
+            const g = Math.round(100 - t * 100);
+            const b = Math.round(255 - t * 44);
+            
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // Draw graph
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw edges
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 2;
+            for (let [from, to] of edges) {
+                const s1 = states[from];
+                const s2 = states[to];
+                
+                ctx.beginPath();
+                ctx.moveTo(s1.x, s1.y);
+                ctx.lineTo(s2.x, s2.y);
+                ctx.stroke();
+                
+                // Draw arrow
+                drawArrow(s1.x, s1.y, s2.x, s2.y);
+                drawArrow(s2.x, s2.y, s1.x, s1.y);
+            }
+            
+            // Draw states
+            for (let state in states) {
+                const s = states[state];
+                
+                // Circle
+                ctx.fillStyle = getStateColor(state);
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, 35, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // State name
+                ctx.fillStyle = state === 'goal' ? '#000' : '#FFF';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(s.name, s.x, s.y - 5);
+                
+                // Value
+                ctx.font = '12px Arial';
+                ctx.fillText('V=' + values[state].toFixed(2), s.x, s.y + 10);
+            }
+        }
+
+        function drawArrow(fromX, fromY, toX, toY) {
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            const distance = Math.sqrt((toX - fromX) ** 2 + (toY - fromY) ** 2);
+            const arrowStart = 35;
+            const arrowEnd = distance - 35;
+            const arrowMid = (arrowStart + arrowEnd) / 2;
+            
+            const arrX = fromX + Math.cos(angle) * arrowMid;
+            const arrY = fromY + Math.sin(angle) * arrowMid;
+            
+            const arrowSize = 8;
+            ctx.beginPath();
+            ctx.moveTo(arrX, arrY);
+            ctx.lineTo(
+                arrX - arrowSize * Math.cos(angle - Math.PI / 6),
+                arrY - arrowSize * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.moveTo(arrX, arrY);
+            ctx.lineTo(
+                arrX - arrowSize * Math.cos(angle + Math.PI / 6),
+                arrY - arrowSize * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.stroke();
+        }
+
+        // Event listeners
+        function syncSlider(sliderId, numberId) {
+            const slider = document.getElementById(sliderId);
+            const number = document.getElementById(numberId);
+            
+            slider.addEventListener('input', () => {
+                number.value = slider.value;
+                updateParams();
+            });
+            
+            number.addEventListener('input', () => {
+                slider.value = number.value;
+                updateParams();
+            });
+        }
+
+        function updateParams() {
+            goalReward = parseFloat(document.getElementById('goalReward').value);
+            edgeReward = parseFloat(document.getElementById('edgeReward').value);
+            alpha = parseFloat(document.getElementById('alpha').value);
+            gamma = parseFloat(document.getElementById('gamma').value);
+            
+            if (iteration > 0) {
+                initValues();
+                draw();
+            }
+        }
+
+        syncSlider('goalReward', 'goalRewardNum');
+        syncSlider('edgeReward', 'edgeRewardNum');
+        syncSlider('alpha', 'alphaNum');
+        syncSlider('gamma', 'gammaNum');
+
+        document.getElementById('reset').addEventListener('click', () => {
+            initValues();
+            draw();
+        });
+
+        document.getElementById('step').addEventListener('click', () => {
+            tdStep();
+        });
+
+        document.getElementById('run').addEventListener('click', () => {
+            runSteps(10);
+        });
+
+        // Initialize
+        initValues();
+        draw();
+    </script>
+</body>
+</html>
