@@ -145,6 +145,9 @@
             <div style="margin-top: 20px;">
                 <button id="reset">Reset Values</button>
                 <button id="step">Step Forward</button>
+                <button id="step_traj_1">Step Trajectory 1</button>
+                <button id="step_traj_2">Step Trajectory 2</button>
+                <button id="step_traj_3">Step Trajectory 3</button>
                 <button id="run">Run 10 Steps</button>
             </div>
         </div>
@@ -212,6 +215,7 @@
 
         // Value function
         let values = {};
+        let Q_values = {};
         let iteration = 0;
 
         // Parameters
@@ -225,21 +229,44 @@
             values = {};
             for (let state in states) {
                 if (state === 'goal') {
-                    values[state] = goalReward;
+                    // values[state] = goalReward;
+                    values[state] = 0;
                 } else {
                     values[state] = 0;
                 }
             }
             iteration = 0;
+
+            // Q function
+            Q_values = {};
+            for (let state in states) {
+                Q_values[state] = {};
+                for (let edge of edges) {
+                    if (edge[0] === state) {
+                        Q_values[state][edge[1]] = 0;
+                    }
+                }
+            }
+
             updateIterationDisplay();
         }
 
         // TD update
-        function tdStep() {
+        function tdStep(trajIndex = null) {
+            if (trajIndex === null) {
+                for (let traj_index = 0; traj_index < trajectories.length; traj_index++) {
+                    tdStep(traj_index);
+                }
+                return;
+            }
+
             const newValues = { ...values };
+            const newQ_values = { ...Q_values };
+
+            const trajectories_to_process = trajIndex === null ? trajectories : [trajectories[trajIndex]];
             
             // Process each trajectory
-            for (let traj of trajectories) {
+            for (let traj of trajectories_to_process) {
                 for (let i = 0; i < traj.length - 1; i++) {
                     const state = traj[i];
                     const nextState = traj[i + 1];
@@ -252,15 +279,26 @@
                     
                     // TD update: V(s) ← V(s) + α[r + γV(s') - V(s)]
                     const tdError = reward + gamma * values[nextState] - values[state];
-                    newValues[state] = values[state] + alpha * tdError;
+                    newValues[state] = newValues[state] + alpha * tdError;
+
+                    // TD update Q value assuming optimal policy
+                    var maxQNext = 0;
+                    for (let edge of edges) {
+                        if (edge[0] === nextState) {
+                            maxQNext = Math.max(maxQNext, Q_values[nextState][edge[1]]);
+                        }
+                    }
+                    const tdErrorQ = reward + gamma * maxQNext - Q_values[state][nextState];
+                    newQ_values[state][nextState] = newQ_values[state][nextState] + alpha * tdErrorQ;
                 }
             }
             
             // Keep goal and terminal states fixed
-            newValues['goal'] = goalReward;
-            newValues['term'] = 0;
+            // newValues['goal'] = goalReward;
+            // newValues['term'] = 0;
             
             values = newValues;
+            Q_values = newQ_values;
             iteration++;
             updateIterationDisplay();
             draw();
@@ -285,7 +323,7 @@
             // For other states, interpolate between bright blue and bright purple based on value
             const value = values[state];
             const maxValue = goalReward;
-            const minValue = Math.min(0, goalReward);
+            const minValue = -1;
             
             // Normalize value to 0-1 range
             let t = maxValue !== minValue ? (value - minValue) / (maxValue - minValue) : 0;
@@ -341,7 +379,17 @@
                 
                 // Value
                 ctx.font = '12px Arial';
-                ctx.fillText('V=' + values[state].toFixed(2), s.x, s.y + 10);
+                if (state === 'goal') {
+                    ctx.fillText('R ' + goalReward.toFixed(2), s.x, s.y + 10);
+                } else if (state === 'term') {
+                    ctx.fillText('R 0', s.x, s.y + 10);
+                } else {
+                    ctx.fillText('V ' + values[state].toFixed(2), s.x, s.y + 10);
+                    // Show max Q value
+                    const maxQ = Math.max(...Object.values(Q_values[state] || {0:0}));
+                    ctx.fillText('Q* ' + maxQ.toFixed(2), s.x, s.y + 25);
+
+                }
             }
         }
 
@@ -411,6 +459,18 @@
         document.getElementById('step').addEventListener('click', () => {
             tdStep();
         });
+
+        // Step button for each trajectory
+        document.getElementById('step_traj_1').addEventListener('click', () => {
+            tdStep(0);
+        });
+        document.getElementById('step_traj_2').addEventListener('click', () => {
+            tdStep(1);
+        });
+        document.getElementById('step_traj_3').addEventListener('click', () => {
+            tdStep(2);
+        });
+
 
         document.getElementById('run').addEventListener('click', () => {
             runSteps(10);
