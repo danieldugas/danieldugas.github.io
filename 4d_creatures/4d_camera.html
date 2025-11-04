@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        WASD: Move selected vertex (XY)<br>
+        Q/E: Move selected vertex (Z)<br>
+        Mouse drag: Rotate view<br>
+        Mouse wheel: Zoom<br>
+        Click: Select vertex<br>
+        Selected: <span id="selected">None</span>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // OrbitControls implementation
+        THREE.OrbitControls = function(camera, domElement) {
+            this.camera = camera;
+            this.domElement = domElement;
+            this.enabled = true;
+            this.target = new THREE.Vector3();
+            
+            const scope = this;
+            const rotateSpeed = 1.0;
+            const zoomSpeed = 1.0;
+            
+            let rotateStart = new THREE.Vector2();
+            let rotateEnd = new THREE.Vector2();
+            let rotateDelta = new THREE.Vector2();
+            
+            let spherical = new THREE.Spherical();
+            let sphericalDelta = new THREE.Spherical();
+            
+            let scale = 1;
+            const EPS = 0.000001;
+            
+            this.update = function() {
+                const offset = new THREE.Vector3();
+                offset.copy(scope.camera.position).sub(scope.target);
+                
+                spherical.setFromVector3(offset);
+                spherical.theta += sphericalDelta.theta;
+                spherical.phi += sphericalDelta.phi;
+                spherical.phi = Math.max(EPS, Math.min(Math.PI - EPS, spherical.phi));
+                spherical.radius *= scale;
+                
+                offset.setFromSpherical(spherical);
+                scope.camera.position.copy(scope.target).add(offset);
+                scope.camera.lookAt(scope.target);
+                
+                sphericalDelta.set(0, 0, 0);
+                scale = 1;
+            };
+            
+            function onMouseDown(event) {
+                if (!scope.enabled) return;
+                event.preventDefault();
+                rotateStart.set(event.clientX, event.clientY);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            }
+            
+            function onMouseMove(event) {
+                if (!scope.enabled) return;
+                event.preventDefault();
+                rotateEnd.set(event.clientX, event.clientY);
+                rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(rotateSpeed);
+                
+                sphericalDelta.theta -= 2 * Math.PI * rotateDelta.x / scope.domElement.clientHeight;
+                sphericalDelta.phi -= 2 * Math.PI * rotateDelta.y / scope.domElement.clientHeight;
+                
+                rotateStart.copy(rotateEnd);
+                scope.update();
+            }
+            
+            function onMouseUp() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+            
+            function onMouseWheel(event) {
+                if (!scope.enabled) return;
+                event.preventDefault();
+                if (event.deltaY < 0) {
+                    scale /= 0.95;
+                } else if (event.deltaY > 0) {
+                    scale *= 0.95;
+                }
+                scope.update();
+            }
+            
+            this.domElement.addEventListener('mousedown', onMouseDown);
+            this.domElement.addEventListener('wheel', onMouseWheel);
+        };
+        
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(15, 15, 15);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        // Add OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        
+        // Create bounding box
+        const boxSize = 10;
+        const boxGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+        const boxEdges = new THREE.EdgesGeometry(boxGeometry);
+        const boxMaterial = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 });
+        const boundingBox = new THREE.LineSegments(boxEdges, boxMaterial);
+        scene.add(boundingBox);
+
+        // Graph data structure
+        let vertices = [];
+        let edges = [];
+        let selectedVertexIndex = 0;
+
+        // Materials
+        const vertexMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+        const selectedVertexMaterial = new THREE.MeshBasicMaterial({ color: 0xff3366 });
+        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x4477ff, linewidth: 2 });
+
+        // Mesh objects
+        let vertexMeshes = [];
+        let edgeMeshes = [];
+
+        // Generate initial constant mesh
+        function generateConstantMesh() {
+            // Create vertices in 3D space
+            vertices = [
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(3, 2, 1),
+                new THREE.Vector3(-2, 3, -2),
+                new THREE.Vector3(-3, -1, 2),
+                new THREE.Vector3(2, -2, -1),
+                new THREE.Vector3(0, 4, 3),
+                new THREE.Vector3(1, -3, -2),
+                new THREE.Vector3(-2, -2, 1)
+            ];
+            
+            // Create edges connecting vertices
+            edges = [
+                [0, 1], [0, 2], [0, 3], [0, 4],
+                [1, 2], [2, 3], [3, 4], [4, 1],
+                [1, 5], [2, 5],
+                [5, 6], [6, 7], [7, 3]
+            ];
+        }
+
+        // Create vertex meshes
+        function createVertexMeshes() {
+            // Clear existing meshes
+            vertexMeshes.forEach(mesh => scene.remove(mesh));
+            vertexMeshes = [];
+            
+            vertices.forEach((pos, i) => {
+                const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+                const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(pos);
+                scene.add(mesh);
+                vertexMeshes.push(mesh);
+            });
+        }
+
+        // Create edge meshes
+        function createEdgeMeshes() {
+            // Clear existing edges
+            edgeMeshes.forEach(mesh => scene.remove(mesh));
+            edgeMeshes = [];
+            
+            edges.forEach(([i, j]) => {
+                const points = [vertices[i], vertices[j]];
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geometry, edgeMaterial);
+                scene.add(line);
+                edgeMeshes.push(line);
+            });
+        }
+
+        // Update the entire graph
+        function updateGraph() {
+            createVertexMeshes();
+            createEdgeMeshes();
+        }
+
+        // Keyboard controls
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // Mouse controls for vertex selection
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('click', (event) => {
+            // Ignore clicks during drag
+            if (event.button !== 0) return;
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(vertexMeshes);
+            
+            if (intersects.length > 0) {
+                const clickedMesh = intersects[0].object;
+                selectedVertexIndex = vertexMeshes.indexOf(clickedMesh);
+                document.getElementById('selected').textContent = `Vertex ${selectedVertexIndex}`;
+                updateGraph();
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Movement speed
+        const moveSpeed = 0.1;
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Handle WASD movement for selected vertex
+            if (vertices.length > 0 && selectedVertexIndex < vertices.length) {
+                let moved = false;
+                
+                if (keys['w']) {
+                    vertices[selectedVertexIndex].y += moveSpeed;
+                    moved = true;
+                }
+                if (keys['s']) {
+                    vertices[selectedVertexIndex].y -= moveSpeed;
+                    moved = true;
+                }
+                if (keys['a']) {
+                    vertices[selectedVertexIndex].x -= moveSpeed;
+                    moved = true;
+                }
+                if (keys['d']) {
+                    vertices[selectedVertexIndex].x += moveSpeed;
+                    moved = true;
+                }
+                if (keys['q']) {
+                    vertices[selectedVertexIndex].z += moveSpeed;
+                    moved = true;
+                }
+                if (keys['e']) {
+                    vertices[selectedVertexIndex].z -= moveSpeed;
+                    moved = true;
+                }
+                
+                if (moved) {
+                    updateGraph();
+                }
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Initialize
+        generateConstantMesh();
+        updateGraph();
+        document.getElementById('selected').textContent = `Vertex ${selectedVertexIndex}`;
+        animate();
+    </script>
+</body>
+</html>
