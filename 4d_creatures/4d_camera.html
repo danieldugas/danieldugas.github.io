@@ -77,158 +77,6 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // OrbitControls implementation
-        THREE.OrbitControls = function(camera, domElement) {
-            this.camera = camera;
-            this.domElement = domElement;
-            this.enabled = true;
-            this.target = new THREE.Vector3();
-            
-            const scope = this;
-            const rotateSpeed = 1.0;
-            const zoomSpeed = 1.0;
-            
-            let rotateStart = new THREE.Vector2();
-            let rotateEnd = new THREE.Vector2();
-            let rotateDelta = new THREE.Vector2();
-            
-            let spherical = new THREE.Spherical();
-            let sphericalDelta = new THREE.Spherical();
-            
-            let scale = 1;
-            const EPS = 0.000001;
-            
-            this.update = function() {
-                const offset = new THREE.Vector3();
-                offset.copy(scope.camera.position).sub(scope.target);
-                
-                spherical.setFromVector3(offset);
-                spherical.theta += sphericalDelta.theta;
-                spherical.phi += sphericalDelta.phi;
-                spherical.phi = Math.max(EPS, Math.min(Math.PI - EPS, spherical.phi));
-                spherical.radius *= scale;
-                
-                offset.setFromSpherical(spherical);
-                scope.camera.position.copy(scope.target).add(offset);
-                scope.camera.lookAt(scope.target);
-                
-                sphericalDelta.set(0, 0, 0);
-                scale = 1;
-            };
-            
-            function onMouseDown(event) {
-                if (!scope.enabled) return;
-                event.preventDefault();
-                rotateStart.set(event.clientX, event.clientY);
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            }
-            
-            function onMouseMove(event) {
-                if (!scope.enabled) return;
-                event.preventDefault();
-                rotateEnd.set(event.clientX, event.clientY);
-                rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(rotateSpeed);
-                
-                sphericalDelta.theta -= 2 * Math.PI * rotateDelta.x / scope.domElement.clientHeight;
-                sphericalDelta.phi -= 2 * Math.PI * rotateDelta.y / scope.domElement.clientHeight;
-                
-                rotateStart.copy(rotateEnd);
-                scope.update();
-            }
-            
-            function onMouseUp() {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            }
-            
-            function onMouseWheel(event) {
-                if (!scope.enabled) return;
-                event.preventDefault();
-                if (event.deltaY < 0) {
-                    scale /= 0.95;
-                } else if (event.deltaY > 0) {
-                    scale *= 0.95;
-                }
-                scope.update();
-            }
-            
-            this.domElement.addEventListener('mousedown', onMouseDown);
-            this.domElement.addEventListener('wheel', onMouseWheel);
-        };
-        
-        // Scene setup
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a2e);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(1.5, 1.5, 1.5);
-        camera.lookAt(0, 0, 0);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('main-canvas').appendChild(renderer.domElement);
-        const controls = new THREE.OrbitControls(camera, renderer.domElement); // Add OrbitControls
-        
-        // Create bounding box
-        const UVLBoxSize = 1;
-        const boxSize = 10;
-        const boxGeometry = new THREE.BoxGeometry(UVLBoxSize, UVLBoxSize, UVLBoxSize);
-        const boxEdges = new THREE.EdgesGeometry(boxGeometry);
-        const boxMaterial = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 });
-        const boundingBox = new THREE.LineSegments(boxEdges, boxMaterial);
-        scene.add(boundingBox);
-
-        // Setup XZ projection (top view)
-        const projectionSize = 200;
-        const xzScene = new THREE.Scene();
-        xzScene.background = new THREE.Color(0x0a0a1a);
-        const xzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
-        xzCamera.position.set(20, 0, 0);
-        xzCamera.lookAt(0, 0, 0);
-        const xzRenderer = new THREE.WebGLRenderer({ antialias: true });
-        xzRenderer.setSize(projectionSize, projectionSize);
-        document.getElementById('xz-canvas').appendChild(xzRenderer.domElement);
-
-        // Setup YZ projection (side view)
-        const yzScene = new THREE.Scene();
-        yzScene.background = new THREE.Color(0x0a0a1a);
-        const yzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
-        yzCamera.position.set(20, 0, 0);
-        yzCamera.lookAt(0, 0, 0);
-        const yzRenderer = new THREE.WebGLRenderer({ antialias: true });
-        yzRenderer.setSize(projectionSize, projectionSize);
-        document.getElementById('yz-canvas').appendChild(yzRenderer.domElement);
-
-        // Setup WZ projection (AnaKata view)
-        const wzScene = new THREE.Scene();
-        wzScene.background = new THREE.Color(0x0a0a1a);
-        const wzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
-        wzCamera.position.set(20, 0, 0);
-        wzCamera.lookAt(0, 0, 0);
-        const wzRenderer = new THREE.WebGLRenderer({ antialias: true });
-        wzRenderer.setSize(projectionSize, projectionSize);
-        document.getElementById('wz-canvas').appendChild(wzRenderer.domElement);
-
-        // Add bounding boxes to projections
-        const xzBox = new THREE.LineSegments(
-            new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
-            new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
-        );
-        xzBox.rotation.y = Math.PI / 2;
-        xzScene.add(xzBox);
-
-        const yzBox = new THREE.LineSegments(
-            new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
-            new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
-        );
-        yzBox.rotation.y = Math.PI / 2;
-        yzScene.add(yzBox);
-
-        const wzBox = new THREE.LineSegments(
-            new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
-            new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
-        );
-        wzBox.rotation.y = Math.PI / 2;
-        wzScene.add(wzBox);
 
         // 4D transform class prototype (just implement init, and origin() for now)
         class Vector4D {
@@ -409,6 +257,7 @@
             }
         }
 
+        // Hyperscene and Hypercam definition
         // 4D Scene Bodies
         let hypercamera_T = new Transform4D([
             [1, 0, 0, 0, 0],
@@ -417,14 +266,15 @@
             [0, 0, 0, 1, 0],
             [0, 0, 0, 0, 1]
         ]); // hypercam in world
-        let hf = 1.0; // hyper focal length
-        let hypercamera_intrinsics = [
-            [hf, 0, 0, 0],
-            [0, hf, 0, 0],
-            [0, 0, hf, 0],
-            [0, 0, 0, 1]
-        ];
+        // let hf = 1.0; // hyper focal length
+        // let hypercamera_intrinsics = [
+            // [hf, 0, 0, 0],
+            // [0, hf, 0, 0],
+            // [0, 0, hf, 0],
+            // [0, 0, 0, 1]
+        // ];
         let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
+        let hypercamera_is_unit_sensor = true;
         let hypercube = {
             vertices: [
                 new Vector4D(-1, -1, -1, -1),
@@ -462,17 +312,160 @@
         });
         let hyperscene_visible_objects = [hypercube];
 
-        // Graph data structure
-        let xz_vertices = [];
-        let xz_edges = [];
-        let yz_vertices = [];
-        let yz_edges = [];
-        let wz_vertices = [];
-        let wz_edges = [];
-        // meshes reprojected "inside" the camera sensor
-        let uvl_vertices = [];
-        let uvl_vertices_s = []; // scaling factors
-        let uvl_edges = [];
+        // OrbitControls implementation
+        THREE.OrbitControls = function(camera, domElement) {
+            this.camera = camera;
+            this.domElement = domElement;
+            this.enabled = true;
+            this.target = new THREE.Vector3();
+            
+            const scope = this;
+            const rotateSpeed = 1.0;
+            const zoomSpeed = 1.0;
+            
+            let rotateStart = new THREE.Vector2();
+            let rotateEnd = new THREE.Vector2();
+            let rotateDelta = new THREE.Vector2();
+            
+            let spherical = new THREE.Spherical();
+            let sphericalDelta = new THREE.Spherical();
+            
+            let scale = 1;
+            const EPS = 0.000001;
+            
+            this.update = function() {
+                const offset = new THREE.Vector3();
+                offset.copy(scope.camera.position).sub(scope.target);
+                
+                spherical.setFromVector3(offset);
+                spherical.theta += sphericalDelta.theta;
+                spherical.phi += sphericalDelta.phi;
+                spherical.phi = Math.max(EPS, Math.min(Math.PI - EPS, spherical.phi));
+                spherical.radius *= scale;
+                
+                offset.setFromSpherical(spherical);
+                scope.camera.position.copy(scope.target).add(offset);
+                scope.camera.lookAt(scope.target);
+                
+                sphericalDelta.set(0, 0, 0);
+                scale = 1;
+            };
+            
+            function onMouseDown(event) {
+                if (!scope.enabled) return;
+                event.preventDefault();
+                rotateStart.set(event.clientX, event.clientY);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            }
+            
+            function onMouseMove(event) {
+                if (!scope.enabled) return;
+                event.preventDefault();
+                rotateEnd.set(event.clientX, event.clientY);
+                rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(rotateSpeed);
+                
+                sphericalDelta.theta -= 2 * Math.PI * rotateDelta.x / scope.domElement.clientHeight;
+                sphericalDelta.phi -= 2 * Math.PI * rotateDelta.y / scope.domElement.clientHeight;
+                
+                rotateStart.copy(rotateEnd);
+                scope.update();
+            }
+            
+            function onMouseUp() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+            
+            function onMouseWheel(event) {
+                if (!scope.enabled) return;
+                event.preventDefault();
+                if (event.deltaY < 0) {
+                    scale /= 0.95;
+                } else if (event.deltaY > 0) {
+                    scale *= 0.95;
+                }
+                scope.update();
+            }
+            
+            this.domElement.addEventListener('mousedown', onMouseDown);
+            this.domElement.addEventListener('wheel', onMouseWheel);
+        };
+        
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(1.5, 1.5, 1.5);
+        camera.lookAt(0, 0, 0);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('main-canvas').appendChild(renderer.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement); // Add OrbitControls
+        
+        // Create bounding box
+        const UVLBoxSize = 1; // we assume the UVL range is -1 to 1 in each dimension (see hypercamera_sensor_uvl_range)
+        const boxGeometry = new THREE.BoxGeometry(UVLBoxSize, UVLBoxSize, UVLBoxSize);
+        const boxEdges = new THREE.EdgesGeometry(boxGeometry);
+        const boxMaterial = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 });
+        const boundingBox = new THREE.LineSegments(boxEdges, boxMaterial);
+        scene.add(boundingBox);
+
+        // Setup XZ projection (top view)
+        const projectionSize = 200;
+        const xzScene = new THREE.Scene();
+        xzScene.background = new THREE.Color(0x0a0a1a);
+        const xzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+        xzCamera.position.set(20, 0, 0);
+        xzCamera.lookAt(0, 0, 0);
+        const xzRenderer = new THREE.WebGLRenderer({ antialias: true });
+        xzRenderer.setSize(projectionSize, projectionSize);
+        document.getElementById('xz-canvas').appendChild(xzRenderer.domElement);
+
+        // Setup YZ projection (side view)
+        const yzScene = new THREE.Scene();
+        yzScene.background = new THREE.Color(0x0a0a1a);
+        const yzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+        yzCamera.position.set(20, 0, 0);
+        yzCamera.lookAt(0, 0, 0);
+        const yzRenderer = new THREE.WebGLRenderer({ antialias: true });
+        yzRenderer.setSize(projectionSize, projectionSize);
+        document.getElementById('yz-canvas').appendChild(yzRenderer.domElement);
+
+        // Setup WZ projection (AnaKata view)
+        const wzScene = new THREE.Scene();
+        wzScene.background = new THREE.Color(0x0a0a1a);
+        const wzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+        wzCamera.position.set(20, 0, 0);
+        wzCamera.lookAt(0, 0, 0);
+        const wzRenderer = new THREE.WebGLRenderer({ antialias: true });
+        wzRenderer.setSize(projectionSize, projectionSize);
+        document.getElementById('wz-canvas').appendChild(wzRenderer.domElement);
+
+        // Add bounding boxes to projections
+        const boxSize = 10;
+        const xzBox = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
+            new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
+        );
+        xzBox.rotation.y = Math.PI / 2;
+        xzScene.add(xzBox);
+
+        const yzBox = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
+            new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
+        );
+        yzBox.rotation.y = Math.PI / 2;
+        yzScene.add(yzBox);
+
+        const wzBox = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
+            new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
+        );
+        wzBox.rotation.y = Math.PI / 2;
+        wzScene.add(wzBox);
+
+
         let selectedVertexIndex = 0;
 
         // Materials
@@ -493,6 +486,7 @@
 
         // Create vertex meshes
         function createThreeJSPrimitivesFromScene() {
+
             // Clear existing meshes
             vertexMeshes.forEach(mesh => scene.remove(mesh));
             vertexMeshes = [];
@@ -511,6 +505,18 @@
             yzEdgeMeshes = [];
             wzEdgeMeshes.forEach(mesh => wzScene.remove(mesh));
             wzEdgeMeshes = [];
+
+            // Graph data structure
+            let xz_vertices = [];
+            let xz_edges = [];
+            let yz_vertices = [];
+            let yz_edges = [];
+            let wz_vertices = [];
+            let wz_edges = [];
+            // meshes reprojected "inside" the camera sensor
+            let uvl_vertices = [];
+            let uvl_vertices_s = []; // scaling factors
+            let uvl_edges = [];
 
             // Create camera frustum
             // origin to (1, u-, v-, l-), (1, u+, v-, l-), ... reprojected to camera frame, reprojected to world
