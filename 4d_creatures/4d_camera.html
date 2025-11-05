@@ -359,19 +359,19 @@
             // Project 4D Scene into 2D Orthogonal Views
             xz_vertices = [];
             for (let v of hypercube.vertices) {
-                xz_vertices.push(new THREE.Vector3(0, v.x, v.z));
+                xz_vertices.push(new THREE.Vector3(0, v.z, -v.x));
             }
             xz_edges = hypercube.edges.slice();
 
             yz_vertices = [];
             for (let v of hypercube.vertices) {
-                yz_vertices.push(new THREE.Vector3(0, v.y, v.z));
+                yz_vertices.push(new THREE.Vector3(0, v.z, -v.y));
             }
             yz_edges = hypercube.edges.slice();
 
             wz_vertices = [];
             for (let v of hypercube.vertices) {
-                wz_vertices.push(new THREE.Vector3(0, v.w, v.z));
+                wz_vertices.push(new THREE.Vector3(0, v.z, -v.w));
             }
             wz_edges = hypercube.edges.slice();
 
@@ -529,26 +529,34 @@
                 let moved = false;
                 
                 if (keys['w']) {
-                    hypercube.vertices[selectedVertexIndex].y += moveSpeed;
-                    moved = true;
-                }
-                if (keys['s']) {
-                    hypercube.vertices[selectedVertexIndex].y -= moveSpeed;
-                    moved = true;
-                }
-                if (keys['a']) {
-                    hypercube.vertices[selectedVertexIndex].x -= moveSpeed;
-                    moved = true;
-                }
-                if (keys['d']) {
                     hypercube.vertices[selectedVertexIndex].x += moveSpeed;
                     moved = true;
                 }
+                if (keys['s']) {
+                    hypercube.vertices[selectedVertexIndex].x -= moveSpeed;
+                    moved = true;
+                }
+                if (keys['a']) {
+                    hypercube.vertices[selectedVertexIndex].y -= moveSpeed;
+                    moved = true;
+                }
+                if (keys['d']) {
+                    hypercube.vertices[selectedVertexIndex].y += moveSpeed;
+                    moved = true;
+                }
                 if (keys['q']) {
-                    hypercube.vertices[selectedVertexIndex].z += moveSpeed;
+                    hypercube.vertices[selectedVertexIndex].w -= moveSpeed;
                     moved = true;
                 }
                 if (keys['e']) {
+                    hypercube.vertices[selectedVertexIndex].w += moveSpeed;
+                    moved = true;
+                }
+                if (keys['r']) {
+                    hypercube.vertices[selectedVertexIndex].z += moveSpeed;
+                    moved = true;
+                }
+                if (keys['f']) {
                     hypercube.vertices[selectedVertexIndex].z -= moveSpeed;
                     moved = true;
                 }
