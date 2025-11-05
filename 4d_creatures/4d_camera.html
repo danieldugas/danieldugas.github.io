@@ -86,6 +86,12 @@
                 this.z = z;
                 this.w = w;
             }
+            add(v) {
+                return new Vector4D(this.x + v.x, this.y + v.y, this.z + v.z, this.w + v.w);
+            }
+            subtract(v) {
+                return new Vector4D(this.x - v.x, this.y - v.y, this.z - v.z, this.w - v.w);
+            }
         }
         class Transform4D {
             // constructor() {
@@ -278,6 +284,9 @@
             }
         }
 
+        // params
+        let SIMULATE_PHYSICS = true;
+
         // Hyperscene and Hypercam definition
         // 4D Scene Bodies
         let hypercamera_T = new Transform4D([
@@ -324,7 +333,10 @@
                 [8,12],[9,13],[10,14],[11,15],
                 [0,8],[1,9],[2,10],[3,11],
                 [4,12],[5,13],[6,14],[7,15]
-            ]
+            ],
+            velocity: new Vector4D(0, 0, 0, 0),
+            rotational_velocity: {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0},
+            mass: 1.0
         };
         // Manually move hypercube by x+ and y+
         hypercube.vertices.forEach(v => {
@@ -564,6 +576,7 @@
         const outOfSensorVertexMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
         const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x4477ff, linewidth: 2 });
         const outOfSensorEdgeMaterial = new THREE.LineBasicMaterial({ color: 0x444444, linewidth: 1 });
+        const frustrumMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 });
 
         // Threejs Mesh objects
         let vertexMeshes = [];
@@ -580,21 +593,37 @@
         function createThreeJSPrimitivesFromScene() {
 
             // Clear existing meshes
+            vertexMeshes.forEach(mesh => mesh.geometry.dispose());
+            vertexMeshes.forEach(mesh => mesh.material.dispose());
             vertexMeshes.forEach(mesh => scene.remove(mesh));
             vertexMeshes = [];
+            xzVertexMeshes.forEach(mesh => mesh.geometry.dispose());
+            xzVertexMeshes.forEach(mesh => mesh.material.dispose());
             xzVertexMeshes.forEach(mesh => xzScene.remove(mesh));
             xzVertexMeshes = [];
+            yzVertexMeshes.forEach(mesh => mesh.geometry.dispose());
+            yzVertexMeshes.forEach(mesh => mesh.material.dispose());
             yzVertexMeshes.forEach(mesh => yzScene.remove(mesh));
             yzVertexMeshes = [];
+            wzVertexMeshes.forEach(mesh => mesh.geometry.dispose());
+            wzVertexMeshes.forEach(mesh => mesh.material.dispose());
             wzVertexMeshes.forEach(mesh => wzScene.remove(mesh));
             wzVertexMeshes = [];
             // Clear existing edges
+            edgeMeshes.forEach(mesh => mesh.geometry.dispose());
+            edgeMeshes.forEach(mesh => mesh.material.dispose());
             edgeMeshes.forEach(mesh => scene.remove(mesh));
             edgeMeshes = [];
+            xzEdgeMeshes.forEach(mesh => mesh.geometry.dispose());
+            xzEdgeMeshes.forEach(mesh => mesh.material.dispose());
             xzEdgeMeshes.forEach(mesh => xzScene.remove(mesh));
             xzEdgeMeshes = [];
+            yzEdgeMeshes.forEach(mesh => mesh.geometry.dispose());
+            yzEdgeMeshes.forEach(mesh => mesh.material.dispose());
             yzEdgeMeshes.forEach(mesh => yzScene.remove(mesh));
             yzEdgeMeshes = [];
+            wzEdgeMeshes.forEach(mesh => mesh.geometry.dispose());
+            wzEdgeMeshes.forEach(mesh => mesh.material.dispose());
             wzEdgeMeshes.forEach(mesh => wzScene.remove(mesh));
             wzEdgeMeshes = [];
 
@@ -681,7 +710,7 @@
                     new THREE.Vector3(0, end.z, -end.x)
                 ];
                 const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
-                const xzLine = new THREE.Line(xzGeometry, new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 }));
+                const xzLine = new THREE.Line(xzGeometry, frustrumMaterial);
                 xzScene.add(xzLine);
                 xzEdgeMeshes.push(xzLine);
             });
@@ -951,41 +980,184 @@
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
+
+            let moved = false;
+
+            // complete this code:
+            // - reason about the steps first and whether they make sense
+            // - consider the number of dimensions that torque needs to have
+            // - calculate the velocities for the CoM in world frame, and at the end update the vertices
+            // - assume uniform mass when computing inertia
+
+            // let hypercube = {
+            //     vertices: [
+            //         new Vector4D(-1, -1, -1, -1),
+            //         new Vector4D( 1, -1, -1, -1),
+            //         new Vector4D( 1,  1, -1, -1),
+            //         new Vector4D(-1,  1, -1, -1),
+            //         new Vector4D(-1, -1,  1, -1),
+            //         new Vector4D( 1, -1,  1, -1),
+            //         new Vector4D( 1,  1,  1, -1),
+            //         new Vector4D(-1,  1,  1, -1),
+            //         new Vector4D(-1, -1, -1,  1),
+            //         new Vector4D( 1, -1, -1,  1),
+            //         new Vector4D( 1,  1, -1,  1),
+            //         new Vector4D(-1,  1, -1,  1),
+            //         new Vector4D(-1, -1,  1,  1),
+            //         new Vector4D( 1, -1,  1,  1),
+            //         new Vector4D( 1,  1,  1,  1),
+            //         new Vector4D(-1,  1,  1,  1)
+            //     ],
+            //     edges: [
+            //         [0,1],[1,2],[2,3],[3,0],
+            //         [4,5],[5,6],[6,7],[7,4],
+            //         [0,4],[1,5],[2,6],[3,7],
+            //         [8,9],[9,10],[10,11],[11,8],
+            //         [12,13],[13,14],[14,15],[15,12],
+            //         [8,12],[9,13],[10,14],[11,15],
+            //         [0,8],[1,9],[2,10],[3,11],
+            //         [4,12],[5,13],[6,14],[7,15]
+            //     ]
+            //     velocity: new Vector4D(0, 0, 0, 0),
+            //     rotational_velocity: {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0},
+            //     mass: 1.0,
+            // };
+
+            // Simulate physics
+            if (SIMULATE_PHYSICS) {
+                moved = true;
+
+                const FLOOR_HEIGHT = -2;
+                const FLOOR_STIFFNESS = 10;
+                const FLOOR_DAMPING = 1;
+                const GRAVITY = -9.81;
+
+                // calculate hypercube center of mass 
+                let hypercube_com = new Vector4D(0, 0, 0, 0);
+                for (let v of hypercube.vertices) {
+                    hypercube_com = hypercube_com.add(v);
+                }
+                hypercube_com = new Vector4D(
+                    hypercube_com.x / hypercube.vertices.length,
+                    hypercube_com.y / hypercube.vertices.length,
+                    hypercube_com.z / hypercube.vertices.length,
+                    hypercube_com.w / hypercube.vertices.length
+                );
+                
+                // mujoco-style forward/backward
+                // 1. apply gravity
+                // 2. apply collision to c.o.m based on vertices penetrating the floor (use z=-2 as the floor height)
+                // 3. resolve c.o.m velocity and rotational velocity
+                // 4. update vertex positions based on c.o.m and rotational velocity
+                
+                // force and torque accumulators
+                let com_force = new Vector4D(0, 0, GRAVITY * hypercube.mass, 0);
+                let com_torque = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
+                
+                
+                // 2. Check for collisions with floor and accumulate forces/torques
+                for (let v of hypercube.vertices) {
+                    let penetration = FLOOR_HEIGHT - v.z;
+                    if (penetration > 0) {
+                        // Position relative to CoM
+                        let r = v.subtract(hypercube_com); // position relative to CoM
+                        
+                        // Calculate velocity of this vertex in world frame
+                        let vertex_velocity = new Vector4D(0, 0, 0, 0);
+
+                        // Linear velocity from CoM
+                        vertex_velocity = vertex_velocity.add(hypercube.velocity)
+
+                        // Velocity due to rotation (v_rot = omega × r in 4D)
+                        // let v_rot = new Vector4D(
+                            // hypercube.rotational_velocity.xy * r.y - hypercube.rotational_velocity.xz * r.z - hypercube.rotational_velocity.xw * r.w,
+                            // -hypercube.rotational_velocity.xy * r.x + hypercube.rotational_velocity.yz * r.z + hypercube.rotational_velocity.yw * r.w,
+                            // hypercube.rotational_velocity.xz * r.x - hypercube.rotational_velocity.yz * r.y + hypercube.rotational_velocity.zw * r.w,
+                            // hypercube.rotational_velocity.xw * r.x - hypercube.rotational_velocity.yw * r.y - hypercube.rotational_velocity.zw * r.z
+                        // );
+                        // vertex_velocity = vertex_velocity.add(v_rot);
+                        
+                        
+                        
+                        // Spring-damper force (normal direction only, z-axis)
+                        let normal_force_z = FLOOR_STIFFNESS * penetration - FLOOR_DAMPING * vertex_velocity.z;
+                        
+                        let contact_force = new Vector4D(0, 0, normal_force_z, 0);
+                        
+                        // Accumulate force on CoM
+                        com_force = com_force.add(contact_force);
+
+                        // Debug
+                        if (v.z < -4) {
+                            let aaa = 1;
+                        }
+                        
+                        // Accumulate torque (r × F in 4D gives bivector with 6 components)
+                        com_torque.xy += r.x * contact_force.y - r.y * contact_force.x;
+                        com_torque.xz += r.x * contact_force.z - r.z * contact_force.x;
+                        com_torque.xw += r.x * contact_force.w - r.w * contact_force.x;
+                        com_torque.yz += r.y * contact_force.z - r.z * contact_force.y;
+                        com_torque.yw += r.y * contact_force.w - r.w * contact_force.y;
+                        com_torque.zw += r.z * contact_force.w - r.w * contact_force.z;
+                    }
+                }
+                
+                // 3. Integrate velocities (simple Euler integration)
+                const dt = 0.016; // ~60fps
+                
+                // Linear velocity update: v += (F/m) * dt
+                hypercube.velocity = hypercube.velocity.add(
+                    new Vector4D(
+                        com_force.x / hypercube.mass * dt,
+                        com_force.y / hypercube.mass * dt,
+                        com_force.z / hypercube.mass * dt,
+                        com_force.w / hypercube.mass * dt
+                    )
+                );
+                
+                // Angular velocity update: omega += (torque / I) * dt
+                // For uniform hypercube with edge length 2: I = (2/3) * mass
+                const I = (2/3) * hypercube.mass;
+                hypercube.rotational_velocity.xy += (com_torque.xy / I) * dt;
+                hypercube.rotational_velocity.xz += (com_torque.xz / I) * dt;
+                hypercube.rotational_velocity.xw += (com_torque.xw / I) * dt;
+                hypercube.rotational_velocity.yz += (com_torque.yz / I) * dt;
+                hypercube.rotational_velocity.yw += (com_torque.yw / I) * dt;
+                hypercube.rotational_velocity.zw += (com_torque.zw / I) * dt;
+                
+                // 4. Update vertex positions based on CoM and rotation
+                for (let i = 0; i < hypercube.vertices.length; i++) {
+                    let r = hypercube.vertices[i].subtract(hypercube_com); // current position relative to new CoM
+                    
+                    // Apply rotation: r' = r + (omega × r) * dt
+                    let dr = new Vector4D(0, 0, 0, 0);
+
+                    // dr = dr.add(new Vector4D(
+                        // (hypercube.rotational_velocity.xy * r.y - hypercube.rotational_velocity.xz * r.z - hypercube.rotational_velocity.xw * r.w) * dt,
+                        // (-hypercube.rotational_velocity.xy * r.x + hypercube.rotational_velocity.yz * r.z + hypercube.rotational_velocity.yw * r.w) * dt,
+                        // (hypercube.rotational_velocity.xz * r.x - hypercube.rotational_velocity.yz * r.y + hypercube.rotational_velocity.zw * r.w) * dt,
+                        // (hypercube.rotational_velocity.xw * r.x - hypercube.rotational_velocity.yw * r.y - hypercube.rotational_velocity.zw * r.z) * dt
+                    // ));
+
+                    // Apply CoM velocity
+                    r = r.add(new Vector4D(
+                        hypercube.velocity.x * dt,
+                        hypercube.velocity.y * dt,
+                        hypercube.velocity.z * dt,
+                        hypercube.velocity.w * dt
+                    ));
+                    
+                    // New vertex position = new CoM + rotated relative position
+                    hypercube.vertices[i] = hypercube_com.add(r.add(dr));
+                }
+            }
             
             // Handle WASD movement for selected vertex
             if (hypercube.vertices.length > 0 && selectedVertexIndex < hypercube.vertices.length) {
-                let moved = false;
                 
+                // Move individual vertices
                 // if (keys['w']) {
                 //     hypercube.vertices[selectedVertexIndex].x += moveSpeed;
-                //     moved = true;
-                // }
-                // if (keys['s']) {
-                //     hypercube.vertices[selectedVertexIndex].x -= moveSpeed;
-                //     moved = true;
-                // }
-                // if (keys['a']) {
-                //     hypercube.vertices[selectedVertexIndex].y -= moveSpeed;
-                //     moved = true;
-                // }
-                // if (keys['d']) {
-                //     hypercube.vertices[selectedVertexIndex].y += moveSpeed;
-                //     moved = true;
-                // }
-                // if (keys['q']) {
-                //     hypercube.vertices[selectedVertexIndex].w -= moveSpeed;
-                //     moved = true;
-                // }
-                // if (keys['e']) {
-                //     hypercube.vertices[selectedVertexIndex].w += moveSpeed;
-                //     moved = true;
-                // }
-                // if (keys['r']) {
-                //     hypercube.vertices[selectedVertexIndex].z += moveSpeed;
-                //     moved = true;
-                // }
-                // if (keys['f']) {
-                //     hypercube.vertices[selectedVertexIndex].z -= moveSpeed;
                 //     moved = true;
                 // }
 
@@ -1047,12 +1219,13 @@
                     hypercamera_T.rotate_self_by_delta('XW', 0.05, RELATIVE_MOVEMENT);
                     moved = true;
                 }
-                
-                if (moved) {
-                    updateGraph();
-                }
             }
             
+            // update threejs scene since hyperscene has changed
+            if (moved) {
+                updateGraph();
+            }
+
             controls.update();
             renderer.render(scene, camera);
             xzRenderer.render(xzScene, xzCamera);
