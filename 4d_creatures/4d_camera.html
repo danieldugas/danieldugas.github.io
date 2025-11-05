@@ -177,13 +177,13 @@
         scene.add(boundingBox);
 
         // Setup XZ projection (top view)
+        const projectionSize = 200;
         const xzScene = new THREE.Scene();
         xzScene.background = new THREE.Color(0x0a0a1a);
         const xzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
-        xzCamera.position.set(0, 20, 0);
+        xzCamera.position.set(20, 0, 0);
         xzCamera.lookAt(0, 0, 0);
         const xzRenderer = new THREE.WebGLRenderer({ antialias: true });
-        const projectionSize = 200;
         xzRenderer.setSize(projectionSize, projectionSize);
         document.getElementById('xz-canvas').appendChild(xzRenderer.domElement);
 
@@ -201,7 +201,7 @@
         const wzScene = new THREE.Scene();
         wzScene.background = new THREE.Color(0x0a0a1a);
         const wzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
-        wzCamera.position.set(0, 0, 20);
+        wzCamera.position.set(20, 0, 0);
         wzCamera.lookAt(0, 0, 0);
         const wzRenderer = new THREE.WebGLRenderer({ antialias: true });
         wzRenderer.setSize(projectionSize, projectionSize);
@@ -212,7 +212,7 @@
             new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
             new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
         );
-        xzBox.rotation.x = Math.PI / 2;
+        xzBox.rotation.y = Math.PI / 2;
         xzScene.add(xzBox);
 
         const yzBox = new THREE.LineSegments(
@@ -229,14 +229,42 @@
         wzBox.rotation.y = Math.PI / 2;
         wzScene.add(wzBox);
 
+        // 4D transform class prototype (just implement init, and origin() for now)
+        class Vector4D {
+            constructor(x, y, z, w) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.w = w;
+            }
+        }
+        class Transform4D {
+            // constructor() {
+            //     this.matrix = [
+            //         [1, 0, 0, 0, 0],
+            //         [0, 1, 0, 0, 0],
+            //         [0, 0, 1, 0, 0],
+            //         [0, 0, 0, 1, 0],
+            //         [0, 0, 0, 0, 1]
+            //     ];
+            // }
+            constructor(matrix) {
+                this.matrix = matrix;
+            }
+
+            static origin() {
+                return Vector4D(this.matrix[0][4], this.matrix[1][4], this.matrix[2][4], this.matrix[3][4]);
+            }
+        }
+
         // 4D Scene Bodies
-        let hypercamera_T = [
+        let hypercamera_T = new Transform4D([
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
             [0, 0, 1, 0, 0],
             [0, 0, 0, 1, 0],
             [0, 0, 0, 0, 1]
-        ];
+        ]);
         let hf = 1.0; // hyper focal length
         let hypercamera_intrinsics = [
             [hf, 0, 0, 0],
@@ -244,6 +272,7 @@
             [0, 0, hf, 0],
             [0, 0, 0, 1]
         ];
+        let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
         let hypercube = {
             vertices: [
                 [-1, -1, -1, -1],
@@ -279,6 +308,12 @@
         // Graph data structure
         let world_vertices = [];
         let world_edges = [];
+        let xz_vertices = [];
+        let xz_edges = [];
+        let yz_vertices = [];
+        let yz_edges = [];
+        let wz_vertices = [];
+        let wz_edges = [];
         // meshes reprojected "inside" the camera sensor
         let uvl_vertices = [];
         let uvl_edges = [];
@@ -322,30 +357,35 @@
             ];
         }
 
-        function projectMeshInsideCamera() {
-            // Create vertices in 3D space
-            uvl_vertices = [
-                new THREE.Vector3(0, 0, 0),
-                new THREE.Vector3(3, 2, 1),
-                new THREE.Vector3(-2, 3, -2),
-                new THREE.Vector3(-3, -1, 2),
-                new THREE.Vector3(2, -2, -1),
-                new THREE.Vector3(0, 4, 3),
-                new THREE.Vector3(1, -3, -2),
-                new THREE.Vector3(-2, -2, 1)
-            ];
-            
-            // Create edges connecting vertices
-            uvl_edges = [
-                [0, 1], [0, 2], [0, 3], [0, 4],
-                [1, 2], [2, 3], [3, 4], [4, 1],
-                [1, 5], [2, 5],
-                [5, 6], [6, 7], [7, 3]
-            ];
-        }
 
         // Create vertex meshes
-        function createVertexMeshes() {
+        function createThreeJSPrimitivesFromScene() {
+            // Project 4D Scene into 2D Orthogonal Views
+            xz_vertices = [];
+            for (let v of hypercube.vertices) {
+                xz_vertices.push(new THREE.Vector3(0, v[0], v[2]));
+            }
+            xz_edges = hypercube.edges.slice();
+
+            yz_vertices = [];
+            for (let v of hypercube.vertices) {
+                yz_vertices.push(new THREE.Vector3(0, v[1], v[2]));
+            }
+            yz_edges = hypercube.edges.slice();
+
+            wz_vertices = [];
+            for (let v of hypercube.vertices) {
+                wz_vertices.push(new THREE.Vector3(0, v[3], v[2]));
+            }
+            wz_edges = hypercube.edges.slice();
+
+            // Project Meshes into 3D Camera Sensor
+            uvl_vertices = [];
+            for (let v of hypercube.vertices) {
+                uvl_vertices.push(new THREE.Vector3(v[0], v[1], v[2]));
+            }
+            uvl_edges = hypercube.edges.slice();
+
             // Clear existing meshes
             vertexMeshes.forEach(mesh => scene.remove(mesh));
             vertexMeshes = [];
@@ -366,36 +406,40 @@
                 vertexMeshes.push(mesh);
             });
                 
-            world_vertices.forEach((pos, i) => {
+            xz_vertices.forEach((pos, i) => {
                 // XZ projection (top view - looking down Y axis)
                 const xzGeometry = new THREE.CircleGeometry(0.3, 16);
                 const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
                 const xzMesh = new THREE.Mesh(xzGeometry, material);
-                xzMesh.position.set(pos.x, 0, pos.z);
-                xzMesh.rotation.x = -Math.PI / 2;
+                xzMesh.position.set(pos.x, pos.y, pos.z);
+                xzMesh.rotation.y = Math.PI / 2;
                 xzScene.add(xzMesh);
                 xzVertexMeshes.push(xzMesh);
-                
+            });
+
+            yz_vertices.forEach((pos, i) => {
                 // YZ projection (side view - looking from X axis)
                 const yzGeometry = new THREE.CircleGeometry(0.3, 16);
+                const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
                 const yzMesh = new THREE.Mesh(yzGeometry, material);
-                yzMesh.position.set(0, pos.y, pos.z);
+                yzMesh.position.set(pos.x, pos.y, pos.z);
                 yzMesh.rotation.y = Math.PI / 2;
                 yzScene.add(yzMesh);
                 yzVertexMeshes.push(yzMesh);
+            });
 
+            wz_vertices.forEach((pos, i) => {
                 // WZ projection (AnaKata view - looking from W axis)
                 const wzGeometry = new THREE.CircleGeometry(0.3, 16);
+                const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
                 const wzMesh = new THREE.Mesh(wzGeometry, material);
-                wzMesh.position.set(0, pos.x, pos.z);
+                wzMesh.position.set(pos.x, pos.y, pos.z);
                 wzMesh.rotation.y = Math.PI / 2;
                 wzScene.add(wzMesh);
                 wzVertexMeshes.push(wzMesh);
             });
-        }
 
-        // Create edge meshes
-        function createEdgeMeshes() {
+            // Create edge meshes
             // Clear existing edges
             edgeMeshes.forEach(mesh => scene.remove(mesh));
             edgeMeshes = [];
@@ -415,31 +459,35 @@
                 edgeMeshes.push(line);
             });
                 
-            world_edges.forEach(([i, j]) => {
+            xz_edges.forEach(([i, j]) => {
                 // XZ projection
                 const xzPoints = [
-                    new THREE.Vector3(world_vertices[i].x, 0, world_vertices[i].z),
-                    new THREE.Vector3(world_vertices[j].x, 0, world_vertices[j].z)
+                    new THREE.Vector3(xz_vertices[i].x, xz_vertices[i].y, xz_vertices[i].z),
+                    new THREE.Vector3(xz_vertices[j].x, xz_vertices[j].y, xz_vertices[j].z)
                 ];
                 const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
                 const xzLine = new THREE.Line(xzGeometry, edgeMaterial);
                 xzScene.add(xzLine);
                 xzEdgeMeshes.push(xzLine);
-                
+            });
+
+            yz_edges.forEach(([i, j]) => {
                 // YZ projection
                 const yzPoints = [
-                    new THREE.Vector3(0, world_vertices[i].y, world_vertices[i].z),
-                    new THREE.Vector3(0, world_vertices[j].y, world_vertices[j].z)
+                    new THREE.Vector3(yz_vertices[i].x, yz_vertices[i].y, yz_vertices[i].z),
+                    new THREE.Vector3(yz_vertices[j].x, yz_vertices[j].y, yz_vertices[j].z)
                 ];
                 const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
                 const yzLine = new THREE.Line(yzGeometry, edgeMaterial);
                 yzScene.add(yzLine);
                 yzEdgeMeshes.push(yzLine);
+            });
 
+            wz_edges.forEach(([i, j]) => {
                 // WZ projection
                 const wzPoints = [
-                    new THREE.Vector3(0, world_vertices[i].x, world_vertices[i].z),
-                    new THREE.Vector3(0, world_vertices[j].x, world_vertices[j].z)
+                    new THREE.Vector3(wz_vertices[i].x, wz_vertices[i].y, wz_vertices[i].z),
+                    new THREE.Vector3(wz_vertices[j].x, wz_vertices[j].y, wz_vertices[j].z)
                 ];
                 const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
                 const wzLine = new THREE.Line(wzGeometry, edgeMaterial);
@@ -450,9 +498,7 @@
 
         // Update the entire graph
         function updateGraph() {
-            projectMeshInsideCamera();
-            createVertexMeshes();
-            createEdgeMeshes();
+            createThreeJSPrimitivesFromScene();
         }
 
         // Keyboard controls
@@ -543,8 +589,6 @@
         }
 
         // Initialize
-        generateConstantMesh();
-        projectMeshInsideCamera();
         updateGraph();
         document.getElementById('selected').textContent = `Vertex ${selectedVertexIndex}`;
         animate();
