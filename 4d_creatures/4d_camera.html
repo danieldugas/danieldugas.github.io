@@ -312,6 +312,7 @@
 
         // Hyperscene and Hypercam definition
         // 4D Scene Bodies
+        let scene_bound = 10.0;
         let hypercamera_T = new Transform4D([
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
@@ -328,8 +329,9 @@
         // ];
         let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
         let hypercamera_is_unit_sensor = true;
+        // define a hypercube object
         let hypercube = {
-            vertices: [
+            vertices_in_world: [
                 new Vector4D(-1, -1, -1, -1),
                 new Vector4D( 1, -1, -1, -1),
                 new Vector4D( 1,  1, -1, -1),
@@ -357,32 +359,62 @@
                 [0,8],[1,9],[2,10],[3,11],
                 [4,12],[5,13],[6,14],[7,15]
             ],
-            velocity: new Vector4D(0, 0, 0, 0),
+            velocity_in_world: new Vector4D(0, 0, 0, 0),
             rotational_velocity: {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0},
             mass: 1.0
         };
         // Manually move hypercube by x+ and y+
-        hypercube.vertices.forEach(v => {
+        hypercube.vertices_in_world.forEach(v => {
             v.x += 4;
             // v.y += 3;
         });
+        // Define a hyperpyramid object
+        let hyperpyramid = {
+            vertices_in_world: [
+                new Vector4D(0, 0, 1, 0),
+                new Vector4D(1, 1, -1, 1),
+                new Vector4D(1, -1, -1, -1),
+                new Vector4D(-1, 1, -1, -1),
+                new Vector4D(-1, -1, -1, 1)
+            ],
+            edges: [
+                [0,1],[0,2],[0,3],[0,4],
+                [1,2],[1,3],[1,4],
+                [2,3],[2,4],
+                [3,4]
+            ],
+            velocity_in_world: new Vector4D(0, 0, 0, 0),
+            rotational_velocity: {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0},
+            mass: 1.0
+        };
+        // Manually move to hyperpyramid by x- and y-
+        hyperpyramid.vertices_in_world.forEach(v => {
+            v.x -= 4;
+            v.y -= 3;
+            v.w += 4;
+        });
+
         // build a hyperfloor surface (triangle mesh)
         // 1. assign a z for each (x,y,w) grid point
         // 2. build triangles between grid points
         const GRID_LIMS = {
-            x_min: -5,
-            x_max: 5,
-            y_min: -5,
-            y_max: 5,
-            z_min: -5,
-            z_max: 5,
-            w_min: -5,
-            w_max: 5
+            x_min: -scene_bound,
+            x_max: scene_bound,
+            y_min: -scene_bound,
+            y_max: scene_bound,
+            z_min: -scene_bound,
+            z_max: scene_bound,
+            w_min: -scene_bound,
+            w_max: scene_bound
         };
-        const GRID_RES = 10; // grid resolution
+        const N_TILES = 2;
+        const GRID_RES = 2 * scene_bound / N_TILES; // grid resolution
         const n_i = Math.floor((GRID_LIMS.x_max - GRID_LIMS.x_min) / GRID_RES) + 1;
         const n_j = Math.floor((GRID_LIMS.y_max - GRID_LIMS.y_min) / GRID_RES) + 1;
         const n_k = Math.floor((GRID_LIMS.w_max - GRID_LIMS.w_min) / GRID_RES) + 1;
+        function floor_heightmap(x, y, w) {
+            return -2 + x * 0.1; // flat floor at z = -2
+        }
         let grid_vertices = [];
         let grid_edges = [];
         for (let i = 0; i < n_i; i++) {
@@ -392,7 +424,7 @@
                     let y = GRID_LIMS.y_min + j * GRID_RES;
                     let w = GRID_LIMS.w_min + k * GRID_RES;
                     // let z = Math.sin(0.2 * x) * Math.cos(0.2 * y) * 5; // example height function
-                    let z = -2;
+                    let z = floor_heightmap(x, y, w);
                     grid_vertices.push(new Vector4D(x, y, z, w));
                     // add an edge to the next vertex in x
                     if (i < n_i - 1) {
@@ -431,11 +463,11 @@
             }
         }
         let hyperfloor = {
-            vertices: grid_vertices,
+            vertices_in_world: grid_vertices,
             edges: grid_edges
         };
 
-        let hyperscene_visible_objects = [hypercube];
+        let hyperscene_visible_objects = [hypercube, hyperpyramid];
 
         // OrbitControls implementation
         THREE.OrbitControls = function(camera, domElement) {
@@ -539,8 +571,9 @@
         // Setup XZ projection (top view)
         const projectionSize = 200;
         const xzScene = new THREE.Scene();
+        const CSZ = scene_bound * 1.2;
         xzScene.background = new THREE.Color(0x0a0a1a);
-        const xzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+        const xzCamera = new THREE.OrthographicCamera(-CSZ, CSZ, CSZ, -CSZ, 0.1, 100);
         xzCamera.position.set(20, 0, 0);
         xzCamera.lookAt(0, 0, 0);
         const xzRenderer = new THREE.WebGLRenderer({ antialias: true });
@@ -550,7 +583,7 @@
         // Setup YZ projection (side view)
         const yzScene = new THREE.Scene();
         yzScene.background = new THREE.Color(0x0a0a1a);
-        const yzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+        const yzCamera = new THREE.OrthographicCamera(-CSZ, CSZ, CSZ, -CSZ, 0.1, 100);
         yzCamera.position.set(20, 0, 0);
         yzCamera.lookAt(0, 0, 0);
         const yzRenderer = new THREE.WebGLRenderer({ antialias: true });
@@ -560,7 +593,7 @@
         // Setup WZ projection (AnaKata view)
         const wzScene = new THREE.Scene();
         wzScene.background = new THREE.Color(0x0a0a1a);
-        const wzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+        const wzCamera = new THREE.OrthographicCamera(-CSZ, CSZ, CSZ, -CSZ, 0.1, 100);
         wzCamera.position.set(20, 0, 0);
         wzCamera.lookAt(0, 0, 0);
         const wzRenderer = new THREE.WebGLRenderer({ antialias: true });
@@ -568,7 +601,7 @@
         document.getElementById('wz-canvas').appendChild(wzRenderer.domElement);
 
         // Add bounding boxes to projections
-        const boxSize = 10;
+        const boxSize = scene_bound * 2;
         const xzBox = new THREE.LineSegments(
             new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
             new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
@@ -652,16 +685,7 @@
             wzEdgeMeshes = [];
 
             // Graph data structure
-            let xz_vertices = [];
-            let xz_edges = [];
-            let yz_vertices = [];
-            let yz_edges = [];
-            let wz_vertices = [];
-            let wz_edges = [];
             // meshes reprojected "inside" the camera sensor
-            let uvl_vertices = [];
-            let uvl_vertices_s = []; // scaling factors
-            let uvl_edges = [];
 
             // Create camera frustum
             // origin to (1, u-, v-, l-), (1, u+, v-, l-), ... reprojected to camera frame, reprojected to world
@@ -686,38 +710,42 @@
 
             // Project 4D Scene into 2D Orthogonal Views
             // XZ projection
-            xz_vertices = [];
-            xz_edges = [];
-            // hypercube
-            for (let v of hypercube.vertices) {
-                xz_vertices.push(new THREE.Vector3(0, v.z, -v.x));
+            for (let hyperobject of hyperscene_visible_objects) {
+                let xz_vertices = [];
+                let xz_edges = [];
+                xz_vertices = [];
+                xz_edges = [];
+                // hyperobject
+                for (let v of hyperobject.vertices_in_world) {
+                    xz_vertices.push(new THREE.Vector3(0, v.z, -v.x));
+                }
+                for (let [i, j] of hyperobject.edges) {
+                    xz_edges.push([i, j]);
+                }
+                xz_vertices.forEach((pos, i) => {
+                    const xzGeometry = new THREE.CircleGeometry(0.3, 16);
+                    const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
+                    const xzMesh = new THREE.Mesh(xzGeometry, material);
+                    xzMesh.position.set(pos.x, pos.y, pos.z);
+                    xzMesh.rotation.y = Math.PI / 2;
+                    xzScene.add(xzMesh);
+                    xzVertexMeshes.push(xzMesh);
+                });
+                xz_edges.forEach(([i, j]) => {
+                    const xzPoints = [
+                        new THREE.Vector3(xz_vertices[i].x, xz_vertices[i].y, xz_vertices[i].z),
+                        new THREE.Vector3(xz_vertices[j].x, xz_vertices[j].y, xz_vertices[j].z)
+                    ];
+                    const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
+                    const xzLine = new THREE.Line(xzGeometry, edgeMaterial);
+                    xzScene.add(xzLine);
+                    xzEdgeMeshes.push(xzLine);
+                });
             }
-            for (let [i, j] of hypercube.edges) {
-                xz_edges.push([i, j]);
-            }
-            xz_vertices.forEach((pos, i) => {
-                const xzGeometry = new THREE.CircleGeometry(0.3, 16);
-                const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
-                const xzMesh = new THREE.Mesh(xzGeometry, material);
-                xzMesh.position.set(pos.x, pos.y, pos.z);
-                xzMesh.rotation.y = Math.PI / 2;
-                xzScene.add(xzMesh);
-                xzVertexMeshes.push(xzMesh);
-            });
-            xz_edges.forEach(([i, j]) => {
-                const xzPoints = [
-                    new THREE.Vector3(xz_vertices[i].x, xz_vertices[i].y, xz_vertices[i].z),
-                    new THREE.Vector3(xz_vertices[j].x, xz_vertices[j].y, xz_vertices[j].z)
-                ];
-                const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
-                const xzLine = new THREE.Line(xzGeometry, edgeMaterial);
-                xzScene.add(xzLine);
-                xzEdgeMeshes.push(xzLine);
-            });
             // hyperfloor
             for (let [i, j] of hyperfloor.edges) {
-                vi_xz = new THREE.Vector3(0, hyperfloor.vertices[i].z, -hyperfloor.vertices[i].x);
-                vj_xz = new THREE.Vector3(0, hyperfloor.vertices[j].z, -hyperfloor.vertices[j].x);
+                vi_xz = new THREE.Vector3(0, hyperfloor.vertices_in_world[i].z, -hyperfloor.vertices_in_world[i].x);
+                vj_xz = new THREE.Vector3(0, hyperfloor.vertices_in_world[j].z, -hyperfloor.vertices_in_world[j].x);
                 const xzPoints = [
                     new THREE.Vector3(vi_xz.x, vi_xz.y, vi_xz.z),
                     new THREE.Vector3(vj_xz.x, vj_xz.y, vj_xz.z)
@@ -742,34 +770,39 @@
             });
 
             // YZ projection
-            yz_vertices = [];
-            for (let v of hypercube.vertices) {
-                yz_vertices.push(new THREE.Vector3(0, v.z, -v.y));
+            // hyperobjects
+            for (let hyperobject of hyperscene_visible_objects) {
+                let yz_vertices = [];
+                let yz_edges = [];
+                yz_vertices = [];
+                for (let v of hyperobject.vertices_in_world) {
+                    yz_vertices.push(new THREE.Vector3(0, v.z, -v.y));
+                }
+                yz_edges = hyperobject.edges.slice();
+                yz_vertices.forEach((pos, i) => {
+                    const yzGeometry = new THREE.CircleGeometry(0.3, 16);
+                    const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
+                    const yzMesh = new THREE.Mesh(yzGeometry, material);
+                    yzMesh.position.set(pos.x, pos.y, pos.z);
+                    yzMesh.rotation.y = Math.PI / 2;
+                    yzScene.add(yzMesh);
+                    yzVertexMeshes.push(yzMesh);
+                });
+                yz_edges.forEach(([i, j]) => {
+                    const yzPoints = [
+                        new THREE.Vector3(yz_vertices[i].x, yz_vertices[i].y, yz_vertices[i].z),
+                        new THREE.Vector3(yz_vertices[j].x, yz_vertices[j].y, yz_vertices[j].z)
+                    ];
+                    const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
+                    const yzLine = new THREE.Line(yzGeometry, edgeMaterial);
+                    yzScene.add(yzLine);
+                    yzEdgeMeshes.push(yzLine);
+                });
             }
-            yz_edges = hypercube.edges.slice();
-            yz_vertices.forEach((pos, i) => {
-                const yzGeometry = new THREE.CircleGeometry(0.3, 16);
-                const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
-                const yzMesh = new THREE.Mesh(yzGeometry, material);
-                yzMesh.position.set(pos.x, pos.y, pos.z);
-                yzMesh.rotation.y = Math.PI / 2;
-                yzScene.add(yzMesh);
-                yzVertexMeshes.push(yzMesh);
-            });
-            yz_edges.forEach(([i, j]) => {
-                const yzPoints = [
-                    new THREE.Vector3(yz_vertices[i].x, yz_vertices[i].y, yz_vertices[i].z),
-                    new THREE.Vector3(yz_vertices[j].x, yz_vertices[j].y, yz_vertices[j].z)
-                ];
-                const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
-                const yzLine = new THREE.Line(yzGeometry, edgeMaterial);
-                yzScene.add(yzLine);
-                yzEdgeMeshes.push(yzLine);
-            });
             // hyperfloor
             for (let [i, j] of hyperfloor.edges) {
-                vi_yz = new THREE.Vector3(0, hyperfloor.vertices[i].z, -hyperfloor.vertices[i].y);
-                vj_yz = new THREE.Vector3(0, hyperfloor.vertices[j].z, -hyperfloor.vertices[j].y);
+                vi_yz = new THREE.Vector3(0, hyperfloor.vertices_in_world[i].z, -hyperfloor.vertices_in_world[i].y);
+                vj_yz = new THREE.Vector3(0, hyperfloor.vertices_in_world[j].z, -hyperfloor.vertices_in_world[j].y);
                 const yzPoints = [
                     new THREE.Vector3(vi_yz.x, vi_yz.y, vi_yz.z),
                     new THREE.Vector3(vj_yz.x, vj_yz.y, vj_yz.z)
@@ -794,34 +827,38 @@
             });
 
             // WZ projection
-            wz_vertices = [];
-            for (let v of hypercube.vertices) {
-                wz_vertices.push(new THREE.Vector3(0, v.z, -v.w));
+            for (let hyperobject of hyperscene_visible_objects) {
+                let wz_vertices = [];
+                let wz_edges = [];
+                wz_vertices = [];
+                for (let v of hyperobject.vertices_in_world) {
+                    wz_vertices.push(new THREE.Vector3(0, v.z, -v.w));
+                }
+                wz_edges = hyperobject.edges.slice();
+                wz_vertices.forEach((pos, i) => {
+                    const wzGeometry = new THREE.CircleGeometry(0.3, 16);
+                    const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
+                    const wzMesh = new THREE.Mesh(wzGeometry, material);
+                    wzMesh.position.set(pos.x, pos.y, pos.z);
+                    wzMesh.rotation.y = Math.PI / 2;
+                    wzScene.add(wzMesh);
+                    wzVertexMeshes.push(wzMesh);
+                });
+                wz_edges.forEach(([i, j]) => {
+                    const wzPoints = [
+                        new THREE.Vector3(wz_vertices[i].x, wz_vertices[i].y, wz_vertices[i].z),
+                        new THREE.Vector3(wz_vertices[j].x, wz_vertices[j].y, wz_vertices[j].z)
+                    ];
+                    const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
+                    const wzLine = new THREE.Line(wzGeometry, edgeMaterial);
+                    wzScene.add(wzLine);
+                    wzEdgeMeshes.push(wzLine);
+                });
             }
-            wz_edges = hypercube.edges.slice();
-            wz_vertices.forEach((pos, i) => {
-                const wzGeometry = new THREE.CircleGeometry(0.3, 16);
-                const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
-                const wzMesh = new THREE.Mesh(wzGeometry, material);
-                wzMesh.position.set(pos.x, pos.y, pos.z);
-                wzMesh.rotation.y = Math.PI / 2;
-                wzScene.add(wzMesh);
-                wzVertexMeshes.push(wzMesh);
-            });
-            wz_edges.forEach(([i, j]) => {
-                const wzPoints = [
-                    new THREE.Vector3(wz_vertices[i].x, wz_vertices[i].y, wz_vertices[i].z),
-                    new THREE.Vector3(wz_vertices[j].x, wz_vertices[j].y, wz_vertices[j].z)
-                ];
-                const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
-                const wzLine = new THREE.Line(wzGeometry, edgeMaterial);
-                wzScene.add(wzLine);
-                wzEdgeMeshes.push(wzLine);
-            });
             // hyperfloor
             for (let [i, j] of hyperfloor.edges) {
-                vi_wz = new THREE.Vector3(0, hyperfloor.vertices[i].z, -hyperfloor.vertices[i].w);
-                vj_wz = new THREE.Vector3(0, hyperfloor.vertices[j].z, -hyperfloor.vertices[j].w);
+                vi_wz = new THREE.Vector3(0, hyperfloor.vertices_in_world[i].z, -hyperfloor.vertices_in_world[i].w);
+                vj_wz = new THREE.Vector3(0, hyperfloor.vertices_in_world[j].z, -hyperfloor.vertices_in_world[j].w);
                 const wzPoints = [
                     new THREE.Vector3(vi_wz.x, vi_wz.y, vi_wz.z),
                     new THREE.Vector3(vj_wz.x, vj_wz.y, vj_wz.z)
@@ -846,78 +883,86 @@
             });
 
             // Project Meshes into 3D Camera Sensor
-            uvl_vertices = [];
-            uvl_vertices_s = []; // scaling, a.k.a distance from camera sensor (>1 means further, <0 means behind, <1 means closer)
-            for (let v of hypercube.vertices) {
-                // Camera equation uvl ~= K * [R|t] * XYZW
-                // we define x as the depth axis here (aka camera cube sensor is at x=1)
-                // let xyzw_camframe = new Vector4D(v.x, v.y, v.z, v.w); // TODO do actual transform to camera frame
-                let xyzw_camframe = hypercamera_T.inverse().transform_point(v);
-                let suvl = [ xyzw_camframe.x, xyzw_camframe.y, xyzw_camframe.z, xyzw_camframe.w ]; // TODO: apply intrinsics
-                let uvl = [ suvl[1] / suvl[0], suvl[2] / suvl[0], suvl[3] / suvl[0] ]; // perspective divide
-                uvl_vertices.push(new THREE.Vector3(uvl[0], uvl[1], uvl[2]));
-                uvl_vertices_s.push(suvl[0]);
+            for (let hyperobject of hyperscene_visible_objects) {
+                let uvl_vertices = [];
+                let uvl_vertices_s = []; // scaling factors
+                let uvl_edges = [];
+                uvl_vertices = [];
+                uvl_vertices_s = []; // scaling, a.k.a distance from camera sensor (>1 means further, <0 means behind, <1 means closer)
+                for (let v of hyperobject.vertices_in_world) {
+                    // Camera equation uvl ~= K * [R|t] * XYZW
+                    // we define x as the depth axis here (aka camera cube sensor is at x=1)
+                    // let xyzw_camframe = new Vector4D(v.x, v.y, v.z, v.w); // TODO do actual transform to camera frame
+                    let xyzw_camframe = hypercamera_T.inverse().transform_point(v);
+                    let suvl = [ xyzw_camframe.x, xyzw_camframe.y, xyzw_camframe.z, xyzw_camframe.w ]; // TODO: apply intrinsics
+                    let uvl = [ suvl[1] / suvl[0], suvl[2] / suvl[0], suvl[3] / suvl[0] ]; // perspective divide
+                    uvl_vertices.push(new THREE.Vector3(uvl[0], uvl[1], uvl[2]));
+                    uvl_vertices_s.push(suvl[0]);
+                }
+                uvl_edges = hyperobject.edges.slice();
+                uvl_vertices.forEach((pos, i) => {
+                    // UVL 3D Camera Sensor
+                    const s = uvl_vertices_s[i];
+                    // Only render if in front of camera
+                    const is_in_front = s > 0;
+                    const is_inside_sensor = (
+                        pos.x >= hypercamera_sensor_uvl_range[0] &&
+                        pos.x <= hypercamera_sensor_uvl_range[1] &&
+                        pos.y >= hypercamera_sensor_uvl_range[2] &&
+                        pos.y <= hypercamera_sensor_uvl_range[3] &&
+                        pos.z >= hypercamera_sensor_uvl_range[4] &&
+                        pos.z <= hypercamera_sensor_uvl_range[5]
+                    );
+                    if (s > 0) {
+                        const geometry = new THREE.SphereGeometry(0.03, 16, 16);
+                        let material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
+                        if (!is_inside_sensor) {
+                            material = outOfSensorVertexMaterial;
+                        }
+                        const mesh = new THREE.Mesh(geometry, material);
+                        mesh.position.copy(pos);
+                        mesh.selectable_idx = i;
+                        scene.add(mesh);
+                        vertexMeshes.push(mesh);
+                    }
+                });
+                uvl_edges.forEach(([i, j]) => {
+                    // Main 3D scene
+                    const are_both_vertices_in_front = (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0);
+                    const are_both_vertices_inside_sensor = (
+                        uvl_vertices[i].x >= hypercamera_sensor_uvl_range[0] &&
+                        uvl_vertices[i].x <= hypercamera_sensor_uvl_range[1] &&
+                        uvl_vertices[i].y >= hypercamera_sensor_uvl_range[2] &&
+                        uvl_vertices[i].y <= hypercamera_sensor_uvl_range[3] &&
+                        uvl_vertices[i].z >= hypercamera_sensor_uvl_range[4] &&
+                        uvl_vertices[i].z <= hypercamera_sensor_uvl_range[5] &&
+                        uvl_vertices[j].x >= hypercamera_sensor_uvl_range[0] &&
+                        uvl_vertices[j].x <= hypercamera_sensor_uvl_range[1] &&
+                        uvl_vertices[j].y >= hypercamera_sensor_uvl_range[2] &&
+                        uvl_vertices[j].y <= hypercamera_sensor_uvl_range[3] &&
+                        uvl_vertices[j].z >= hypercamera_sensor_uvl_range[4] &&
+                        uvl_vertices[j].z <= hypercamera_sensor_uvl_range[5]
+                    );
+                    if (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0) {
+                        const points = [uvl_vertices[i], uvl_vertices[j]];
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        let material = edgeMaterial;
+                        if (!are_both_vertices_inside_sensor) {
+                            material = outOfSensorEdgeMaterial;
+                        }
+                        const line = new THREE.Line(geometry, material);
+                        scene.add(line);
+                        edgeMeshes.push(line);
+                    }
+                });
             }
-            uvl_edges = hypercube.edges.slice();
-            uvl_vertices.forEach((pos, i) => {
-                // UVL 3D Camera Sensor
-                const s = uvl_vertices_s[i];
-                // Only render if in front of camera
-                const is_in_front = s > 0;
-                const is_inside_sensor = (
-                    pos.x >= hypercamera_sensor_uvl_range[0] &&
-                    pos.x <= hypercamera_sensor_uvl_range[1] &&
-                    pos.y >= hypercamera_sensor_uvl_range[2] &&
-                    pos.y <= hypercamera_sensor_uvl_range[3] &&
-                    pos.z >= hypercamera_sensor_uvl_range[4] &&
-                    pos.z <= hypercamera_sensor_uvl_range[5]
-                );
-                if (s > 0) {
-                    const geometry = new THREE.SphereGeometry(0.03, 16, 16);
-                    let material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
-                    if (!is_inside_sensor) {
-                        material = outOfSensorVertexMaterial;
-                    }
-                    const mesh = new THREE.Mesh(geometry, material);
-                    mesh.position.copy(pos);
-                    mesh.selectable_idx = i;
-                    scene.add(mesh);
-                    vertexMeshes.push(mesh);
-                }
-            });
-            uvl_edges.forEach(([i, j]) => {
-                // Main 3D scene
-                const are_both_vertices_in_front = (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0);
-                const are_both_vertices_inside_sensor = (
-                    uvl_vertices[i].x >= hypercamera_sensor_uvl_range[0] &&
-                    uvl_vertices[i].x <= hypercamera_sensor_uvl_range[1] &&
-                    uvl_vertices[i].y >= hypercamera_sensor_uvl_range[2] &&
-                    uvl_vertices[i].y <= hypercamera_sensor_uvl_range[3] &&
-                    uvl_vertices[i].z >= hypercamera_sensor_uvl_range[4] &&
-                    uvl_vertices[i].z <= hypercamera_sensor_uvl_range[5] &&
-                    uvl_vertices[j].x >= hypercamera_sensor_uvl_range[0] &&
-                    uvl_vertices[j].x <= hypercamera_sensor_uvl_range[1] &&
-                    uvl_vertices[j].y >= hypercamera_sensor_uvl_range[2] &&
-                    uvl_vertices[j].y <= hypercamera_sensor_uvl_range[3] &&
-                    uvl_vertices[j].z >= hypercamera_sensor_uvl_range[4] &&
-                    uvl_vertices[j].z <= hypercamera_sensor_uvl_range[5]
-                );
-                if (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0) {
-                    const points = [uvl_vertices[i], uvl_vertices[j]];
-                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                    let material = edgeMaterial;
-                    if (!are_both_vertices_inside_sensor) {
-                        material = outOfSensorEdgeMaterial;
-                    }
-                    const line = new THREE.Line(geometry, material);
-                    scene.add(line);
-                    edgeMeshes.push(line);
-                }
-            });
-            //
+            // hyperfloor
+            let uvl_vertices = [];
+            let uvl_vertices_s = []; // scaling factors
+            let uvl_edges = [];
             uvl_vertices = [];
             uvl_vertices_s = []; // scaling, a.k.a distance from camera sensor (>1 means further, <0 means behind, <1 means closer)
-            for (let v of hyperfloor.vertices) {
+            for (let v of hyperfloor.vertices_in_world) {
                 // Camera equation uvl ~= K * [R|t] * XYZW
                 // we define x as the depth axis here (aka camera cube sensor is at x=1)
                 // let xyzw_camframe = new Vector4D(v.x, v.y, v.z, v.w); // TODO do actual transform to camera frame
@@ -1022,133 +1067,139 @@
                 const FLOOR_DAMPING = 10;
                 const GRAVITY = -9.81;
 
-                // calculate hypercube center of mass 
-                let hypercube_com = new Vector4D(0, 0, 0, 0);
-                for (let v of hypercube.vertices) {
-                    hypercube_com = hypercube_com.add(v);
-                }
-                hypercube_com = new Vector4D(
-                    hypercube_com.x / hypercube.vertices.length,
-                    hypercube_com.y / hypercube.vertices.length,
-                    hypercube_com.z / hypercube.vertices.length,
-                    hypercube_com.w / hypercube.vertices.length
-                );
-                
-                // mujoco-style forward/backward
-                // 1. apply gravity
-                // 2. apply collision to c.o.m based on vertices penetrating the floor (use z=-2 as the floor height)
-                // 3. resolve c.o.m velocity and rotational velocity
-                // 4. update vertex positions based on c.o.m and rotational velocity
-                
-                // force and torque accumulators
-                let com_force = new Vector4D(0, 0, GRAVITY * hypercube.mass, 0);
-                let com_torque = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
-                
-                
-                // 2. Check for collisions with floor and accumulate forces/torques
-                for (let v of hypercube.vertices) {
-                    let penetration = FLOOR_HEIGHT - v.z;
-                    if (penetration > 0) {
-                        // Position relative to CoM
-                        let r = v.subtract(hypercube_com); // position relative to CoM
-                        
-                        // Calculate velocity of this vertex in world frame
-                        let vertex_velocity = new Vector4D(0, 0, 0, 0);
+                for (let hyperobject of hyperscene_visible_objects) {
 
-                        // Linear velocity from CoM
-                        vertex_velocity = vertex_velocity.add(hypercube.velocity)
-
-                        // Velocity due to rotation (v_rot = omega × r in 4D)
-                        // let v_rot = new Vector4D(
-                            // hypercube.rotational_velocity.xy * r.y - hypercube.rotational_velocity.xz * r.z - hypercube.rotational_velocity.xw * r.w,
-                            // -hypercube.rotational_velocity.xy * r.x + hypercube.rotational_velocity.yz * r.z + hypercube.rotational_velocity.yw * r.w,
-                            // hypercube.rotational_velocity.xz * r.x - hypercube.rotational_velocity.yz * r.y + hypercube.rotational_velocity.zw * r.w,
-                            // hypercube.rotational_velocity.xw * r.x - hypercube.rotational_velocity.yw * r.y - hypercube.rotational_velocity.zw * r.z
-                        // );
-                        // vertex_velocity = vertex_velocity.add(v_rot);
-                        
-                        
-                        
-                        // Spring-damper force (normal direction only, z-axis)
-                        let normal_force_z = FLOOR_STIFFNESS * penetration - FLOOR_DAMPING * vertex_velocity.z;
-                        
-                        let contact_force = new Vector4D(0, 0, normal_force_z, 0);
-                        
-                        // Accumulate force on CoM
-                        com_force = com_force.add(contact_force);
-
-                        // Debug
-                        if (v.z < -4) {
-                            let aaa = 1;
-                        }
-                        
-                        // Accumulate torque (r × F in 4D gives bivector with 6 components)
-                        com_torque.xy += r.x * contact_force.y - r.y * contact_force.x;
-                        com_torque.xz += r.x * contact_force.z - r.z * contact_force.x;
-                        com_torque.xw += r.x * contact_force.w - r.w * contact_force.x;
-                        com_torque.yz += r.y * contact_force.z - r.z * contact_force.y;
-                        com_torque.yw += r.y * contact_force.w - r.w * contact_force.y;
-                        com_torque.zw += r.z * contact_force.w - r.w * contact_force.z;
+                    // calculate hyperobject center of mass 
+                    let hyperobject_com = new Vector4D(0, 0, 0, 0);
+                    for (let v of hyperobject.vertices_in_world) {
+                        hyperobject_com = hyperobject_com.add(v);
                     }
-                }
-                
-                // 3. Integrate velocities (simple Euler integration)
-                const dt = 0.016; // ~60fps
-                
-                // Linear velocity update: v += (F/m) * dt
-                hypercube.velocity = hypercube.velocity.add(
-                    new Vector4D(
-                        com_force.x / hypercube.mass * dt,
-                        com_force.y / hypercube.mass * dt,
-                        com_force.z / hypercube.mass * dt,
-                        com_force.w / hypercube.mass * dt
-                    )
-                );
-                
-                // Angular velocity update: omega += (torque / I) * dt
-                // For uniform hypercube with edge length 2: I = (2/3) * mass
-                const I = (2/3) * hypercube.mass;
-                hypercube.rotational_velocity.xy += (com_torque.xy / I) * dt;
-                hypercube.rotational_velocity.xz += (com_torque.xz / I) * dt;
-                hypercube.rotational_velocity.xw += (com_torque.xw / I) * dt;
-                hypercube.rotational_velocity.yz += (com_torque.yz / I) * dt;
-                hypercube.rotational_velocity.yw += (com_torque.yw / I) * dt;
-                hypercube.rotational_velocity.zw += (com_torque.zw / I) * dt;
-                
-                // 4. Update vertex positions based on CoM and rotation
-                for (let i = 0; i < hypercube.vertices.length; i++) {
-                    let r = hypercube.vertices[i].subtract(hypercube_com); // current position relative to new CoM
+                    hyperobject_com = new Vector4D(
+                        hyperobject_com.x / hyperobject.vertices_in_world.length,
+                        hyperobject_com.y / hyperobject.vertices_in_world.length,
+                        hyperobject_com.z / hyperobject.vertices_in_world.length,
+                        hyperobject_com.w / hyperobject.vertices_in_world.length
+                    );
                     
-                    // Apply rotation: r' = r + (omega × r) * dt
-                    let dr = new Vector4D(0, 0, 0, 0);
-
-                    // dr = dr.add(new Vector4D(
-                        // (hypercube.rotational_velocity.xy * r.y - hypercube.rotational_velocity.xz * r.z - hypercube.rotational_velocity.xw * r.w) * dt,
-                        // (-hypercube.rotational_velocity.xy * r.x + hypercube.rotational_velocity.yz * r.z + hypercube.rotational_velocity.yw * r.w) * dt,
-                        // (hypercube.rotational_velocity.xz * r.x - hypercube.rotational_velocity.yz * r.y + hypercube.rotational_velocity.zw * r.w) * dt,
-                        // (hypercube.rotational_velocity.xw * r.x - hypercube.rotational_velocity.yw * r.y - hypercube.rotational_velocity.zw * r.z) * dt
-                    // ));
-
-                    // Apply CoM velocity
-                    r = r.add(new Vector4D(
-                        hypercube.velocity.x * dt,
-                        hypercube.velocity.y * dt,
-                        hypercube.velocity.z * dt,
-                        hypercube.velocity.w * dt
-                    ));
+                    // mujoco-style forward/backward
+                    // 1. apply gravity
+                    // 2. apply collision to c.o.m based on vertices penetrating the floor (use z=-2 as the floor height)
+                    // 3. resolve c.o.m velocity and rotational velocity
+                    // 4. update vertex positions based on c.o.m and rotational velocity
                     
-                    // New vertex position = new CoM + rotated relative position
-                    hypercube.vertices[i] = hypercube_com.add(r.add(dr));
+                    // force and torque accumulators
+                    let com_force = new Vector4D(0, 0, GRAVITY * hyperobject.mass, 0);
+                    let com_torque = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
+                    
+                    
+                    // 2. Check for collisions with floor and accumulate forces/torques
+                    for (let v of hyperobject.vertices_in_world) {
+                        let floor_height = floor_heightmap(v.x, v.y, v.w);
+                        let penetration = floor_height - v.z;
+                        if (penetration > 0) {
+                            // Position relative to CoM
+                            let r = v.subtract(hyperobject_com); // position relative to CoM
+                            
+                            // Calculate velocity of this vertex in world frame
+                            let vertex_velocity = new Vector4D(0, 0, 0, 0);
+
+                            // Linear velocity from CoM
+                            vertex_velocity = vertex_velocity.add(hyperobject.velocity_in_world)
+
+                            // Velocity due to rotation (v_rot = omega × r in 4D)
+                            // let v_rot = new Vector4D(
+                                // hyperobject.rotational_velocity.xy * r.y - hyperobject.rotational_velocity.xz * r.z - hyperobject.rotational_velocity.xw * r.w,
+                                // -hyperobject.rotational_velocity.xy * r.x + hyperobject.rotational_velocity.yz * r.z + hyperobject.rotational_velocity.yw * r.w,
+                                // hyperobject.rotational_velocity.xz * r.x - hyperobject.rotational_velocity.yz * r.y + hyperobject.rotational_velocity.zw * r.w,
+                                // hyperobject.rotational_velocity.xw * r.x - hyperobject.rotational_velocity.yw * r.y - hyperobject.rotational_velocity.zw * r.z
+                            // );
+                            // vertex_velocity = vertex_velocity.add(v_rot);
+                            
+                            
+                            
+                            // Spring-damper force (normal direction only, z-axis)
+                            let normal_force_z = FLOOR_STIFFNESS * penetration - FLOOR_DAMPING * vertex_velocity.z;
+                            
+                            let contact_force = new Vector4D(0, 0, normal_force_z, 0);
+                            
+                            // Accumulate force on CoM
+                            com_force = com_force.add(contact_force);
+
+                            // Debug
+                            if (v.z < -4) {
+                                let aaa = 1;
+                            }
+                            
+                            // Accumulate torque (r × F in 4D gives bivector with 6 components)
+                            com_torque.xy += r.x * contact_force.y - r.y * contact_force.x;
+                            com_torque.xz += r.x * contact_force.z - r.z * contact_force.x;
+                            com_torque.xw += r.x * contact_force.w - r.w * contact_force.x;
+                            com_torque.yz += r.y * contact_force.z - r.z * contact_force.y;
+                            com_torque.yw += r.y * contact_force.w - r.w * contact_force.y;
+                            com_torque.zw += r.z * contact_force.w - r.w * contact_force.z;
+                        }
+                    }
+                    
+                    // 3. Integrate velocities (simple Euler integration)
+                    const dt = 0.016; // ~60fps
+                    
+                    // Linear velocity update: v += (F/m) * dt
+                    hyperobject.velocity_in_world = hyperobject.velocity_in_world.add(
+                        new Vector4D(
+                            com_force.x / hyperobject.mass * dt,
+                            com_force.y / hyperobject.mass * dt,
+                            com_force.z / hyperobject.mass * dt,
+                            com_force.w / hyperobject.mass * dt
+                        )
+                    );
+                    
+                    // Angular velocity update: omega += (torque / I) * dt
+                    // For uniform hyperobject with edge length 2: I = (2/3) * mass
+                    const I = (2/3) * hyperobject.mass;
+                    hyperobject.rotational_velocity.xy += (com_torque.xy / I) * dt;
+                    hyperobject.rotational_velocity.xz += (com_torque.xz / I) * dt;
+                    hyperobject.rotational_velocity.xw += (com_torque.xw / I) * dt;
+                    hyperobject.rotational_velocity.yz += (com_torque.yz / I) * dt;
+                    hyperobject.rotational_velocity.yw += (com_torque.yw / I) * dt;
+                    hyperobject.rotational_velocity.zw += (com_torque.zw / I) * dt;
+                    
+                    // 4. Update vertex positions based on CoM and rotation
+                    for (let i = 0; i < hyperobject.vertices_in_world.length; i++) {
+                        let r = hyperobject.vertices_in_world[i].subtract(hyperobject_com); // current position relative to new CoM
+                        
+                        // Apply rotation: r' = r + (omega × r) * dt
+                        let dr = new Vector4D(0, 0, 0, 0);
+
+                        // dr = dr.add(new Vector4D(
+                            // (hyperobject.rotational_velocity.xy * r.y - hyperobject.rotational_velocity.xz * r.z - hyperobject.rotational_velocity.xw * r.w) * dt,
+                            // (-hyperobject.rotational_velocity.xy * r.x + hyperobject.rotational_velocity.yz * r.z + hyperobject.rotational_velocity.yw * r.w) * dt,
+                            // (hyperobject.rotational_velocity.xz * r.x - hyperobject.rotational_velocity.yz * r.y + hyperobject.rotational_velocity.zw * r.w) * dt,
+                            // (hyperobject.rotational_velocity.xw * r.x - hyperobject.rotational_velocity.yw * r.y - hyperobject.rotational_velocity.zw * r.z) * dt
+                        // ));
+
+                        // Apply CoM velocity
+                        r = r.add(new Vector4D(
+                            hyperobject.velocity_in_world.x * dt,
+                            hyperobject.velocity_in_world.y * dt,
+                            hyperobject.velocity_in_world.z * dt,
+                            hyperobject.velocity_in_world.w * dt
+                        ));
+                        
+                        // New vertex position = new CoM + rotated relative position
+                        hyperobject.vertices_in_world[i] = hyperobject_com.add(r.add(dr));
+                    }
                 }
             }
             
             // Handle WASD movement for selected vertex
-            if (hypercube.vertices.length > 0 && selectedVertexIndex < hypercube.vertices.length) {
+            if (true) {
                 
                 // Move individual vertices
                 // if (keys['w']) {
-                //     hypercube.vertices[selectedVertexIndex].x += moveSpeed;
-                //     moved = true;
+                //     if (hypercube.vertices_in_world.length > 0 && selectedVertexIndex < hypercube.vertices_in_world.length) {
+                //         hypercube.vertices_in_world[selectedVertexIndex].x += moveSpeed;
+                //         moved = true;
+                //     }
                 // }
 
                 const RELATIVE_MOVEMENT = true;
@@ -1185,7 +1236,11 @@
                     moved = true;
                 }
                 // reset camera z to 0
-                hypercamera_T.matrix[2][4] = 0;
+                hypercamera_T.matrix[2][4] = floor_heightmap(
+                    hypercamera_T.matrix[0][4],
+                    hypercamera_T.matrix[1][4],
+                    hypercamera_T.matrix[3][4]
+                ) + 2.0;
 
                 if (keys['i']) {
                     hypercamera_T.rotate_self_by_delta('XZ', 0.05, RELATIVE_MOVEMENT);
