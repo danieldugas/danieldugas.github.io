@@ -275,22 +275,22 @@
         let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
         let hypercube = {
             vertices: [
-                [-1, -1, -1, -1],
-                [ 1, -1, -1, -1],
-                [ 1,  1, -1, -1],
-                [-1,  1, -1, -1],
-                [-1, -1,  1, -1],
-                [ 1, -1,  1, -1],
-                [ 1,  1,  1, -1],
-                [-1,  1,  1, -1],
-                [-1, -1, -1,  1],
-                [ 1, -1, -1,  1],
-                [ 1,  1, -1,  1],
-                [-1,  1, -1,  1],
-                [-1, -1,  1,  1],
-                [ 1, -1,  1,  1],
-                [ 1,  1,  1,  1],
-                [-1,  1,  1,  1]
+                new Vector4D(-1, -1, -1, -1),
+                new Vector4D( 1, -1, -1, -1),
+                new Vector4D( 1,  1, -1, -1),
+                new Vector4D(-1,  1, -1, -1),
+                new Vector4D(-1, -1,  1, -1),
+                new Vector4D( 1, -1,  1, -1),
+                new Vector4D( 1,  1,  1, -1),
+                new Vector4D(-1,  1,  1, -1),
+                new Vector4D(-1, -1, -1,  1),
+                new Vector4D( 1, -1, -1,  1),
+                new Vector4D( 1,  1, -1,  1),
+                new Vector4D(-1,  1, -1,  1),
+                new Vector4D(-1, -1,  1,  1),
+                new Vector4D( 1, -1,  1,  1),
+                new Vector4D( 1,  1,  1,  1),
+                new Vector4D(-1,  1,  1,  1)
             ],
             edges: [
                 [0,1],[1,2],[2,3],[3,0],
@@ -334,58 +334,9 @@
         let wzVertexMeshes = [];
         let wzEdgeMeshes = [];
 
-        // Generate initial constant mesh
-        function generateConstantMesh() {
-            // Create vertices in 3D space
-            world_vertices = [
-                new THREE.Vector3(0, 0, 0),
-                new THREE.Vector3(3, 2, 1),
-                new THREE.Vector3(-2, 3, -2),
-                new THREE.Vector3(-3, -1, 2),
-                new THREE.Vector3(2, -2, -1),
-                new THREE.Vector3(0, 4, 3),
-                new THREE.Vector3(1, -3, -2),
-                new THREE.Vector3(-2, -2, 1)
-            ];
-            
-            // Create edges connecting vertices
-            world_edges = [
-                [0, 1], [0, 2], [0, 3], [0, 4],
-                [1, 2], [2, 3], [3, 4], [4, 1],
-                [1, 5], [2, 5],
-                [5, 6], [6, 7], [7, 3]
-            ];
-        }
-
 
         // Create vertex meshes
         function createThreeJSPrimitivesFromScene() {
-            // Project 4D Scene into 2D Orthogonal Views
-            xz_vertices = [];
-            for (let v of hypercube.vertices) {
-                xz_vertices.push(new THREE.Vector3(0, v[0], v[2]));
-            }
-            xz_edges = hypercube.edges.slice();
-
-            yz_vertices = [];
-            for (let v of hypercube.vertices) {
-                yz_vertices.push(new THREE.Vector3(0, v[1], v[2]));
-            }
-            yz_edges = hypercube.edges.slice();
-
-            wz_vertices = [];
-            for (let v of hypercube.vertices) {
-                wz_vertices.push(new THREE.Vector3(0, v[3], v[2]));
-            }
-            wz_edges = hypercube.edges.slice();
-
-            // Project Meshes into 3D Camera Sensor
-            uvl_vertices = [];
-            for (let v of hypercube.vertices) {
-                uvl_vertices.push(new THREE.Vector3(v[0], v[1], v[2]));
-            }
-            uvl_edges = hypercube.edges.slice();
-
             // Clear existing meshes
             vertexMeshes.forEach(mesh => scene.remove(mesh));
             vertexMeshes = [];
@@ -395,6 +346,41 @@
             yzVertexMeshes = [];
             wzVertexMeshes.forEach(mesh => wzScene.remove(mesh));
             wzVertexMeshes = [];
+            // Clear existing edges
+            edgeMeshes.forEach(mesh => scene.remove(mesh));
+            edgeMeshes = [];
+            xzEdgeMeshes.forEach(mesh => xzScene.remove(mesh));
+            xzEdgeMeshes = [];
+            yzEdgeMeshes.forEach(mesh => yzScene.remove(mesh));
+            yzEdgeMeshes = [];
+            wzEdgeMeshes.forEach(mesh => wzScene.remove(mesh));
+            wzEdgeMeshes = [];
+
+            // Project 4D Scene into 2D Orthogonal Views
+            xz_vertices = [];
+            for (let v of hypercube.vertices) {
+                xz_vertices.push(new THREE.Vector3(0, v.x, v.z));
+            }
+            xz_edges = hypercube.edges.slice();
+
+            yz_vertices = [];
+            for (let v of hypercube.vertices) {
+                yz_vertices.push(new THREE.Vector3(0, v.y, v.z));
+            }
+            yz_edges = hypercube.edges.slice();
+
+            wz_vertices = [];
+            for (let v of hypercube.vertices) {
+                wz_vertices.push(new THREE.Vector3(0, v.w, v.z));
+            }
+            wz_edges = hypercube.edges.slice();
+
+            // Project Meshes into 3D Camera Sensor
+            uvl_vertices = [];
+            for (let v of hypercube.vertices) {
+                uvl_vertices.push(new THREE.Vector3(v.x, v.y, v.z));
+            }
+            uvl_edges = hypercube.edges.slice();
             
             uvl_vertices.forEach((pos, i) => {
                 // UVL 3D Camera Sensor
@@ -439,16 +425,6 @@
                 wzVertexMeshes.push(wzMesh);
             });
 
-            // Create edge meshes
-            // Clear existing edges
-            edgeMeshes.forEach(mesh => scene.remove(mesh));
-            edgeMeshes = [];
-            xzEdgeMeshes.forEach(mesh => xzScene.remove(mesh));
-            xzEdgeMeshes = [];
-            yzEdgeMeshes.forEach(mesh => yzScene.remove(mesh));
-            yzEdgeMeshes = [];
-            wzEdgeMeshes.forEach(mesh => wzScene.remove(mesh));
-            wzEdgeMeshes = [];
             
             uvl_edges.forEach(([i, j]) => {
                 // Main 3D scene
@@ -548,31 +524,32 @@
             requestAnimationFrame(animate);
             
             // Handle WASD movement for selected vertex
-            if (world_vertices.length > 0 && selectedVertexIndex < world_vertices.length) {
+            // if (world_vertices.length > 0 && selectedVertexIndex < world_vertices.length) {
+            if (hypercube.vertices.length > 0 && selectedVertexIndex < hypercube.vertices.length) {
                 let moved = false;
                 
                 if (keys['w']) {
-                    world_vertices[selectedVertexIndex].y += moveSpeed;
+                    hypercube.vertices[selectedVertexIndex].y += moveSpeed;
                     moved = true;
                 }
                 if (keys['s']) {
-                    world_vertices[selectedVertexIndex].y -= moveSpeed;
+                    hypercube.vertices[selectedVertexIndex].y -= moveSpeed;
                     moved = true;
                 }
                 if (keys['a']) {
-                    world_vertices[selectedVertexIndex].x -= moveSpeed;
+                    hypercube.vertices[selectedVertexIndex].x -= moveSpeed;
                     moved = true;
                 }
                 if (keys['d']) {
-                    world_vertices[selectedVertexIndex].x += moveSpeed;
+                    hypercube.vertices[selectedVertexIndex].x += moveSpeed;
                     moved = true;
                 }
                 if (keys['q']) {
-                    world_vertices[selectedVertexIndex].z += moveSpeed;
+                    hypercube.vertices[selectedVertexIndex].z += moveSpeed;
                     moved = true;
                 }
                 if (keys['e']) {
-                    world_vertices[selectedVertexIndex].z -= moveSpeed;
+                    hypercube.vertices[selectedVertexIndex].z -= moveSpeed;
                     moved = true;
                 }
                 
