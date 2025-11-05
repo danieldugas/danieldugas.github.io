@@ -161,7 +161,7 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a2e);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(15, 15, 15);
+        camera.position.set(1.5, 1.5, 1.5);
         camera.lookAt(0, 0, 0);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -169,8 +169,9 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement); // Add OrbitControls
         
         // Create bounding box
+        const UVLBoxSize = 1;
         const boxSize = 10;
-        const boxGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+        const boxGeometry = new THREE.BoxGeometry(UVLBoxSize, UVLBoxSize, UVLBoxSize);
         const boxEdges = new THREE.EdgesGeometry(boxGeometry);
         const boxMaterial = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 });
         const boundingBox = new THREE.LineSegments(boxEdges, boxMaterial);
@@ -303,11 +304,14 @@
                 [4,12],[5,13],[6,14],[7,15]
             ]
         };
-
+        // Manually move hypercube by x+ and y+
+        hypercube.vertices.forEach(v => {
+            v.x += 4;
+            // v.y += 3;
+        });
+        let hyperscene_visible_objects = [hypercube];
 
         // Graph data structure
-        let world_vertices = [];
-        let world_edges = [];
         let xz_vertices = [];
         let xz_edges = [];
         let yz_vertices = [];
@@ -381,10 +385,14 @@
             // Project 4D Scene into 2D Orthogonal Views
             // XZ projection
             xz_vertices = [];
+            xz_edges = [];
+            // hypercube
             for (let v of hypercube.vertices) {
                 xz_vertices.push(new THREE.Vector3(0, v.z, -v.x));
             }
-            xz_edges = hypercube.edges.slice();
+            for (let [i, j] of hypercube.edges) {
+                xz_edges.push([i, j]);
+            }
             xz_vertices.forEach((pos, i) => {
                 const xzGeometry = new THREE.CircleGeometry(0.3, 16);
                 const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
@@ -401,6 +409,17 @@
                 ];
                 const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
                 const xzLine = new THREE.Line(xzGeometry, edgeMaterial);
+                xzScene.add(xzLine);
+                xzEdgeMeshes.push(xzLine);
+            });
+            // camera frustrum
+            camera_edges_in_world.forEach(([start, end]) => {
+                const xzPoints = [
+                    new THREE.Vector3(0, start.z, -start.x),
+                    new THREE.Vector3(0, end.z, -end.x)
+                ];
+                const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
+                const xzLine = new THREE.Line(xzGeometry, new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 }));
                 xzScene.add(xzLine);
                 xzEdgeMeshes.push(xzLine);
             });
@@ -430,6 +449,17 @@
                 yzScene.add(yzLine);
                 yzEdgeMeshes.push(yzLine);
             });
+            // camera frustrum
+            camera_edges_in_world.forEach(([start, end]) => {
+                const yzPoints = [
+                    new THREE.Vector3(0, start.z, -start.y),
+                    new THREE.Vector3(0, end.z, -end.y)
+                ];
+                const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
+                const yzLine = new THREE.Line(yzGeometry, new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 }));
+                yzScene.add(yzLine);
+                yzEdgeMeshes.push(yzLine);
+            });
 
             // WZ projection
             wz_vertices = [];
@@ -456,6 +486,17 @@
                 wzScene.add(wzLine);
                 wzEdgeMeshes.push(wzLine);
             });
+            // camera frustrum
+            camera_edges_in_world.forEach(([start, end]) => {
+                const wzPoints = [
+                    new THREE.Vector3(0, start.z, -start.w),
+                    new THREE.Vector3(0, end.z, -end.w)
+                ];
+                const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
+                const wzLine = new THREE.Line(wzGeometry, new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 }));
+                wzScene.add(wzLine);
+                wzEdgeMeshes.push(wzLine);
+            });
 
             // Project Meshes into 3D Camera Sensor
             uvl_vertices = [];
@@ -470,13 +511,12 @@
                 uvl_vertices_s.push(suvl[0]);
             }
             uvl_edges = hypercube.edges.slice();
-            
             uvl_vertices.forEach((pos, i) => {
                 // UVL 3D Camera Sensor
                 const s = uvl_vertices_s[i];
                 // Only render if in front of camera
                 if (s > 0) {
-                    const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+                    const geometry = new THREE.SphereGeometry(0.03, 16, 16);
                     const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
                     const mesh = new THREE.Mesh(geometry, material);
                     mesh.position.copy(pos);
@@ -485,10 +525,6 @@
                     vertexMeshes.push(mesh);
                 }
             });
-                
-
-
-            
             uvl_edges.forEach(([i, j]) => {
                 // Main 3D scene
                 if (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0) {
@@ -554,7 +590,6 @@
             requestAnimationFrame(animate);
             
             // Handle WASD movement for selected vertex
-            // if (world_vertices.length > 0 && selectedVertexIndex < world_vertices.length) {
             if (hypercube.vertices.length > 0 && selectedVertexIndex < hypercube.vertices.length) {
                 let moved = false;
                 
