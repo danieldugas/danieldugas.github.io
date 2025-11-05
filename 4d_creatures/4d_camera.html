@@ -122,6 +122,47 @@
                 return new Vector4D(x, y, z, w);
             }
 
+            transform_transform(T) {
+                // matrix multiplication: this.matrix * T.matrix
+                // inC_T_B * inB_T_A  -> inC_T_A
+                // inC_T_B.transform_transform(inB_T_A) -> inC_T_A
+                let Tl = this.matrix;
+                let Tr = T.matrix;
+                let Tn = [
+                    [
+                        Tl[0][0] * Tr[0][0] + Tl[0][1] * Tr[1][0] + Tl[0][2] * Tr[2][0] + Tl[0][3] * Tr[3][0],
+                        Tl[0][0] * Tr[0][1] + Tl[0][1] * Tr[1][1] + Tl[0][2] * Tr[2][1] + Tl[0][3] * Tr[3][1],
+                        Tl[0][0] * Tr[0][2] + Tl[0][1] * Tr[1][2] + Tl[0][2] * Tr[2][2] + Tl[0][3] * Tr[3][2],
+                        Tl[0][0] * Tr[0][3] + Tl[0][1] * Tr[1][3] + Tl[0][2] * Tr[2][3] + Tl[0][3] * Tr[3][3],
+                        Tl[0][0] * Tr[0][4] + Tl[0][1] * Tr[1][4] + Tl[0][2] * Tr[2][4] + Tl[0][3] * Tr[3][4] + Tl[0][4]
+                    ],
+                    [
+                        Tl[1][0] * Tr[0][0] + Tl[1][1] * Tr[1][0] + Tl[1][2] * Tr[2][0] + Tl[1][3] * Tr[3][0],
+                        Tl[1][0] * Tr[0][1] + Tl[1][1] * Tr[1][1] + Tl[1][2] * Tr[2][1] + Tl[1][3] * Tr[3][1],
+                        Tl[1][0] * Tr[0][2] + Tl[1][1] * Tr[1][2] + Tl[1][2] * Tr[2][2] + Tl[1][3] * Tr[3][2],
+                        Tl[1][0] * Tr[0][3] + Tl[1][1] * Tr[1][3] + Tl[1][2] * Tr[2][3] + Tl[1][3] * Tr[3][3],
+                        Tl[1][0] * Tr[0][4] + Tl[1][1] * Tr[1][4] + Tl[1][2] * Tr[2][4] + Tl[1][3] * Tr[3][4] + Tl[1][4]
+                    ],
+                    [
+                        Tl[2][0] * Tr[0][0] + Tl[2][1] * Tr[1][0] + Tl[2][2] * Tr[2][0] + Tl[2][3] * Tr[3][0],
+                        Tl[2][0] * Tr[0][1] + Tl[2][1] * Tr[1][1] + Tl[2][2] * Tr[2][1] + Tl[2][3] * Tr[3][1],
+                        Tl[2][0] * Tr[0][2] + Tl[2][1] * Tr[1][2] + Tl[2][2] * Tr[2][2] + Tl[2][3] * Tr[3][2],
+                        Tl[2][0] * Tr[0][3] + Tl[2][1] * Tr[1][3] + Tl[2][2] * Tr[2][3] + Tl[2][3] * Tr[3][3],
+                        Tl[2][0] * Tr[0][4] + Tl[2][1] * Tr[1][4] + Tl[2][2] * Tr[2][4] + Tl[2][3] * Tr[3][4] + Tl[2][4]
+                    ],
+                    [
+                        Tl[3][0] * Tr[0][0] + Tl[3][1] * Tr[1][0] + Tl[3][2] * Tr[2][0] + Tl[3][3] * Tr[3][0],
+                        Tl[3][0] * Tr[0][1] + Tl[3][1] * Tr[1][1] + Tl[3][2] * Tr[2][1] + Tl[3][3] * Tr[3][1],
+                        Tl[3][0] * Tr[0][2] + Tl[3][1] * Tr[1][2] + Tl[3][2] * Tr[2][2] + Tl[3][3] * Tr[3][2],
+                        Tl[3][0] * Tr[0][3] + Tl[3][1] * Tr[1][3] + Tl[3][2] * Tr[2][3] + Tl[3][3] * Tr[3][3],
+                        Tl[3][0] * Tr[0][4] + Tl[3][1] * Tr[1][4] + Tl[3][2] * Tr[2][4] + Tl[3][3] * Tr[3][4] + Tl[3][4]
+                    ],
+                    [0, 0, 0, 0, 1]
+                ];
+                return new Transform4D(Tn);
+            }
+
+
             translate_self_by_delta(dx, dy, dz, dw, is_in_own_frame) {
                 if (is_in_own_frame) {
                     // translation in own frame
@@ -139,15 +180,17 @@
                 }
             }
 
-            rotate_self_by_delta(plane_string, angle_rad) {
+            rotate_self_by_delta(plane_string, angle_rad, is_in_own_frame) {
                 // plane string: 'XY', 'XZ', 'XW', 'YZ', 'YW', 'ZW'
                 let c = Math.cos(angle_rad);
                 let s = Math.sin(angle_rad);
                 let R = [
-                    [1, 0, 0, 0],
-                    [0, 1, 0, 0],
-                    [0, 0, 1, 0],
-                    [0, 0, 0, 1]
+                    [1, 0, 0, 0,  0],
+                    [0, 1, 0, 0,  0],
+                    [0, 0, 1, 0,  0],
+                    [0, 0, 0, 1,  0],
+
+                    [0, 0, 0, 0,  1]
                 ];
                 switch (plane_string) {
                     case 'XY':
@@ -178,40 +221,18 @@
                         console.error('Invalid plane string for rotation');
                         return;
                 }
-                // Apply rotation to current matrix
-                let Ro = this.matrix;
-                let newMatrix = [
-                    [
-                        R[0][0] * Ro[0][0] + R[0][1] * Ro[1][0] + R[0][2] * Ro[2][0] + R[0][3] * Ro[3][0],
-                        R[0][0] * Ro[0][1] + R[0][1] * Ro[1][1] + R[0][2] * Ro[2][1] + R[0][3] * Ro[3][1],
-                        R[0][0] * Ro[0][2] + R[0][1] * Ro[1][2] + R[0][2] * Ro[2][2] + R[0][3] * Ro[3][2],
-                        R[0][0] * Ro[0][3] + R[0][1] * Ro[1][3] + R[0][2] * Ro[2][3] + R[0][3] * Ro[3][3],
-                        Ro[0][4]
-                    ],
-                    [
-                        R[1][0] * Ro[0][0] + R[1][1] * Ro[1][0] + R[1][2] * Ro[2][0] + R[1][3] * Ro[3][0],
-                        R[1][0] * Ro[0][1] + R[1][1] * Ro[1][1] + R[1][2] * Ro[2][1] + R[1][3] * Ro[3][1],
-                        R[1][0] * Ro[0][2] + R[1][1] * Ro[1][2] + R[1][2] * Ro[2][2] + R[1][3] * Ro[3][2],
-                        R[1][0] * Ro[0][3] + R[1][1] * Ro[1][3] + R[1][2] * Ro[2][3] + R[1][3] * Ro[3][3],
-                        Ro[1][4]
-                    ],
-                    [
-                        R[2][0] * Ro[0][0] + R[2][1] * Ro[1][0] + R[2][2] * Ro[2][0] + R[2][3] * Ro[3][0],
-                        R[2][0] * Ro[0][1] + R[2][1] * Ro[1][1] + R[2][2] * Ro[2][1] + R[2][3] * Ro[3][1],
-                        R[2][0] * Ro[0][2] + R[2][1] * Ro[1][2] + R[2][2] * Ro[2][2] + R[2][3] * Ro[3][2],
-                        R[2][0] * Ro[0][3] + R[2][1] * Ro[1][3] + R[2][2] * Ro[2][3] + R[2][3] * Ro[3][3],
-                        Ro[2][4]
-                    ],
-                    [
-                        R[3][0] * Ro[0][0] + R[3][1] * Ro[1][0] + R[3][2] * Ro[2][0] + R[3][3] * Ro[3][0],
-                        R[3][0] * Ro[0][1] + R[3][1] * Ro[1][1] + R[3][2] * Ro[2][1] + R[3][3] * Ro[3][1],
-                        R[3][0] * Ro[0][2] + R[3][1] * Ro[1][2] + R[3][2] * Ro[2][2] + R[3][3] * Ro[3][2],
-                        R[3][0] * Ro[0][3] + R[3][1] * Ro[1][3] + R[3][2] * Ro[2][3] + R[3][3] * Ro[3][3],
-                        Ro[3][4]
-                    ]
-                ];
-                // update matrix
-                this.matrix = newMatrix;
+                // let newT = this.transform_transform(new Transform4D(R));
+                // this.matrix = newT.matrix;
+                let Rdelta = new Transform4D(R);
+                if (is_in_own_frame) {
+                    // Apply rotation in own frame
+                    let newT = this.transform_transform(Rdelta);
+                    this.matrix = newT.matrix;
+                } else {
+                    // Apply rotation in parent frame
+                    let newT = Rdelta.transform_transform(this);
+                    this.matrix = newT.matrix;
+                }
             }
                     
 
@@ -396,7 +417,7 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a2e);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(1.5, 1.5, 1.5);
+        camera.position.set(2, 2, 2);
         camera.lookAt(0, 0, 0);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -404,7 +425,7 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement); // Add OrbitControls
         
         // Create bounding box
-        const UVLBoxSize = 1; // we assume the UVL range is -1 to 1 in each dimension (see hypercamera_sensor_uvl_range)
+        const UVLBoxSize = 2; // we assume the UVL range is -1 to 1 in each dimension (see hypercamera_sensor_uvl_range)
         const boxGeometry = new THREE.BoxGeometry(UVLBoxSize, UVLBoxSize, UVLBoxSize);
         const boxEdges = new THREE.EdgesGeometry(boxGeometry);
         const boxMaterial = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 });
@@ -471,7 +492,9 @@
         // Materials
         const vertexMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
         const selectedVertexMaterial = new THREE.MeshBasicMaterial({ color: 0xff3366 });
+        const outOfSensorVertexMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
         const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x4477ff, linewidth: 2 });
+        const outOfSensorEdgeMaterial = new THREE.LineBasicMaterial({ color: 0x444444, linewidth: 1 });
 
         // Threejs Mesh objects
         let vertexMeshes = [];
@@ -673,9 +696,21 @@
                 // UVL 3D Camera Sensor
                 const s = uvl_vertices_s[i];
                 // Only render if in front of camera
+                const is_in_front = s > 0;
+                const is_inside_sensor = (
+                    pos.x >= hypercamera_sensor_uvl_range[0] &&
+                    pos.x <= hypercamera_sensor_uvl_range[1] &&
+                    pos.y >= hypercamera_sensor_uvl_range[2] &&
+                    pos.y <= hypercamera_sensor_uvl_range[3] &&
+                    pos.z >= hypercamera_sensor_uvl_range[4] &&
+                    pos.z <= hypercamera_sensor_uvl_range[5]
+                );
                 if (s > 0) {
                     const geometry = new THREE.SphereGeometry(0.03, 16, 16);
-                    const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
+                    let material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
+                    if (!is_inside_sensor) {
+                        material = outOfSensorVertexMaterial;
+                    }
                     const mesh = new THREE.Mesh(geometry, material);
                     mesh.position.copy(pos);
                     mesh.selectable_idx = i;
@@ -685,10 +720,29 @@
             });
             uvl_edges.forEach(([i, j]) => {
                 // Main 3D scene
+                const are_both_vertices_in_front = (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0);
+                const are_both_vertices_inside_sensor = (
+                    uvl_vertices[i].x >= hypercamera_sensor_uvl_range[0] &&
+                    uvl_vertices[i].x <= hypercamera_sensor_uvl_range[1] &&
+                    uvl_vertices[i].y >= hypercamera_sensor_uvl_range[2] &&
+                    uvl_vertices[i].y <= hypercamera_sensor_uvl_range[3] &&
+                    uvl_vertices[i].z >= hypercamera_sensor_uvl_range[4] &&
+                    uvl_vertices[i].z <= hypercamera_sensor_uvl_range[5] &&
+                    uvl_vertices[j].x >= hypercamera_sensor_uvl_range[0] &&
+                    uvl_vertices[j].x <= hypercamera_sensor_uvl_range[1] &&
+                    uvl_vertices[j].y >= hypercamera_sensor_uvl_range[2] &&
+                    uvl_vertices[j].y <= hypercamera_sensor_uvl_range[3] &&
+                    uvl_vertices[j].z >= hypercamera_sensor_uvl_range[4] &&
+                    uvl_vertices[j].z <= hypercamera_sensor_uvl_range[5]
+                );
                 if (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0) {
                     const points = [uvl_vertices[i], uvl_vertices[j]];
                     const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                    const line = new THREE.Line(geometry, edgeMaterial);
+                    let material = edgeMaterial;
+                    if (!are_both_vertices_inside_sensor) {
+                        material = outOfSensorEdgeMaterial;
+                    }
+                    const line = new THREE.Line(geometry, material);
                     scene.add(line);
                     edgeMeshes.push(line);
                 }
@@ -819,27 +873,27 @@
                 }
 
                 if (keys['i']) {
-                    hypercamera_T.rotate_self_by_delta('XZ', 0.05);
+                    hypercamera_T.rotate_self_by_delta('XZ', 0.05, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['k']) {
-                    hypercamera_T.rotate_self_by_delta('XZ', -0.05);
+                    hypercamera_T.rotate_self_by_delta('XZ', -0.05, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['j']) {
-                    hypercamera_T.rotate_self_by_delta('XY', -0.05);
+                    hypercamera_T.rotate_self_by_delta('XY', -0.05, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['l']) {
-                    hypercamera_T.rotate_self_by_delta('XY', 0.05);
+                    hypercamera_T.rotate_self_by_delta('XY', 0.05, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['u']) {
-                    hypercamera_T.rotate_self_by_delta('XW', -0.05);
+                    hypercamera_T.rotate_self_by_delta('XW', -0.05, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['o']) {
-                    hypercamera_T.rotate_self_by_delta('XW', 0.05);
+                    hypercamera_T.rotate_self_by_delta('XW', 0.05, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 
