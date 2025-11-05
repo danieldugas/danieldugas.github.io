@@ -266,11 +266,29 @@
                 return new Vector4D(x, y, z, w);
             }
 
-            translate_origin(dx, dy, dz, dw) {
-                this.matrix[0][4] += dx;
-                this.matrix[1][4] += dy;
-                this.matrix[2][4] += dz;
-                this.matrix[3][4] += dw;
+            transform_vector(v) {
+                let x = this.matrix[0][0] * v.x + this.matrix[0][1] * v.y + this.matrix[0][2] * v.z + this.matrix[0][3] * v.w;
+                let y = this.matrix[1][0] * v.x + this.matrix[1][1] * v.y + this.matrix[1][2] * v.z + this.matrix[1][3] * v.w;
+                let z = this.matrix[2][0] * v.x + this.matrix[2][1] * v.y + this.matrix[2][2] * v.z + this.matrix[2][3] * v.w;
+                let w = this.matrix[3][0] * v.x + this.matrix[3][1] * v.y + this.matrix[3][2] * v.z + this.matrix[3][3] * v.w;
+                return new Vector4D(x, y, z, w);
+            }
+
+            translate_self_by_delta(dx, dy, dz, dw, is_in_own_frame) {
+                if (is_in_own_frame) {
+                    // translation in own frame
+                    let delta_in_parent = this.transform_vector(new Vector4D(dx, dy, dz, dw));
+                    this.matrix[0][4] += delta_in_parent.x;
+                    this.matrix[1][4] += delta_in_parent.y;
+                    this.matrix[2][4] += delta_in_parent.z;
+                    this.matrix[3][4] += delta_in_parent.w;
+                } else {
+                    // translation in parent frame
+                    this.matrix[0][4] += dx;
+                    this.matrix[1][4] += dy;
+                    this.matrix[2][4] += dz;
+                    this.matrix[3][4] += dw;
+                }
             }
 
             rotate_self_by_delta(plane_string, angle_rad) {
@@ -760,45 +778,46 @@
                 //     moved = true;
                 // }
 
+                const RELATIVE_MOVEMENT = true;
                 if (keys['w']) {
-                    hypercamera_T.translate_origin(moveSpeed, 0, 0, 0);
+                    hypercamera_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['s']) {
-                    hypercamera_T.translate_origin(-moveSpeed, 0, 0, 0);
+                    hypercamera_T.translate_self_by_delta(-moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['a']) {
-                    hypercamera_T.translate_origin(0, -moveSpeed, 0, 0);
+                    hypercamera_T.translate_self_by_delta(0, -moveSpeed, 0, 0, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['d']) {
-                    hypercamera_T.translate_origin(0, moveSpeed, 0, 0);
+                    hypercamera_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['q']) {
-                    hypercamera_T.translate_origin(0, 0, 0, -moveSpeed);
+                    hypercamera_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['e']) {
-                    hypercamera_T.translate_origin(0, 0, 0, moveSpeed);
+                    hypercamera_T.translate_self_by_delta(0, 0, 0, moveSpeed, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['r']) {
-                    hypercamera_T.translate_origin(0, 0, moveSpeed, 0);
+                    hypercamera_T.translate_self_by_delta(0, 0, moveSpeed, 0, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['f']) {
-                    hypercamera_T.translate_origin(0, 0, -moveSpeed, 0);
+                    hypercamera_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
                     moved = true;
                 }
 
                 if (keys['i']) {
-                    hypercamera_T.rotate_self_by_delta('XZ', -0.05);
+                    hypercamera_T.rotate_self_by_delta('XZ', 0.05);
                     moved = true;
                 }
                 if (keys['k']) {
-                    hypercamera_T.rotate_self_by_delta('XZ', 0.05);
+                    hypercamera_T.rotate_self_by_delta('XZ', -0.05);
                     moved = true;
                 }
                 if (keys['j']) {
