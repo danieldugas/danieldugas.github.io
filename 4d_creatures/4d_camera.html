@@ -382,7 +382,8 @@
             for (let v of hypercube.vertices) {
                 // Camera equation uvl ~= K * [R|t] * XYZW
                 // we define x as the depth axis here (aka camera cube sensor is at x=1)
-                let suvl = [ v.x, v.y, v.z, v.w ]; // TODO
+                let xyzw_camframe = new Vector4D(v.x, v.y, v.z, v.w); // TODO do actual transform to camera frame
+                let suvl = [ xyzw_camframe.x, xyzw_camframe.y, xyzw_camframe.z, xyzw_camframe.w ]; // TODO: apply intrinsics
                 let uvl = [ suvl[1] / suvl[0], suvl[2] / suvl[0], suvl[3] / suvl[0] ]; // perspective divide
                 uvl_vertices.push(new THREE.Vector3(uvl[0], uvl[1], uvl[2]));
                 uvl_vertices_s.push(suvl[0]);
@@ -398,6 +399,7 @@
                     const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
                     const mesh = new THREE.Mesh(geometry, material);
                     mesh.position.copy(pos);
+                    mesh.selectable_idx = i;
                     scene.add(mesh);
                     vertexMeshes.push(mesh);
                 }
@@ -516,7 +518,7 @@
             
             if (intersects.length > 0) {
                 const clickedMesh = intersects[0].object;
-                selectedVertexIndex = vertexMeshes.indexOf(clickedMesh);
+                selectedVertexIndex = clickedMesh.selectable_idx;
                 document.getElementById('selected').textContent = `Vertex ${selectedVertexIndex}`;
                 updateGraph();
             }
