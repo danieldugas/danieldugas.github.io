@@ -256,6 +256,139 @@
             static origin() {
                 return Vector4D(this.matrix[0][4], this.matrix[1][4], this.matrix[2][4], this.matrix[3][4]);
             }
+
+            // transform_point(v: Vector4D): Vector4D
+            transform_point(v) {
+                let x = this.matrix[0][0] * v.x + this.matrix[0][1] * v.y + this.matrix[0][2] * v.z + this.matrix[0][3] * v.w + this.matrix[0][4];
+                let y = this.matrix[1][0] * v.x + this.matrix[1][1] * v.y + this.matrix[1][2] * v.z + this.matrix[1][3] * v.w + this.matrix[1][4];
+                let z = this.matrix[2][0] * v.x + this.matrix[2][1] * v.y + this.matrix[2][2] * v.z + this.matrix[2][3] * v.w + this.matrix[2][4];
+                let w = this.matrix[3][0] * v.x + this.matrix[3][1] * v.y + this.matrix[3][2] * v.z + this.matrix[3][3] * v.w + this.matrix[3][4];
+                return new Vector4D(x, y, z, w);
+            }
+
+            translate_origin(dx, dy, dz, dw) {
+                this.matrix[0][4] += dx;
+                this.matrix[1][4] += dy;
+                this.matrix[2][4] += dz;
+                this.matrix[3][4] += dw;
+            }
+
+            rotate_self_by_delta(plane_string, angle_rad) {
+                // plane string: 'XY', 'XZ', 'XW', 'YZ', 'YW', 'ZW'
+                let c = Math.cos(angle_rad);
+                let s = Math.sin(angle_rad);
+                let R = [
+                    [1, 0, 0, 0],
+                    [0, 1, 0, 0],
+                    [0, 0, 1, 0],
+                    [0, 0, 0, 1]
+                ];
+                switch (plane_string) {
+                    case 'XY':
+                        R[0][0] = c; R[0][1] = -s;
+                        R[1][0] = s; R[1][1] = c;
+                        break;
+                    case 'XZ':
+                        R[0][0] = c; R[0][2] = -s;
+                        R[2][0] = s; R[2][2] = c;
+                        break;
+                    case 'XW':
+                        R[0][0] = c; R[0][3] = -s;
+                        R[3][0] = s; R[3][3] = c;
+                        break;
+                    case 'YZ':
+                        R[1][1] = c; R[1][2] = -s;
+                        R[2][1] = s; R[2][2] = c;
+                        break;
+                    case 'YW':
+                        R[1][1] = c; R[1][3] = -s;
+                        R[3][1] = s; R[3][3] = c;
+                        break;
+                    case 'ZW':
+                        R[2][2] = c; R[2][3] = -s;
+                        R[3][2] = s; R[3][3] = c;
+                        break;
+                    default:
+                        console.error('Invalid plane string for rotation');
+                        return;
+                }
+                // Apply rotation to current matrix
+                let Ro = this.matrix;
+                let newMatrix = [
+                    [
+                        R[0][0] * Ro[0][0] + R[0][1] * Ro[1][0] + R[0][2] * Ro[2][0] + R[0][3] * Ro[3][0],
+                        R[0][0] * Ro[0][1] + R[0][1] * Ro[1][1] + R[0][2] * Ro[2][1] + R[0][3] * Ro[3][1],
+                        R[0][0] * Ro[0][2] + R[0][1] * Ro[1][2] + R[0][2] * Ro[2][2] + R[0][3] * Ro[3][2],
+                        R[0][0] * Ro[0][3] + R[0][1] * Ro[1][3] + R[0][2] * Ro[2][3] + R[0][3] * Ro[3][3],
+                        Ro[0][4]
+                    ],
+                    [
+                        R[1][0] * Ro[0][0] + R[1][1] * Ro[1][0] + R[1][2] * Ro[2][0] + R[1][3] * Ro[3][0],
+                        R[1][0] * Ro[0][1] + R[1][1] * Ro[1][1] + R[1][2] * Ro[2][1] + R[1][3] * Ro[3][1],
+                        R[1][0] * Ro[0][2] + R[1][1] * Ro[1][2] + R[1][2] * Ro[2][2] + R[1][3] * Ro[3][2],
+                        R[1][0] * Ro[0][3] + R[1][1] * Ro[1][3] + R[1][2] * Ro[2][3] + R[1][3] * Ro[3][3],
+                        Ro[1][4]
+                    ],
+                    [
+                        R[2][0] * Ro[0][0] + R[2][1] * Ro[1][0] + R[2][2] * Ro[2][0] + R[2][3] * Ro[3][0],
+                        R[2][0] * Ro[0][1] + R[2][1] * Ro[1][1] + R[2][2] * Ro[2][1] + R[2][3] * Ro[3][1],
+                        R[2][0] * Ro[0][2] + R[2][1] * Ro[1][2] + R[2][2] * Ro[2][2] + R[2][3] * Ro[3][2],
+                        R[2][0] * Ro[0][3] + R[2][1] * Ro[1][3] + R[2][2] * Ro[2][3] + R[2][3] * Ro[3][3],
+                        Ro[2][4]
+                    ],
+                    [
+                        R[3][0] * Ro[0][0] + R[3][1] * Ro[1][0] + R[3][2] * Ro[2][0] + R[3][3] * Ro[3][0],
+                        R[3][0] * Ro[0][1] + R[3][1] * Ro[1][1] + R[3][2] * Ro[2][1] + R[3][3] * Ro[3][1],
+                        R[3][0] * Ro[0][2] + R[3][1] * Ro[1][2] + R[3][2] * Ro[2][2] + R[3][3] * Ro[3][2],
+                        R[3][0] * Ro[0][3] + R[3][1] * Ro[1][3] + R[3][2] * Ro[2][3] + R[3][3] * Ro[3][3],
+                        Ro[3][4]
+                    ]
+                ];
+                // update matrix
+                this.matrix = newMatrix;
+            }
+                    
+
+            
+
+            inverse() {
+                // separate rotation and translation
+                let R = [
+                    [this.matrix[0][0], this.matrix[0][1], this.matrix[0][2], this.matrix[0][3]],
+                    [this.matrix[1][0], this.matrix[1][1], this.matrix[1][2], this.matrix[1][3]],
+                    [this.matrix[2][0], this.matrix[2][1], this.matrix[2][2], this.matrix[2][3]],
+                    [this.matrix[3][0], this.matrix[3][1], this.matrix[3][2], this.matrix[3][3]]
+                ];
+                let t = [
+                    this.matrix[0][4],
+                    this.matrix[1][4],
+                    this.matrix[2][4],
+                    this.matrix[3][4]
+                ];
+                // transpose rotation
+                let R_inv = [
+                    [R[0][0], R[1][0], R[2][0], R[3][0]],
+                    [R[0][1], R[1][1], R[2][1], R[3][1]],
+                    [R[0][2], R[1][2], R[2][2], R[3][2]],
+                    [R[0][3], R[1][3], R[2][3], R[3][3]]
+                ];
+                // new translation
+                let t_inv = [
+                    -(R_inv[0][0] * t[0] + R_inv[0][1] * t[1] + R_inv[0][2] * t[2] + R_inv[0][3] * t[3]),
+                    -(R_inv[1][0] * t[0] + R_inv[1][1] * t[1] + R_inv[1][2] * t[2] + R_inv[1][3] * t[3]),
+                    -(R_inv[2][0] * t[0] + R_inv[2][1] * t[1] + R_inv[2][2] * t[2] + R_inv[2][3] * t[3]),
+                    -(R_inv[3][0] * t[0] + R_inv[3][1] * t[1] + R_inv[3][2] * t[2] + R_inv[3][3] * t[3])
+                ];
+                // combine into new matrix
+                let invMatrix = [
+                    [R_inv[0][0], R_inv[0][1], R_inv[0][2], R_inv[0][3], t_inv[0]],
+                    [R_inv[1][0], R_inv[1][1], R_inv[1][2], R_inv[1][3], t_inv[1]],
+                    [R_inv[2][0], R_inv[2][1], R_inv[2][2], R_inv[2][3], t_inv[2]],
+                    [R_inv[3][0], R_inv[3][1], R_inv[3][2], R_inv[3][3], t_inv[3]],
+                    [0, 0, 0, 0, 1]
+                ];
+                return new Transform4D(invMatrix);
+            }
         }
 
         // 4D Scene Bodies
@@ -265,7 +398,7 @@
             [0, 0, 1, 0, 0],
             [0, 0, 0, 1, 0],
             [0, 0, 0, 0, 1]
-        ]);
+        ]); // hypercam in world
         let hf = 1.0; // hyper focal length
         let hypercamera_intrinsics = [
             [hf, 0, 0, 0],
@@ -377,8 +510,8 @@
             for (let [start, end] of camera_edges_in_suvl) {
                 let start_in_cam = new Vector4D(start[0], start[1], start[2], start[3]); // TODO: apply reverse intrinsics
                 let end_in_cam = new Vector4D(end[0], end[1], end[2], end[3]); // TODO: apply reverse intrinsics
-                let start_in_world = start_in_cam; // TODO: apply reverse camera transform
-                let end_in_world = end_in_cam; // TODO: apply reverse camera transform
+                let start_in_world = hypercamera_T.transform_point(start_in_cam); // TODO: apply reverse camera transform
+                let end_in_world = hypercamera_T.transform_point(end_in_cam); // TODO: apply reverse camera transform
                 camera_edges_in_world.push([start_in_world, end_in_world]);
             }
 
@@ -504,7 +637,8 @@
             for (let v of hypercube.vertices) {
                 // Camera equation uvl ~= K * [R|t] * XYZW
                 // we define x as the depth axis here (aka camera cube sensor is at x=1)
-                let xyzw_camframe = new Vector4D(v.x, v.y, v.z, v.w); // TODO do actual transform to camera frame
+                // let xyzw_camframe = new Vector4D(v.x, v.y, v.z, v.w); // TODO do actual transform to camera frame
+                let xyzw_camframe = hypercamera_T.inverse().transform_point(v);
                 let suvl = [ xyzw_camframe.x, xyzw_camframe.y, xyzw_camframe.z, xyzw_camframe.w ]; // TODO: apply intrinsics
                 let uvl = [ suvl[1] / suvl[0], suvl[2] / suvl[0], suvl[3] / suvl[0] ]; // perspective divide
                 uvl_vertices.push(new THREE.Vector3(uvl[0], uvl[1], uvl[2]));
@@ -593,36 +727,94 @@
             if (hypercube.vertices.length > 0 && selectedVertexIndex < hypercube.vertices.length) {
                 let moved = false;
                 
+                // if (keys['w']) {
+                //     hypercube.vertices[selectedVertexIndex].x += moveSpeed;
+                //     moved = true;
+                // }
+                // if (keys['s']) {
+                //     hypercube.vertices[selectedVertexIndex].x -= moveSpeed;
+                //     moved = true;
+                // }
+                // if (keys['a']) {
+                //     hypercube.vertices[selectedVertexIndex].y -= moveSpeed;
+                //     moved = true;
+                // }
+                // if (keys['d']) {
+                //     hypercube.vertices[selectedVertexIndex].y += moveSpeed;
+                //     moved = true;
+                // }
+                // if (keys['q']) {
+                //     hypercube.vertices[selectedVertexIndex].w -= moveSpeed;
+                //     moved = true;
+                // }
+                // if (keys['e']) {
+                //     hypercube.vertices[selectedVertexIndex].w += moveSpeed;
+                //     moved = true;
+                // }
+                // if (keys['r']) {
+                //     hypercube.vertices[selectedVertexIndex].z += moveSpeed;
+                //     moved = true;
+                // }
+                // if (keys['f']) {
+                //     hypercube.vertices[selectedVertexIndex].z -= moveSpeed;
+                //     moved = true;
+                // }
+
                 if (keys['w']) {
-                    hypercube.vertices[selectedVertexIndex].x += moveSpeed;
+                    hypercamera_T.translate_origin(moveSpeed, 0, 0, 0);
                     moved = true;
                 }
                 if (keys['s']) {
-                    hypercube.vertices[selectedVertexIndex].x -= moveSpeed;
+                    hypercamera_T.translate_origin(-moveSpeed, 0, 0, 0);
                     moved = true;
                 }
                 if (keys['a']) {
-                    hypercube.vertices[selectedVertexIndex].y -= moveSpeed;
+                    hypercamera_T.translate_origin(0, -moveSpeed, 0, 0);
                     moved = true;
                 }
                 if (keys['d']) {
-                    hypercube.vertices[selectedVertexIndex].y += moveSpeed;
+                    hypercamera_T.translate_origin(0, moveSpeed, 0, 0);
                     moved = true;
                 }
                 if (keys['q']) {
-                    hypercube.vertices[selectedVertexIndex].w -= moveSpeed;
+                    hypercamera_T.translate_origin(0, 0, 0, -moveSpeed);
                     moved = true;
                 }
                 if (keys['e']) {
-                    hypercube.vertices[selectedVertexIndex].w += moveSpeed;
+                    hypercamera_T.translate_origin(0, 0, 0, moveSpeed);
                     moved = true;
                 }
                 if (keys['r']) {
-                    hypercube.vertices[selectedVertexIndex].z += moveSpeed;
+                    hypercamera_T.translate_origin(0, 0, moveSpeed, 0);
                     moved = true;
                 }
                 if (keys['f']) {
-                    hypercube.vertices[selectedVertexIndex].z -= moveSpeed;
+                    hypercamera_T.translate_origin(0, 0, -moveSpeed, 0);
+                    moved = true;
+                }
+
+                if (keys['i']) {
+                    hypercamera_T.rotate_self_by_delta('XZ', -0.05);
+                    moved = true;
+                }
+                if (keys['k']) {
+                    hypercamera_T.rotate_self_by_delta('XZ', 0.05);
+                    moved = true;
+                }
+                if (keys['j']) {
+                    hypercamera_T.rotate_self_by_delta('XY', -0.05);
+                    moved = true;
+                }
+                if (keys['l']) {
+                    hypercamera_T.rotate_self_by_delta('XY', 0.05);
+                    moved = true;
+                }
+                if (keys['u']) {
+                    hypercamera_T.rotate_self_by_delta('XW', -0.05);
+                    moved = true;
+                }
+                if (keys['o']) {
+                    hypercamera_T.rotate_self_by_delta('XW', 0.05);
                     moved = true;
                 }
                 
