@@ -53,9 +53,12 @@
 </head>
 <body>
     <div id="info">
-        WASD: Move selected vertex (XY)<br>
-        Q/E: Move selected vertex (Z)<br>
-        Mouse drag: Rotate view<br>
+        WASD: Move camera forwards, sideways<br>
+        Q/E: Move camera in ana, kata directions<br>
+        IJKL: Rotate camera up/down, left/right<br>
+        U/O: Rotate camera in wx plane<br>
+        Y/P: Rotate camera in wy plane<br>
+        Mouse drag: Rotate sensor view<br>
         Mouse wheel: Zoom<br>
         Click: Select vertex<br>
         Selected: <span id="selected">None</span>
@@ -63,11 +66,11 @@
     <div id="main-canvas"></div>
     <div id="projection-container">
         <div class="projection-view">
-            <div class="projection-label">XZ Projection (Top View)</div>
+            <div class="projection-label">XZ Projection (Side View)</div>
             <div id="xz-canvas"></div>
         </div>
         <div class="projection-view">
-            <div class="projection-label">YZ Projection (Side View)</div>
+            <div class="projection-label">YZ Projection (Back View)</div>
             <div id="yz-canvas"></div>
         </div>
         <div class="projection-view">
@@ -237,12 +240,32 @@
                 } else {
                     // Apply rotation in parent frame
                     let newT = Rdelta.transform_transform(this);
-                    this.matrix = newT.matrix;
+                    // this.matrix = newT.matrix;
+                    // only copy the rotation part, keep the translation part
+                    // without rotation_only, we rotate around the parent origin instead of our own origin
+                    this.matrix = [
+                        [newT.matrix[0][0], newT.matrix[0][1], newT.matrix[0][2], newT.matrix[0][3], this.matrix[0][4]],
+                        [newT.matrix[1][0], newT.matrix[1][1], newT.matrix[1][2], newT.matrix[1][3], this.matrix[1][4]],
+                        [newT.matrix[2][0], newT.matrix[2][1], newT.matrix[2][2], newT.matrix[2][3], this.matrix[2][4]],
+                        [newT.matrix[3][0], newT.matrix[3][1], newT.matrix[3][2], newT.matrix[3][3], this.matrix[3][4]],
+                        [0, 0, 0, 0, 1]
+                    ];
                 }
             }
                     
 
             
+
+            rotation_only() {
+                let R = [
+                    [this.matrix[0][0], this.matrix[0][1], this.matrix[0][2], this.matrix[0][3], 0],
+                    [this.matrix[1][0], this.matrix[1][1], this.matrix[1][2], this.matrix[1][3], 0],
+                    [this.matrix[2][0], this.matrix[2][1], this.matrix[2][2], this.matrix[2][3], 0],
+                    [this.matrix[3][0], this.matrix[3][1], this.matrix[3][2], this.matrix[3][3], 0],
+                    [0, 0, 0, 0, 1]
+                ];
+                return new Transform4D(R);
+            }
 
             inverse() {
                 // separate rotation and translation
@@ -577,6 +600,7 @@
         const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x4477ff, linewidth: 2 });
         const outOfSensorEdgeMaterial = new THREE.LineBasicMaterial({ color: 0x444444, linewidth: 1 });
         const frustrumMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 });
+        const frustrumFarMaterial = new THREE.LineBasicMaterial({ color: 0x777700, linewidth: 1 });
 
         // Threejs Mesh objects
         let vertexMeshes = [];
@@ -710,7 +734,9 @@
                     new THREE.Vector3(0, end.z, -end.x)
                 ];
                 const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
-                const xzLine = new THREE.Line(xzGeometry, frustrumMaterial);
+                const is_closest_4 = end.y > start.y;
+                const material = is_closest_4 ? frustrumMaterial : frustrumFarMaterial;
+                const xzLine = new THREE.Line(xzGeometry, material);
                 xzScene.add(xzLine);
                 xzEdgeMeshes.push(xzLine);
             });
@@ -760,7 +786,9 @@
                     new THREE.Vector3(0, end.z, -end.y)
                 ];
                 const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
-                const yzLine = new THREE.Line(yzGeometry, new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 }));
+                const is_closest_4 = -end.x > -start.x;
+                const material = is_closest_4 ? frustrumMaterial : frustrumFarMaterial;
+                const yzLine = new THREE.Line(yzGeometry, material);
                 yzScene.add(yzLine);
                 yzEdgeMeshes.push(yzLine);
             });
@@ -810,7 +838,9 @@
                     new THREE.Vector3(0, end.z, -end.w)
                 ];
                 const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
-                const wzLine = new THREE.Line(wzGeometry, new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 }));
+                const is_closest_4 = end.y > start.y;
+                const material = is_closest_4 ? frustrumMaterial : frustrumFarMaterial;
+                const wzLine = new THREE.Line(wzGeometry, material);
                 wzScene.add(wzLine);
                 wzEdgeMeshes.push(wzLine);
             });
@@ -983,53 +1013,13 @@
 
             let moved = false;
 
-            // complete this code:
-            // - reason about the steps first and whether they make sense
-            // - consider the number of dimensions that torque needs to have
-            // - calculate the velocities for the CoM in world frame, and at the end update the vertices
-            // - assume uniform mass when computing inertia
-
-            // let hypercube = {
-            //     vertices: [
-            //         new Vector4D(-1, -1, -1, -1),
-            //         new Vector4D( 1, -1, -1, -1),
-            //         new Vector4D( 1,  1, -1, -1),
-            //         new Vector4D(-1,  1, -1, -1),
-            //         new Vector4D(-1, -1,  1, -1),
-            //         new Vector4D( 1, -1,  1, -1),
-            //         new Vector4D( 1,  1,  1, -1),
-            //         new Vector4D(-1,  1,  1, -1),
-            //         new Vector4D(-1, -1, -1,  1),
-            //         new Vector4D( 1, -1, -1,  1),
-            //         new Vector4D( 1,  1, -1,  1),
-            //         new Vector4D(-1,  1, -1,  1),
-            //         new Vector4D(-1, -1,  1,  1),
-            //         new Vector4D( 1, -1,  1,  1),
-            //         new Vector4D( 1,  1,  1,  1),
-            //         new Vector4D(-1,  1,  1,  1)
-            //     ],
-            //     edges: [
-            //         [0,1],[1,2],[2,3],[3,0],
-            //         [4,5],[5,6],[6,7],[7,4],
-            //         [0,4],[1,5],[2,6],[3,7],
-            //         [8,9],[9,10],[10,11],[11,8],
-            //         [12,13],[13,14],[14,15],[15,12],
-            //         [8,12],[9,13],[10,14],[11,15],
-            //         [0,8],[1,9],[2,10],[3,11],
-            //         [4,12],[5,13],[6,14],[7,15]
-            //     ]
-            //     velocity: new Vector4D(0, 0, 0, 0),
-            //     rotational_velocity: {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0},
-            //     mass: 1.0,
-            // };
-
             // Simulate physics
             if (SIMULATE_PHYSICS) {
                 moved = true;
 
                 const FLOOR_HEIGHT = -2;
-                const FLOOR_STIFFNESS = 10;
-                const FLOOR_DAMPING = 1;
+                const FLOOR_STIFFNESS = 100;
+                const FLOOR_DAMPING = 10;
                 const GRAVITY = -9.81;
 
                 // calculate hypercube center of mass 
@@ -1194,6 +1184,8 @@
                     hypercamera_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
                     moved = true;
                 }
+                // reset camera z to 0
+                hypercamera_T.matrix[2][4] = 0;
 
                 if (keys['i']) {
                     hypercamera_T.rotate_self_by_delta('XZ', 0.05, RELATIVE_MOVEMENT);
@@ -1204,19 +1196,27 @@
                     moved = true;
                 }
                 if (keys['j']) {
-                    hypercamera_T.rotate_self_by_delta('XY', -0.05, RELATIVE_MOVEMENT);
+                    hypercamera_T.rotate_self_by_delta('XY', -0.05, false);
                     moved = true;
                 }
                 if (keys['l']) {
-                    hypercamera_T.rotate_self_by_delta('XY', 0.05, RELATIVE_MOVEMENT);
+                    hypercamera_T.rotate_self_by_delta('XY', 0.05, false);
                     moved = true;
                 }
                 if (keys['u']) {
-                    hypercamera_T.rotate_self_by_delta('XW', -0.05, RELATIVE_MOVEMENT);
+                    hypercamera_T.rotate_self_by_delta('XW', -0.05, false);
                     moved = true;
                 }
                 if (keys['o']) {
-                    hypercamera_T.rotate_self_by_delta('XW', 0.05, RELATIVE_MOVEMENT);
+                    hypercamera_T.rotate_self_by_delta('XW', 0.05, false);
+                    moved = true;
+                }
+                if (keys['y']) {
+                    hypercamera_T.rotate_self_by_delta('YW', -0.05, false);
+                    moved = true;
+                }
+                if (keys['p']) {
+                    hypercamera_T.rotate_self_by_delta('YW', 0.05, false);
                     moved = true;
                 }
             }
