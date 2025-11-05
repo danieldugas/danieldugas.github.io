@@ -21,8 +21,33 @@
             font-size: 14px;
             z-index: 100;
         }
-        canvas {
-            display: block;
+        #main-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #projection-container {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 50;
+        }
+        .projection-view {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #444;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .projection-label {
+            color: white;
+            text-align: center;
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.9);
+            font-size: 12px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -34,6 +59,21 @@
         Mouse wheel: Zoom<br>
         Click: Select vertex<br>
         Selected: <span id="selected">None</span>
+    </div>
+    <div id="main-canvas"></div>
+    <div id="projection-container">
+        <div class="projection-view">
+            <div class="projection-label">XZ Projection (Top View)</div>
+            <div id="xz-canvas"></div>
+        </div>
+        <div class="projection-view">
+            <div class="projection-label">YZ Projection (Side View)</div>
+            <div id="yz-canvas"></div>
+        </div>
+        <div class="projection-view">
+            <div class="projection-label">WZ Projection (AnaKata View)</div>
+            <div id="wz-canvas"></div>
+        </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -120,15 +160,12 @@
         // Scene setup
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a2e);
-
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(15, 15, 15);
         camera.lookAt(0, 0, 0);
-
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-        
+        document.getElementById('main-canvas').appendChild(renderer.domElement);
         // Add OrbitControls
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         
@@ -139,6 +176,59 @@
         const boxMaterial = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 });
         const boundingBox = new THREE.LineSegments(boxEdges, boxMaterial);
         scene.add(boundingBox);
+
+        // Setup XZ projection (top view)
+        const xzScene = new THREE.Scene();
+        xzScene.background = new THREE.Color(0x0a0a1a);
+        const xzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+        xzCamera.position.set(0, 20, 0);
+        xzCamera.lookAt(0, 0, 0);
+        const xzRenderer = new THREE.WebGLRenderer({ antialias: true });
+        const projectionSize = 200;
+        xzRenderer.setSize(projectionSize, projectionSize);
+        document.getElementById('xz-canvas').appendChild(xzRenderer.domElement);
+
+        // Setup YZ projection (side view)
+        const yzScene = new THREE.Scene();
+        yzScene.background = new THREE.Color(0x0a0a1a);
+        const yzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+        yzCamera.position.set(20, 0, 0);
+        yzCamera.lookAt(0, 0, 0);
+        const yzRenderer = new THREE.WebGLRenderer({ antialias: true });
+        yzRenderer.setSize(projectionSize, projectionSize);
+        document.getElementById('yz-canvas').appendChild(yzRenderer.domElement);
+
+        // Setup WZ projection (AnaKata view)
+        const wzScene = new THREE.Scene();
+        wzScene.background = new THREE.Color(0x0a0a1a);
+        const wzCamera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+        wzCamera.position.set(0, 0, 20);
+        wzCamera.lookAt(0, 0, 0);
+        const wzRenderer = new THREE.WebGLRenderer({ antialias: true });
+        wzRenderer.setSize(projectionSize, projectionSize);
+        document.getElementById('wz-canvas').appendChild(wzRenderer.domElement);
+
+        // Add bounding boxes to projections
+        const xzBox = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
+            new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
+        );
+        xzBox.rotation.x = Math.PI / 2;
+        xzScene.add(xzBox);
+
+        const yzBox = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
+            new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
+        );
+        yzBox.rotation.y = Math.PI / 2;
+        yzScene.add(yzBox);
+
+        const wzBox = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.PlaneGeometry(boxSize, boxSize)),
+            new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.5 })
+        );
+        wzBox.rotation.y = Math.PI / 2;
+        wzScene.add(wzBox);
 
         // Graph data structure
         let vertices = [];
@@ -153,6 +243,12 @@
         // Mesh objects
         let vertexMeshes = [];
         let edgeMeshes = [];
+        let xzVertexMeshes = [];
+        let xzEdgeMeshes = [];
+        let yzVertexMeshes = [];
+        let yzEdgeMeshes = [];
+        let wzVertexMeshes = [];
+        let wzEdgeMeshes = [];
 
         // Generate initial constant mesh
         function generateConstantMesh() {
@@ -182,6 +278,12 @@
             // Clear existing meshes
             vertexMeshes.forEach(mesh => scene.remove(mesh));
             vertexMeshes = [];
+            xzVertexMeshes.forEach(mesh => xzScene.remove(mesh));
+            xzVertexMeshes = [];
+            yzVertexMeshes.forEach(mesh => yzScene.remove(mesh));
+            yzVertexMeshes = [];
+            wzVertexMeshes.forEach(mesh => wzScene.remove(mesh));
+            wzVertexMeshes = [];
             
             vertices.forEach((pos, i) => {
                 const geometry = new THREE.SphereGeometry(0.3, 16, 16);
@@ -190,6 +292,30 @@
                 mesh.position.copy(pos);
                 scene.add(mesh);
                 vertexMeshes.push(mesh);
+                
+                // XZ projection (top view - looking down Y axis)
+                const xzGeometry = new THREE.CircleGeometry(0.3, 16);
+                const xzMesh = new THREE.Mesh(xzGeometry, material);
+                xzMesh.position.set(pos.x, 0, pos.z);
+                xzMesh.rotation.x = -Math.PI / 2;
+                xzScene.add(xzMesh);
+                xzVertexMeshes.push(xzMesh);
+                
+                // YZ projection (side view - looking from X axis)
+                const yzGeometry = new THREE.CircleGeometry(0.3, 16);
+                const yzMesh = new THREE.Mesh(yzGeometry, material);
+                yzMesh.position.set(0, pos.y, pos.z);
+                yzMesh.rotation.y = Math.PI / 2;
+                yzScene.add(yzMesh);
+                yzVertexMeshes.push(yzMesh);
+
+                // WZ projection (AnaKata view - looking from W axis)
+                const wzGeometry = new THREE.CircleGeometry(0.3, 16);
+                const wzMesh = new THREE.Mesh(wzGeometry, material);
+                wzMesh.position.set(0, pos.x, pos.z);
+                wzMesh.rotation.y = Math.PI / 2;
+                wzScene.add(wzMesh);
+                wzVertexMeshes.push(wzMesh);
             });
         }
 
@@ -198,13 +324,50 @@
             // Clear existing edges
             edgeMeshes.forEach(mesh => scene.remove(mesh));
             edgeMeshes = [];
+            xzEdgeMeshes.forEach(mesh => xzScene.remove(mesh));
+            xzEdgeMeshes = [];
+            yzEdgeMeshes.forEach(mesh => yzScene.remove(mesh));
+            yzEdgeMeshes = [];
+            wzEdgeMeshes.forEach(mesh => wzScene.remove(mesh));
+            wzEdgeMeshes = [];
             
             edges.forEach(([i, j]) => {
+                // Main 3D scene
                 const points = [vertices[i], vertices[j]];
                 const geometry = new THREE.BufferGeometry().setFromPoints(points);
                 const line = new THREE.Line(geometry, edgeMaterial);
                 scene.add(line);
                 edgeMeshes.push(line);
+                
+                // XZ projection
+                const xzPoints = [
+                    new THREE.Vector3(vertices[i].x, 0, vertices[i].z),
+                    new THREE.Vector3(vertices[j].x, 0, vertices[j].z)
+                ];
+                const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
+                const xzLine = new THREE.Line(xzGeometry, edgeMaterial);
+                xzScene.add(xzLine);
+                xzEdgeMeshes.push(xzLine);
+                
+                // YZ projection
+                const yzPoints = [
+                    new THREE.Vector3(0, vertices[i].y, vertices[i].z),
+                    new THREE.Vector3(0, vertices[j].y, vertices[j].z)
+                ];
+                const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
+                const yzLine = new THREE.Line(yzGeometry, edgeMaterial);
+                yzScene.add(yzLine);
+                yzEdgeMeshes.push(yzLine);
+
+                // WZ projection
+                const wzPoints = [
+                    new THREE.Vector3(0, vertices[i].x, vertices[i].z),
+                    new THREE.Vector3(0, vertices[j].x, vertices[j].z)
+                ];
+                const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
+                const wzLine = new THREE.Line(wzGeometry, edgeMaterial);
+                wzScene.add(wzLine);
+                wzEdgeMeshes.push(wzLine);
             });
         }
 
@@ -296,6 +459,9 @@
             
             controls.update();
             renderer.render(scene, camera);
+            xzRenderer.render(xzScene, xzCamera);
+            yzRenderer.render(yzScene, yzCamera);
+            wzRenderer.render(wzScene, wzCamera);
         }
 
         // Initialize
