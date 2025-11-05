@@ -53,6 +53,7 @@
 </head>
 <body>
     <div id="info">
+        You are looking at the 3D sensor of a 4D hypercamera.<br>
         WASD: Move camera forwards, sideways<br>
         Q/E: Move camera in ana, kata directions<br>
         IJKL: Rotate camera up/down, left/right<br>
@@ -95,6 +96,9 @@
             subtract(v) {
                 return new Vector4D(this.x - v.x, this.y - v.y, this.z - v.z, this.w - v.w);
             }
+            multiply_by_scalar(s) {
+                return new Vector4D(this.x * s, this.y * s, this.z * s, this.w * s);
+            }
         }
         class Transform4D {
             // constructor() {
@@ -110,8 +114,8 @@
                 this.matrix = matrix;
             }
 
-            static origin() {
-                return Vector4D(this.matrix[0][4], this.matrix[1][4], this.matrix[2][4], this.matrix[3][4]);
+            origin() {
+                return new Vector4D(this.matrix[0][4], this.matrix[1][4], this.matrix[2][4], this.matrix[3][4]);
             }
 
             // transform_point(v: Vector4D): Vector4D
@@ -313,6 +317,7 @@
         // Hyperscene and Hypercam definition
         // 4D Scene Bodies
         let scene_bound = 10.0;
+        const hypercamera_height_above_ground = 1.0;
         let hypercamera_T = new Transform4D([
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
@@ -1090,6 +1095,26 @@
                     // force and torque accumulators
                     let com_force = new Vector4D(0, 0, GRAVITY * hyperobject.mass, 0);
                     let com_torque = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
+
+                    // If object com is within 1 unit of camera, push it away with small force
+                    let to_camera = hyperobject_com.subtract(hypercamera_T.origin());
+                    let distance_to_camera = Math.sqrt(to_camera.x**2 + to_camera.y**2 + to_camera.z**2 + to_camera.w**2);
+                    if (distance_to_camera < 2.0 && distance_to_camera > 0.01) {
+                        // let push_strength = 50 * (1.0 - distance_to_camera);
+                        let min_push_strength = 50;
+                        let max_push_strength = 500;
+                        let push_01 = (2.0 - distance_to_camera) / 2.0;
+                        let push_strength = min_push_strength + (max_push_strength - min_push_strength) * push_01;
+                        let push_direction = to_camera.multiply_by_scalar(1.0 / distance_to_camera); // normalize
+                        let push_force = push_direction.multiply_by_scalar(push_strength);
+                        com_force = com_force.add(push_force);
+                    }
+
+                    // Add a general friction force
+                    const FRICTION_COEFFICIENT = 1.0;
+                    let friction_force = hyperobject.velocity_in_world.multiply_by_scalar(-FRICTION_COEFFICIENT);
+                    com_force = com_force.add(friction_force);
+
                     
                     
                     // 2. Check for collisions with floor and accumulate forces/torques
@@ -1121,6 +1146,17 @@
                             let normal_force_z = FLOOR_STIFFNESS * penetration - FLOOR_DAMPING * vertex_velocity.z;
                             
                             let contact_force = new Vector4D(0, 0, normal_force_z, 0);
+
+                            // Add side friction to contact force
+                            const SIDE_FRICTION_COEFFICIENT = 1;
+                            let lateral_velocity = new Vector4D(vertex_velocity.x, vertex_velocity.y, 0, vertex_velocity.w);
+                            let lateral_speed = Math.sqrt(lateral_velocity.x**2 + lateral_velocity.y**2 + lateral_velocity.w**2);
+                            if (lateral_speed > 0.01) {
+                                let lateral_direction = lateral_velocity.multiply_by_scalar(1.0 / lateral_speed); // normalize
+                                let lateral_friction_magnitude = SIDE_FRICTION_COEFFICIENT * Math.abs(normal_force_z);
+                                let lateral_friction = lateral_direction.multiply_by_scalar(-lateral_friction_magnitude);
+                                contact_force = contact_force.add(lateral_friction);
+                            }
                             
                             // Accumulate force on CoM
                             com_force = com_force.add(contact_force);
@@ -1240,7 +1276,7 @@
                     hypercamera_T.matrix[0][4],
                     hypercamera_T.matrix[1][4],
                     hypercamera_T.matrix[3][4]
-                ) + 2.0;
+                ) + hypercamera_height_above_ground;
 
                 if (keys['i']) {
                     hypercamera_T.rotate_self_by_delta('XZ', 0.05, RELATIVE_MOVEMENT);
