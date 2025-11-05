@@ -331,6 +331,75 @@
             v.x += 4;
             // v.y += 3;
         });
+        // build a hyperfloor surface (triangle mesh)
+        // 1. assign a z for each (x,y,w) grid point
+        // 2. build triangles between grid points
+        const GRID_LIMS = {
+            x_min: -5,
+            x_max: 5,
+            y_min: -5,
+            y_max: 5,
+            z_min: -5,
+            z_max: 5,
+            w_min: -5,
+            w_max: 5
+        };
+        const GRID_RES = 10; // grid resolution
+        const n_i = Math.floor((GRID_LIMS.x_max - GRID_LIMS.x_min) / GRID_RES) + 1;
+        const n_j = Math.floor((GRID_LIMS.y_max - GRID_LIMS.y_min) / GRID_RES) + 1;
+        const n_k = Math.floor((GRID_LIMS.w_max - GRID_LIMS.w_min) / GRID_RES) + 1;
+        let grid_vertices = [];
+        let grid_edges = [];
+        for (let i = 0; i < n_i; i++) {
+            for (let j = 0; j < n_j; j++) {
+                for (let k = 0; k < n_k; k++) {
+                    let x = GRID_LIMS.x_min + i * GRID_RES;
+                    let y = GRID_LIMS.y_min + j * GRID_RES;
+                    let w = GRID_LIMS.w_min + k * GRID_RES;
+                    // let z = Math.sin(0.2 * x) * Math.cos(0.2 * y) * 5; // example height function
+                    let z = -2;
+                    grid_vertices.push(new Vector4D(x, y, z, w));
+                    // add an edge to the next vertex in x
+                    if (i < n_i - 1) {
+                        let next_index = grid_vertices.length + (n_j * n_k) - 1;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge to the next vertex in y
+                    if (j < n_j - 1) {
+                        let next_index = grid_vertices.length + n_k - 1;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge to the next vertex in w
+                    if (k < n_k - 1) {
+                        let next_index = grid_vertices.length;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge between next x and next y
+                    if (i < n_i - 1 && j < n_j - 1) {
+                        let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                        let next_y_index = grid_vertices.length + n_k - 1;
+                        grid_edges.push([next_x_index, next_y_index]);
+                    }
+                    // add an edge between next x and next w
+                    if (i < n_i - 1 && k < n_k - 1) {
+                        let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                        let next_w_index = grid_vertices.length;
+                        grid_edges.push([next_x_index, next_w_index]);
+                    }
+                    // add an edge between next y and next w
+                    if (j < n_j - 1 && k < n_k - 1) {
+                        let next_y_index = grid_vertices.length + n_k - 1;
+                        let next_w_index = grid_vertices.length;
+                        grid_edges.push([next_y_index, next_w_index]);
+                    }
+                }
+            }
+        }
+        let hyperfloor = {
+            vertices: grid_vertices,
+            edges: grid_edges
+        };
+
         let hyperscene_visible_objects = [hypercube];
 
         // OrbitControls implementation
@@ -592,6 +661,19 @@
                 xzScene.add(xzLine);
                 xzEdgeMeshes.push(xzLine);
             });
+            // hyperfloor
+            for (let [i, j] of hyperfloor.edges) {
+                vi_xz = new THREE.Vector3(0, hyperfloor.vertices[i].z, -hyperfloor.vertices[i].x);
+                vj_xz = new THREE.Vector3(0, hyperfloor.vertices[j].z, -hyperfloor.vertices[j].x);
+                const xzPoints = [
+                    new THREE.Vector3(vi_xz.x, vi_xz.y, vi_xz.z),
+                    new THREE.Vector3(vj_xz.x, vj_xz.y, vj_xz.z)
+                ];
+                const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
+                const xzLine = new THREE.Line(xzGeometry, edgeMaterial);
+                xzScene.add(xzLine);
+                xzEdgeMeshes.push(xzLine);
+            }
             // camera frustrum
             camera_edges_in_world.forEach(([start, end]) => {
                 const xzPoints = [
@@ -629,6 +711,19 @@
                 yzScene.add(yzLine);
                 yzEdgeMeshes.push(yzLine);
             });
+            // hyperfloor
+            for (let [i, j] of hyperfloor.edges) {
+                vi_yz = new THREE.Vector3(0, hyperfloor.vertices[i].z, -hyperfloor.vertices[i].y);
+                vj_yz = new THREE.Vector3(0, hyperfloor.vertices[j].z, -hyperfloor.vertices[j].y);
+                const yzPoints = [
+                    new THREE.Vector3(vi_yz.x, vi_yz.y, vi_yz.z),
+                    new THREE.Vector3(vj_yz.x, vj_yz.y, vj_yz.z)
+                ];
+                const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
+                const yzLine = new THREE.Line(yzGeometry, edgeMaterial);
+                yzScene.add(yzLine);
+                yzEdgeMeshes.push(yzLine);
+            }
             // camera frustrum
             camera_edges_in_world.forEach(([start, end]) => {
                 const yzPoints = [
@@ -666,6 +761,19 @@
                 wzScene.add(wzLine);
                 wzEdgeMeshes.push(wzLine);
             });
+            // hyperfloor
+            for (let [i, j] of hyperfloor.edges) {
+                vi_wz = new THREE.Vector3(0, hyperfloor.vertices[i].z, -hyperfloor.vertices[i].w);
+                vj_wz = new THREE.Vector3(0, hyperfloor.vertices[j].z, -hyperfloor.vertices[j].w);
+                const wzPoints = [
+                    new THREE.Vector3(vi_wz.x, vi_wz.y, vi_wz.z),
+                    new THREE.Vector3(vj_wz.x, vj_wz.y, vj_wz.z)
+                ];
+                const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
+                const wzLine = new THREE.Line(wzGeometry, edgeMaterial);
+                wzScene.add(wzLine);
+                wzEdgeMeshes.push(wzLine);
+            }
             // camera frustrum
             camera_edges_in_world.forEach(([start, end]) => {
                 const wzPoints = [
@@ -718,6 +826,49 @@
                     vertexMeshes.push(mesh);
                 }
             });
+            uvl_edges.forEach(([i, j]) => {
+                // Main 3D scene
+                const are_both_vertices_in_front = (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0);
+                const are_both_vertices_inside_sensor = (
+                    uvl_vertices[i].x >= hypercamera_sensor_uvl_range[0] &&
+                    uvl_vertices[i].x <= hypercamera_sensor_uvl_range[1] &&
+                    uvl_vertices[i].y >= hypercamera_sensor_uvl_range[2] &&
+                    uvl_vertices[i].y <= hypercamera_sensor_uvl_range[3] &&
+                    uvl_vertices[i].z >= hypercamera_sensor_uvl_range[4] &&
+                    uvl_vertices[i].z <= hypercamera_sensor_uvl_range[5] &&
+                    uvl_vertices[j].x >= hypercamera_sensor_uvl_range[0] &&
+                    uvl_vertices[j].x <= hypercamera_sensor_uvl_range[1] &&
+                    uvl_vertices[j].y >= hypercamera_sensor_uvl_range[2] &&
+                    uvl_vertices[j].y <= hypercamera_sensor_uvl_range[3] &&
+                    uvl_vertices[j].z >= hypercamera_sensor_uvl_range[4] &&
+                    uvl_vertices[j].z <= hypercamera_sensor_uvl_range[5]
+                );
+                if (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0) {
+                    const points = [uvl_vertices[i], uvl_vertices[j]];
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    let material = edgeMaterial;
+                    if (!are_both_vertices_inside_sensor) {
+                        material = outOfSensorEdgeMaterial;
+                    }
+                    const line = new THREE.Line(geometry, material);
+                    scene.add(line);
+                    edgeMeshes.push(line);
+                }
+            });
+            //
+            uvl_vertices = [];
+            uvl_vertices_s = []; // scaling, a.k.a distance from camera sensor (>1 means further, <0 means behind, <1 means closer)
+            for (let v of hyperfloor.vertices) {
+                // Camera equation uvl ~= K * [R|t] * XYZW
+                // we define x as the depth axis here (aka camera cube sensor is at x=1)
+                // let xyzw_camframe = new Vector4D(v.x, v.y, v.z, v.w); // TODO do actual transform to camera frame
+                let xyzw_camframe = hypercamera_T.inverse().transform_point(v);
+                let suvl = [ xyzw_camframe.x, xyzw_camframe.y, xyzw_camframe.z, xyzw_camframe.w ]; // TODO: apply intrinsics
+                let uvl = [ suvl[1] / suvl[0], suvl[2] / suvl[0], suvl[3] / suvl[0] ]; // perspective divide
+                uvl_vertices.push(new THREE.Vector3(uvl[0], uvl[1], uvl[2]));
+                uvl_vertices_s.push(suvl[0]);
+            }
+            uvl_edges = hyperfloor.edges.slice();
             uvl_edges.forEach(([i, j]) => {
                 // Main 3D scene
                 const are_both_vertices_in_front = (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0);
