@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PP4068J99C"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-PP4068J99C');
+</script>
+<!-- end of GA -->
+<title>How would a 4D Camera work?</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<style>
+body,h1 {font-family: "Raleway", Arial, sans-serif}
+h1 {letter-spacing: 6px}
+.w3-row-padding img {margin-bottom: 12px}
+</style>
+<body>
+
+<!-- !PAGE CONTENT! -->
+<div class="w3-content" style="max-width:1500px">
+
+<!-- Header -->
+<header class="w3-panel w3-center w3-opacity" style="padding:28px 16px">
+  <h1 class="w3-xlarge">FUN, MODELS & PEDANTRY</h1>
+  <h1>The Funderstanding Series</h1>
+
+  <div class="w3-padding-32">
+    <div class="w3-bar w3-border">
+      <a href="../index.html" class="w3-bar-item w3-button">dugas.ch</a>
+      <a href="../blog.html" class="w3-bar-item w3-button">/ Blog</a>
+      <a href="./index.html" class="w3-bar-item w3-button">/ Funderstanding</a>
+      <a href="#" class="w3-bar-item w3-button w3-light-grey">/ 4D Camera</a>
+    </div>
+  </div>
+</header>
+
+<!-- Photo Grid -->
+<div class="w3-row-padding" style="margin-bottom:128px;max-width:800px">
+  <h1>How Would a 4D Camera work?</h1>
+  <h2>An interactive look into the hypercamera</h2>
+  <!-- Date and author -->
+  <p style="font-size:110%;">Nov 2025 &nbsp; | &nbsp; By Daniel Dugas</p>
+  <br>
+  <h3></h3>
+  <p style="font-size:130%;">
+    Have you ever wondered how a camera would work in 4D?
+  </p>
+  <p style="font-size:130%;">
+    There are lots videos on YouTube that try to visualize 4D worlds.
+    These videos are really fun, and explore multiple ways of perceiving the 4D space, original visualizations, etc.
+    However, one thing they always seem to have in common is that they render the camera directly to a 2D screen.
+  </p>
+  <p style="font-size:130%;">
+    <b>But a 4D camera's (or hypercamera?) sensor would actually be 3D!</b> Let me explain
+  </p>
+  <p style="font-size:130%;">
+    In a 2 dimensional <a href="https://en.wikipedia.org/wiki/Flatland">flatland</a>, a camera can be defined by a sensor, an aperture point, and a viewing direction.
+    The camera "looks" in a direction (d), which is perpendicular to the sensor.
+    Rays of light can be rotated along one direction (r) from the camera center,
+    and the direction of this deviation is directly mapped to the main direction of the sensor
+    (moving "down" in the sensor, moves "up" in the ray deviation r).
+  </p>
+
+  <div style="text-align:center; margin: 60px 0;">
+    <img src="./img/4d_camera/2d_camera_diagram.png" style="width:70%">
+    <br>
+    <i>Fig. 2D Camera Model</i>
+  </div>
+
+  <p style="font-size:130%;">
+    In 3D, the same concepts apply:
+    A pinhole aperture,
+    a 2D sensor,
+    and a main viewing direction (d) perpendicular to the sensor.
+    Now, there are two directions (r1 and r2) that rays can be rotated when entering the lens,
+    which correspond to the two main directions of the sensor (u and v).
+    <!-- footnote, invisible link -->
+    <a href="#footnote1" id="from_footnote1" style="text-decoration:none; color:inherit;"><sup>[1]</sup></a>
+  </p>
+
+  <div style="text-align:center; margin: 60px 0;">
+    <img src="./img/4d_camera/3d_camera_diagram.png" style="width:70%">
+    <br>
+    <i>Fig. 3D Camera Model</i>
+  </div>
+
+  <p style="font-size:130%;">
+    By extending this logic to 4D, we get:
+    Again, a pinhole aperture, which is just a point through which all rays must pass,
+    a 3D sensor,
+    and a main viewing direction (d) perpendicular to the sensor.
+    Now, there are three planes (r1, r2, and r3) that rays can be rotated when entering the lens,
+    which correspond to the three main directions of the sensor (u, v, and l).
+
+    Luckily for us, our brains have pretty good intuitive understanding of 3D space, and so the 3D sensor is quite easy to imagine, as you can think of it like a "painted volume", where the color of each voxel in the volume corresponds to the intensity of light coming from that direction.
+    The viewing direction, on the other hand, is trickier, since it is perpendicular to the entire sensor volume. For now, you can try to imagine the light entering the sensor through a "different direction", like a wormhole.
+  </p>
+
+  <div style="text-align:center; margin: 60px 0;">
+    <img src="./img/4d_camera/4d_camera_diagram.png" style="width:70%">
+    <br>
+    <i>Fig. 4D Camera Model</i>
+  </div>
+
+  <p style="font-size:130%;">
+    <!-- Ready to play with the 4D camera? -->
+    That's a whole lot of theory, but how does this hypercamera actually <i>feel</i>?
+    <br>
+    I wanted to find out myself, so I built an interactive   <a href="../4d_creatures/4d_camera.html">4D camera toy that you can play with in your browser.</a>
+  </p>
+  <p style="font-size:130%;">
+    In this visualizer, you control a 4D camera that is moving around a hyperworld,
+    with gravity in the z direction, a "hyperfloor" (a 3D surface which covers x, y, and w directions, but is infinitely thin in z direction),
+    and some hyperobjects which can be pushed around.
+  </p>
+  <p style="font-size:130%;">
+    Click the image below to open the visualizer.
+  </p>
+
+  <a href="../4d_creatures/4d_camera.html" target="_blank">
+    <h3>4D Camera Toy</h3>
+    <img src="../images/hypercamera.png" style="width:100%">
+  </a>
+
+ <p style="margin-bottom:3cm;"> </p>
+ <p style="margin-bottom:1cm;"> </p>
+
+ <h4 id="footnote1">Footnotes</h4>
+  <p style="font-size:130%;">
+    <a href="#from_footnote1" style="text-decoration:none; color:inherit;">[1]</a> See also: the
+    <a href="https://en.wikipedia.org/wiki/Perspective-n-Point#Definition" target="_blank"">camera model equation</a>
+  </p>
+
+
+</div>
+
+<!-- End Page Content -->
+</div>
+
+
+<!-- Javascript -->
+<style>
+.content {
+  padding: 0 18px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+</style>
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+}
+</script>
+
+<!-- Footer -->
+<footer class="w3-container w3-padding-64 w3-light-grey w3-center w3-large">
+  <!-- Font awesome logos: fa fa-something-something -->
+  <i class="fab fa-pied-piper-alt w3-hover-opacity"></i>
+  <p>Powered by <a  id="powered_by_link" href="http://beesbeesbees.com/" target="_blank" class="w3-hover-text-green">bees</a></p>
+
+  <script>
+  var powerSources = [
+    "bees",
+    "eels",
+    "koalas",
+    "circuits",
+    "logic",
+    "a chihuaha",
+    "infinite zoom",
+    ];
+  var powerLinks = [
+    "http://beesbeesbees.com/",
+    "http://eelslap.com",
+    "http://koalastothemax.com",
+    "http://electricboogiewoogie.com",
+    "http://www.visual6502.org/JSSim/index.html",
+    "http://chihuahuaspin.com/",
+    "http://zoomquilt.org/",
+    ];
+  var randomIndex = Math.floor(Math.random()*powerSources.length);
+  document.getElementById("powered_by_link").href = powerLinks[randomIndex];
+  document.getElementById("powered_by_link").innerHTML = powerSources[randomIndex];
+  </script>
+</footer>
+
+</body>
+</html>
