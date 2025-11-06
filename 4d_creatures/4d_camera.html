@@ -931,16 +931,21 @@
                         vertexMeshes.push(mesh);
                     }
                 });
+                // hyperobject Edges
                 uvl_edges.forEach(([i, j]) => {
-                    // Main 3D scene
                     const are_both_vertices_in_front = (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0);
-                    const are_both_vertices_inside_sensor = (
+                    if (!are_both_vertices_in_front) {
+                        return; // skip edges with vertices behind camera
+                    }
+                    const is_i_vertex_inside_sensor = (
                         uvl_vertices[i].x >= hypercamera_sensor_uvl_range[0] &&
                         uvl_vertices[i].x <= hypercamera_sensor_uvl_range[1] &&
                         uvl_vertices[i].y >= hypercamera_sensor_uvl_range[2] &&
                         uvl_vertices[i].y <= hypercamera_sensor_uvl_range[3] &&
                         uvl_vertices[i].z >= hypercamera_sensor_uvl_range[4] &&
-                        uvl_vertices[i].z <= hypercamera_sensor_uvl_range[5] &&
+                        uvl_vertices[i].z <= hypercamera_sensor_uvl_range[5]
+                    );
+                    const is_j_vertex_inside_sensor = (
                         uvl_vertices[j].x >= hypercamera_sensor_uvl_range[0] &&
                         uvl_vertices[j].x <= hypercamera_sensor_uvl_range[1] &&
                         uvl_vertices[j].y >= hypercamera_sensor_uvl_range[2] &&
@@ -948,16 +953,83 @@
                         uvl_vertices[j].z >= hypercamera_sensor_uvl_range[4] &&
                         uvl_vertices[j].z <= hypercamera_sensor_uvl_range[5]
                     );
-                    if (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0) {
-                        const points = [uvl_vertices[i], uvl_vertices[j]];
-                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                        let material = edgeMaterial;
-                        if (!are_both_vertices_inside_sensor) {
-                            material = outOfSensorEdgeMaterial;
+                    const are_both_vertices_inside_sensor = (
+                        is_i_vertex_inside_sensor &&
+                        is_j_vertex_inside_sensor
+                    );
+                    const is_only_1_vertex_inside_sensor = (
+                        (is_i_vertex_inside_sensor && !is_j_vertex_inside_sensor) ||
+                        (!is_i_vertex_inside_sensor && is_j_vertex_inside_sensor)
+                    );
+                    if (!is_only_1_vertex_inside_sensor) {
+                        if (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0) {
+                            const points = [uvl_vertices[i], uvl_vertices[j]];
+                            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                            let material = edgeMaterial;
+                            if (!are_both_vertices_inside_sensor) {
+                                material = outOfSensorEdgeMaterial;
+                            }
+                            const line = new THREE.Line(geometry, material);
+                            scene.add(line);
+                            edgeMeshes.push(line);
                         }
-                        const line = new THREE.Line(geometry, material);
-                        scene.add(line);
-                        edgeMeshes.push(line);
+                    }
+                    if (is_only_1_vertex_inside_sensor) {
+                        // Add an edge to the nearest face of the sensor cube
+                        const inside_idx = is_i_vertex_inside_sensor ? i : j;
+                        const outside_idx = is_i_vertex_inside_sensor ? j : i;
+                        const inside_vertex = uvl_vertices[inside_idx];
+                        const outside_vertex = uvl_vertices[outside_idx];
+                        // Find intersection with sensor cube
+                        let t_values = [];
+                        // x planes
+                        if (outside_vertex.x !== inside_vertex.x) {
+                            let t1 = (hypercamera_sensor_uvl_range[0] - inside_vertex.x) / (outside_vertex.x - inside_vertex.x);
+                            let t2 = (hypercamera_sensor_uvl_range[1] - inside_vertex.x) / (outside_vertex.x - inside_vertex.x);
+                            t_values.push(t1, t2);
+                        }
+                        // y planes
+                        if (outside_vertex.y !== inside_vertex.y) {
+                            let t1 = (hypercamera_sensor_uvl_range[2] - inside_vertex.y) / (outside_vertex.y - inside_vertex.y);
+                            let t2 = (hypercamera_sensor_uvl_range[3] - inside_vertex.y) / (outside_vertex.y - inside_vertex.y);
+                            t_values.push(t1, t2);
+                        }
+                        // z planes
+                        if (outside_vertex.z !== inside_vertex.z) {
+                            let t1 = (hypercamera_sensor_uvl_range[4] - inside_vertex.z) / (outside_vertex.z - inside_vertex.z);
+                            let t2 = (hypercamera_sensor_uvl_range[5] - inside_vertex.z) / (outside_vertex.z - inside_vertex.z);
+                            t_values.push(t1, t2);
+                        }
+                        // Find valid t in (0,1)
+                        let valid_t = t_values.filter(t => t > 0 && t < 1);
+                        if (valid_t.length > 0) {
+                            let t_closest = Math.min(...valid_t);
+                            let intersection_point = new THREE.Vector3(
+                                inside_vertex.x + t_closest * (outside_vertex.x - inside_vertex.x),
+                                inside_vertex.y + t_closest * (outside_vertex.y - inside_vertex.y),
+                                inside_vertex.z + t_closest * (outside_vertex.z - inside_vertex.z)
+                            );
+                            // Add a vertice at the intersection for debugging
+                            // const intersectionGeometry = new THREE.SphereGeometry(0.02, 8, 8);
+                            // const intersectionMesh = new THREE.Mesh(intersectionGeometry, vertexMaterial);
+                            // intersectionMesh.position.copy(intersection_point);
+                            // scene.add(intersectionMesh);
+                            // vertexMeshes.push(intersectionMesh);
+
+
+
+                            const points_to_face = [inside_vertex, intersection_point];
+                            const geometry_to_face = new THREE.BufferGeometry().setFromPoints(points_to_face);
+                            const line_to_face = new THREE.Line(geometry_to_face, edgeMaterial);
+                            scene.add(line_to_face);
+                            edgeMeshes.push(line_to_face);
+                            // Add the greyed out edge from intersection to outside
+                            const points_from_face = [intersection_point, outside_vertex];
+                            const geometry_from_face = new THREE.BufferGeometry().setFromPoints(points_from_face);
+                            const line_from_face = new THREE.Line(geometry_from_face, outOfSensorEdgeMaterial);
+                            scene.add(line_from_face);
+                            edgeMeshes.push(line_from_face);
+                        }
                     }
                 });
             }
@@ -978,16 +1050,21 @@
                 uvl_vertices_s.push(suvl[0]);
             }
             uvl_edges = hyperfloor.edges.slice();
+            // hyperobject Edges
             uvl_edges.forEach(([i, j]) => {
-                // Main 3D scene
                 const are_both_vertices_in_front = (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0);
-                const are_both_vertices_inside_sensor = (
+                if (!are_both_vertices_in_front) {
+                    return; // skip edges with vertices behind camera
+                }
+                const is_i_vertex_inside_sensor = (
                     uvl_vertices[i].x >= hypercamera_sensor_uvl_range[0] &&
                     uvl_vertices[i].x <= hypercamera_sensor_uvl_range[1] &&
                     uvl_vertices[i].y >= hypercamera_sensor_uvl_range[2] &&
                     uvl_vertices[i].y <= hypercamera_sensor_uvl_range[3] &&
                     uvl_vertices[i].z >= hypercamera_sensor_uvl_range[4] &&
-                    uvl_vertices[i].z <= hypercamera_sensor_uvl_range[5] &&
+                    uvl_vertices[i].z <= hypercamera_sensor_uvl_range[5]
+                );
+                const is_j_vertex_inside_sensor = (
                     uvl_vertices[j].x >= hypercamera_sensor_uvl_range[0] &&
                     uvl_vertices[j].x <= hypercamera_sensor_uvl_range[1] &&
                     uvl_vertices[j].y >= hypercamera_sensor_uvl_range[2] &&
@@ -995,16 +1072,83 @@
                     uvl_vertices[j].z >= hypercamera_sensor_uvl_range[4] &&
                     uvl_vertices[j].z <= hypercamera_sensor_uvl_range[5]
                 );
-                if (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0) {
-                    const points = [uvl_vertices[i], uvl_vertices[j]];
-                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                    let material = edgeMaterial;
-                    if (!are_both_vertices_inside_sensor) {
-                        material = outOfSensorEdgeMaterial;
+                const are_both_vertices_inside_sensor = (
+                    is_i_vertex_inside_sensor &&
+                    is_j_vertex_inside_sensor
+                );
+                const is_only_1_vertex_inside_sensor = (
+                    (is_i_vertex_inside_sensor && !is_j_vertex_inside_sensor) ||
+                    (!is_i_vertex_inside_sensor && is_j_vertex_inside_sensor)
+                );
+                if (!is_only_1_vertex_inside_sensor) {
+                    if (uvl_vertices_s[i] > 0 && uvl_vertices_s[j] > 0) {
+                        const points = [uvl_vertices[i], uvl_vertices[j]];
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        let material = edgeMaterial;
+                        if (!are_both_vertices_inside_sensor) {
+                            material = outOfSensorEdgeMaterial;
+                        }
+                        const line = new THREE.Line(geometry, material);
+                        scene.add(line);
+                        edgeMeshes.push(line);
                     }
-                    const line = new THREE.Line(geometry, material);
-                    scene.add(line);
-                    edgeMeshes.push(line);
+                }
+                if (is_only_1_vertex_inside_sensor) {
+                    // Add an edge to the nearest face of the sensor cube
+                    const inside_idx = is_i_vertex_inside_sensor ? i : j;
+                    const outside_idx = is_i_vertex_inside_sensor ? j : i;
+                    const inside_vertex = uvl_vertices[inside_idx];
+                    const outside_vertex = uvl_vertices[outside_idx];
+                    // Find intersection with sensor cube
+                    let t_values = [];
+                    // x planes
+                    if (outside_vertex.x !== inside_vertex.x) {
+                        let t1 = (hypercamera_sensor_uvl_range[0] - inside_vertex.x) / (outside_vertex.x - inside_vertex.x);
+                        let t2 = (hypercamera_sensor_uvl_range[1] - inside_vertex.x) / (outside_vertex.x - inside_vertex.x);
+                        t_values.push(t1, t2);
+                    }
+                    // y planes
+                    if (outside_vertex.y !== inside_vertex.y) {
+                        let t1 = (hypercamera_sensor_uvl_range[2] - inside_vertex.y) / (outside_vertex.y - inside_vertex.y);
+                        let t2 = (hypercamera_sensor_uvl_range[3] - inside_vertex.y) / (outside_vertex.y - inside_vertex.y);
+                        t_values.push(t1, t2);
+                    }
+                    // z planes
+                    if (outside_vertex.z !== inside_vertex.z) {
+                        let t1 = (hypercamera_sensor_uvl_range[4] - inside_vertex.z) / (outside_vertex.z - inside_vertex.z);
+                        let t2 = (hypercamera_sensor_uvl_range[5] - inside_vertex.z) / (outside_vertex.z - inside_vertex.z);
+                        t_values.push(t1, t2);
+                    }
+                    // Find valid t in (0,1)
+                    let valid_t = t_values.filter(t => t > 0 && t < 1);
+                    if (valid_t.length > 0) {
+                        let t_closest = Math.min(...valid_t);
+                        let intersection_point = new THREE.Vector3(
+                            inside_vertex.x + t_closest * (outside_vertex.x - inside_vertex.x),
+                            inside_vertex.y + t_closest * (outside_vertex.y - inside_vertex.y),
+                            inside_vertex.z + t_closest * (outside_vertex.z - inside_vertex.z)
+                        );
+                        // Add a vertice at the intersection for debugging
+                        // const intersectionGeometry = new THREE.SphereGeometry(0.02, 8, 8);
+                        // const intersectionMesh = new THREE.Mesh(intersectionGeometry, vertexMaterial);
+                        // intersectionMesh.position.copy(intersection_point);
+                        // scene.add(intersectionMesh);
+                        // vertexMeshes.push(intersectionMesh);
+
+
+
+                        const points_to_face = [inside_vertex, intersection_point];
+                        const geometry_to_face = new THREE.BufferGeometry().setFromPoints(points_to_face);
+                        const line_to_face = new THREE.Line(geometry_to_face, edgeMaterial);
+                        scene.add(line_to_face);
+                        edgeMeshes.push(line_to_face);
+                        // Add the greyed out edge from intersection to outside
+                        const points_from_face = [intersection_point, outside_vertex];
+                        const geometry_from_face = new THREE.BufferGeometry().setFromPoints(points_from_face);
+                        const line_from_face = new THREE.Line(geometry_from_face, outOfSensorEdgeMaterial);
+                        scene.add(line_from_face);
+                        edgeMeshes.push(line_from_face);
+                    }
                 }
             });
 
