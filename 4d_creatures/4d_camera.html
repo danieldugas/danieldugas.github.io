@@ -665,6 +665,7 @@
 
         // Materials
         const vertexMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+        const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
         const selectedVertexMaterial = new THREE.MeshBasicMaterial({ color: 0xff3366 });
         const outOfSensorVertexMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
         const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x4477ff, linewidth: 2 });
@@ -1064,6 +1065,40 @@
                         }
                     }
                 });
+            }
+            // hypersun
+            if (true) {
+                const v = new Vector4D(0, 0, 10000, 0); // very far away in +Z direction
+                // Camera equation uvl ~= K * [R|t] * XYZW
+                // we define x as the depth axis here (aka camera cube sensor is at x=1)
+                // let xyzw_camframe = new Vector4D(v.x, v.y, v.z, v.w); // TODO do actual transform to camera frame
+                let xyzw_camframe = hypercamera_T.inverse().transform_point(v);
+                let suvl = [ xyzw_camframe.x, xyzw_camframe.y, xyzw_camframe.z, xyzw_camframe.w ]; // TODO: apply intrinsics
+                let uvl = [ suvl[1] / suvl[0], suvl[2] / suvl[0], suvl[3] / suvl[0] ]; // perspective divide
+                const pos = new THREE.Vector3(uvl[0], uvl[1], uvl[2]);
+                const s = suvl[0];
+                // Only render if in front of camera
+                const is_in_front = s > 0;
+                const is_inside_sensor = (
+                    pos.x >= hypercamera_sensor_uvl_range[0] &&
+                    pos.x <= hypercamera_sensor_uvl_range[1] &&
+                    pos.y >= hypercamera_sensor_uvl_range[2] &&
+                    pos.y <= hypercamera_sensor_uvl_range[3] &&
+                    pos.z >= hypercamera_sensor_uvl_range[4] &&
+                    pos.z <= hypercamera_sensor_uvl_range[5]
+                );
+                if (s > 0) {
+                    const geometry = new THREE.SphereGeometry(0.03, 16, 16);
+                    let material = sunMaterial;
+                    if (!is_inside_sensor) {
+                        material = outOfSensorVertexMaterial;
+                    }
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.copy(pos);
+                    mesh.selectable_idx = 0;
+                    scene.add(mesh);
+                    vertexMeshes.push(mesh);
+                }
             }
             // hyperfloor
             let uvl_vertices = [];
