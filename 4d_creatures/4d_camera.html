@@ -54,15 +54,26 @@
 <body>
     <div id="info">
         You are looking at the 3D sensor of a 4D <a href="../funderstanding/4d_camera.html" style="color:inherit;">hypercamera</a>.<br>
+        <div style="color:rgb(104, 113, 167);">
         WASD: Move camera forwards, sideways<br>
         Q/E: Move camera in ana, kata directions<br>
         IJKL: Rotate camera up/down, left/right<br>
         U/O: Rotate camera in wx plane<br>
         Y/P: Rotate camera in wy plane<br>
+        1/2: Rotate camera towards objects<br>
         Mouse drag: Rotate sensor view<br>
         Mouse wheel: Zoom<br>
         Click: Select vertex<br>
         Selected: <span id="selected">None</span>
+        </div>
+    </div>
+    <!-- Add a floating element in the middle of the page, that is usally invisible but can contain warnings -->
+    <div id="warning-div" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;"> <!-- color:rgb(0, 235, 235);font-size:48px;font-weight:bold;">  --> <!-- display:none;"> -->
+        <span id="title-span" style="color:rgb(0, 235, 235);font-size:48px;font-weight:bold;">
+        HYPERCAMERA
+        </span>
+        <span id="warning-camera-inverted" style="color:rgb(79, 123, 136);font-size:24px;font-weight:bold;">
+        </span>
     </div>
     <div id="main-canvas"></div>
     <div id="projection-container">
@@ -322,6 +333,18 @@
         // params
         let SIMULATE_PHYSICS = true;
 
+        // track variables
+        let user_has_interacted = false;
+
+        function on_first_user_interaction() {
+            // HACK: remove spash at first interaction
+            if (!user_has_interacted) {
+                user_has_interacted = true;
+                // change text in warning div to nothing
+                document.getElementById('title-span').innerHTML = '';
+            }
+        }
+
         // Hyperscene and Hypercam definition
         // 4D Scene Bodies
         let scene_bound = 10.0;
@@ -522,6 +545,7 @@
             };
             
             function onMouseDown(event) {
+                on_first_user_interaction();
                 if (!scope.enabled) return;
                 event.preventDefault();
                 rotateStart.set(event.clientX, event.clientY);
@@ -1171,6 +1195,7 @@
         const keys = {};
         window.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
+            on_first_user_interaction();
         });
 
         window.addEventListener('keyup', (e) => {
@@ -1689,6 +1714,17 @@
                     moved=true
 
                 }
+
+            }
+
+            // Check wether camera is inverted (camera z axis dot product with world z axis < 0)
+            let is_camera_inverted = (hypercamera_T.matrix[2][2] < 0);
+            // document.getElementById('warning-camera-inverted').innerHTML = hypercamera_T.matrix[2][2];
+            if (is_camera_inverted) {
+                // change warning-div text to "Camera is inverted"
+                document.getElementById('warning-camera-inverted').innerText = "Warning: Camera is inverted";
+            } else {
+                document.getElementById('warning-camera-inverted').innerText = "";
             }
             
             // update threejs scene since hyperscene has changed
