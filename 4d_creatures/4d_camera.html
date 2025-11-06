@@ -61,6 +61,7 @@
         U/O: Rotate camera in wx plane<br>
         Y/P: Rotate camera in wy plane<br>
         1/2: Rotate camera towards objects<br>
+        g: Toggle gizmo mode<br>
         Mouse drag: Rotate sensor view<br>
         Mouse wheel: Zoom<br>
         Click: Select vertex<br>
@@ -332,6 +333,7 @@
 
         // params
         let SIMULATE_PHYSICS = true;
+        let GIZMO_MODE = 1; // 0: none, 1: in world middle, 2: in sensor middle
 
         // track variables
         let user_has_interacted = false;
@@ -348,6 +350,21 @@
         // Hyperscene and Hypercam definition
         // 4D Scene Bodies
         let scene_bound = 10.0; // +10 means the scene goes from -10 to +10 in all dimensions
+        // gizmo
+        let gizmo_axes_vectors_in_world = [
+            new Vector4D(1.0, 0, 0, 0), // X axis
+            new Vector4D(0, 1.0, 0, 0), // Y axis
+            new Vector4D(0, 0, 1.0, 0), // Z axis
+            new Vector4D(0, 0, 0, 1.0)  // W axis
+        ];
+        const gizmo_length_in_world = 0.5;
+        let gizmo_z_in_world = -2; // floor_heightmap(0, 0, 0) + 0.1;
+        let gizmo_axes_in_world = [
+            [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(gizmo_length_in_world, 0, gizmo_z_in_world, 0)], // X axis
+            [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(0, gizmo_length_in_world, gizmo_z_in_world, 0)], // Y axis
+            [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(0, 0, gizmo_length_in_world + gizmo_z_in_world, 0)], // Z axis
+            [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(0, 0, gizmo_z_in_world, gizmo_length_in_world)]  // W axis
+        ];
         const hypercamera_height_above_ground = 1.0;
         let hypercamera_T = new Transform4D([
             [1, 0, 0, 0, 0],
@@ -672,6 +689,10 @@
         const outOfSensorEdgeMaterial = new THREE.LineBasicMaterial({ color: 0x444444, linewidth: 1 });
         const frustrumMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 });
         const frustrumFarMaterial = new THREE.LineBasicMaterial({ color: 0x777700, linewidth: 1 });
+        const redGizmoMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+        const greenGizmoMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+        const blueGizmoMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 2 });
+        const yellowGizmoMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
 
         // Threejs Mesh objects
         let vertexMeshes = [];
@@ -747,179 +768,103 @@
             }
 
             // Project 4D Scene into 2D Orthogonal Views
-            // XZ projection
-            for (let hyperobject of hyperscene_visible_objects) {
-                let xz_vertices = [];
-                let xz_edges = [];
-                xz_vertices = [];
-                xz_edges = [];
-                // hyperobject
-                for (let v of hyperobject.vertices_in_world) {
-                    xz_vertices.push(new THREE.Vector3(0, v.z, -v.x));
+            function project_scene_to_orthogonal(project_vertex_4D_to_2D_func, scene2D, sceneMeshList, sceneEdgeList) {
+                for (let hyperobject of hyperscene_visible_objects) {
+                    let _ru_vertices = [];
+                    let _ru_edges = [];
+                    _ru_vertices = [];
+                    _ru_edges = [];
+                    // hyperobject
+                    for (let v of hyperobject.vertices_in_world) {
+                        _ru_vertices.push(project_vertex_4D_to_2D_func(v));
+                    }
+                    for (let [i, j] of hyperobject.edges) {
+                        _ru_edges.push([i, j]);
+                    }
+                    _ru_vertices.forEach((pos, i) => {
+                        const _ruGeometry = new THREE.CircleGeometry(0.3, 16);
+                        const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
+                        const _ruMesh = new THREE.Mesh(_ruGeometry, material);
+                        _ruMesh.position.set(pos.x, pos.y, pos.z);
+                        _ruMesh.rotation.y = Math.PI / 2;
+                        scene2D.add(_ruMesh);
+                        sceneMeshList.push(_ruMesh);
+                    });
+                    _ru_edges.forEach(([i, j]) => {
+                        const _ruPoints = [
+                            new THREE.Vector3(_ru_vertices[i].x, _ru_vertices[i].y, _ru_vertices[i].z),
+                            new THREE.Vector3(_ru_vertices[j].x, _ru_vertices[j].y, _ru_vertices[j].z)
+                        ];
+                        const _ruGeometry = new THREE.BufferGeometry().setFromPoints(_ruPoints);
+                        const _ruLine = new THREE.Line(_ruGeometry, edgeMaterial);
+                        scene2D.add(_ruLine);
+                        sceneEdgeList.push(_ruLine);
+                    });
                 }
-                for (let [i, j] of hyperobject.edges) {
-                    xz_edges.push([i, j]);
-                }
-                xz_vertices.forEach((pos, i) => {
-                    const xzGeometry = new THREE.CircleGeometry(0.3, 16);
-                    const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
-                    const xzMesh = new THREE.Mesh(xzGeometry, material);
-                    xzMesh.position.set(pos.x, pos.y, pos.z);
-                    xzMesh.rotation.y = Math.PI / 2;
-                    xzScene.add(xzMesh);
-                    xzVertexMeshes.push(xzMesh);
-                });
-                xz_edges.forEach(([i, j]) => {
-                    const xzPoints = [
-                        new THREE.Vector3(xz_vertices[i].x, xz_vertices[i].y, xz_vertices[i].z),
-                        new THREE.Vector3(xz_vertices[j].x, xz_vertices[j].y, xz_vertices[j].z)
+                // hyperfloor
+                for (let [i, j] of hyperfloor.edges) {
+                    vi__ru = project_vertex_4D_to_2D_func(hyperfloor.vertices_in_world[i]);
+                    vj__ru = project_vertex_4D_to_2D_func(hyperfloor.vertices_in_world[j]);
+                    const _ruPoints = [
+                        new THREE.Vector3(vi__ru.x, vi__ru.y, vi__ru.z),
+                        new THREE.Vector3(vj__ru.x, vj__ru.y, vj__ru.z)
                     ];
-                    const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
-                    const xzLine = new THREE.Line(xzGeometry, edgeMaterial);
-                    xzScene.add(xzLine);
-                    xzEdgeMeshes.push(xzLine);
-                });
-            }
-            // hyperfloor
-            for (let [i, j] of hyperfloor.edges) {
-                vi_xz = new THREE.Vector3(0, hyperfloor.vertices_in_world[i].z, -hyperfloor.vertices_in_world[i].x);
-                vj_xz = new THREE.Vector3(0, hyperfloor.vertices_in_world[j].z, -hyperfloor.vertices_in_world[j].x);
-                const xzPoints = [
-                    new THREE.Vector3(vi_xz.x, vi_xz.y, vi_xz.z),
-                    new THREE.Vector3(vj_xz.x, vj_xz.y, vj_xz.z)
-                ];
-                const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
-                const xzLine = new THREE.Line(xzGeometry, edgeMaterial);
-                xzScene.add(xzLine);
-                xzEdgeMeshes.push(xzLine);
-            }
-            // camera frustrum
-            camera_edges_in_world.forEach(([start, end]) => {
-                const xzPoints = [
-                    new THREE.Vector3(0, start.z, -start.x),
-                    new THREE.Vector3(0, end.z, -end.x)
-                ];
-                const xzGeometry = new THREE.BufferGeometry().setFromPoints(xzPoints);
-                const is_closest_4 = end.y > start.y;
-                const material = is_closest_4 ? frustrumMaterial : frustrumFarMaterial;
-                const xzLine = new THREE.Line(xzGeometry, material);
-                xzScene.add(xzLine);
-                xzEdgeMeshes.push(xzLine);
-            });
-
-            // YZ projection
-            // hyperobjects
-            for (let hyperobject of hyperscene_visible_objects) {
-                let yz_vertices = [];
-                let yz_edges = [];
-                yz_vertices = [];
-                for (let v of hyperobject.vertices_in_world) {
-                    yz_vertices.push(new THREE.Vector3(0, v.z, -v.y));
+                    const _ruGeometry = new THREE.BufferGeometry().setFromPoints(_ruPoints);
+                    const _ruLine = new THREE.Line(_ruGeometry, edgeMaterial);
+                    scene2D.add(_ruLine);
+                    sceneEdgeList.push(_ruLine);
                 }
-                yz_edges = hyperobject.edges.slice();
-                yz_vertices.forEach((pos, i) => {
-                    const yzGeometry = new THREE.CircleGeometry(0.3, 16);
-                    const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
-                    const yzMesh = new THREE.Mesh(yzGeometry, material);
-                    yzMesh.position.set(pos.x, pos.y, pos.z);
-                    yzMesh.rotation.y = Math.PI / 2;
-                    yzScene.add(yzMesh);
-                    yzVertexMeshes.push(yzMesh);
-                });
-                yz_edges.forEach(([i, j]) => {
-                    const yzPoints = [
-                        new THREE.Vector3(yz_vertices[i].x, yz_vertices[i].y, yz_vertices[i].z),
-                        new THREE.Vector3(yz_vertices[j].x, yz_vertices[j].y, yz_vertices[j].z)
+                // gizmo
+                if (GIZMO_MODE == 1) {
+                    let gizmo_materials = [
+                        redGizmoMaterial,
+                        greenGizmoMaterial,
+                        blueGizmoMaterial,
+                        yellowGizmoMaterial
                     ];
-                    const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
-                    const yzLine = new THREE.Line(yzGeometry, edgeMaterial);
-                    yzScene.add(yzLine);
-                    yzEdgeMeshes.push(yzLine);
-                });
-            }
-            // hyperfloor
-            for (let [i, j] of hyperfloor.edges) {
-                vi_yz = new THREE.Vector3(0, hyperfloor.vertices_in_world[i].z, -hyperfloor.vertices_in_world[i].y);
-                vj_yz = new THREE.Vector3(0, hyperfloor.vertices_in_world[j].z, -hyperfloor.vertices_in_world[j].y);
-                const yzPoints = [
-                    new THREE.Vector3(vi_yz.x, vi_yz.y, vi_yz.z),
-                    new THREE.Vector3(vj_yz.x, vj_yz.y, vj_yz.z)
-                ];
-                const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
-                const yzLine = new THREE.Line(yzGeometry, edgeMaterial);
-                yzScene.add(yzLine);
-                yzEdgeMeshes.push(yzLine);
-            }
-            // camera frustrum
-            camera_edges_in_world.forEach(([start, end]) => {
-                const yzPoints = [
-                    new THREE.Vector3(0, start.z, -start.y),
-                    new THREE.Vector3(0, end.z, -end.y)
-                ];
-                const yzGeometry = new THREE.BufferGeometry().setFromPoints(yzPoints);
-                const is_closest_4 = -end.x > -start.x;
-                const material = is_closest_4 ? frustrumMaterial : frustrumFarMaterial;
-                const yzLine = new THREE.Line(yzGeometry, material);
-                yzScene.add(yzLine);
-                yzEdgeMeshes.push(yzLine);
-            });
-
-            // WZ projection
-            for (let hyperobject of hyperscene_visible_objects) {
-                let wz_vertices = [];
-                let wz_edges = [];
-                wz_vertices = [];
-                for (let v of hyperobject.vertices_in_world) {
-                    wz_vertices.push(new THREE.Vector3(0, v.z, -v.w));
+                    for (let axis_index = 0; axis_index < gizmo_axes_in_world.length; axis_index++) {
+                        let [start_in_world, end_in_world] = gizmo_axes_in_world[axis_index];
+                        let start__ru = project_vertex_4D_to_2D_func(start_in_world);
+                        let end__ru = project_vertex_4D_to_2D_func(end_in_world);
+                        const _ruPoints = [
+                            new THREE.Vector3(start__ru.x, start__ru.y, start__ru.z),
+                            new THREE.Vector3(end__ru.x, end__ru.y, end__ru.z)
+                        ];
+                        const _ruGeometry = new THREE.BufferGeometry().setFromPoints(_ruPoints);
+                        const _ruLine = new THREE.Line(_ruGeometry, gizmo_materials[axis_index]);
+                        scene2D.add(_ruLine);
+                        sceneEdgeList.push(_ruLine);
+                    }
                 }
-                wz_edges = hyperobject.edges.slice();
-                wz_vertices.forEach((pos, i) => {
-                    const wzGeometry = new THREE.CircleGeometry(0.3, 16);
-                    const material = i === selectedVertexIndex ? selectedVertexMaterial : vertexMaterial;
-                    const wzMesh = new THREE.Mesh(wzGeometry, material);
-                    wzMesh.position.set(pos.x, pos.y, pos.z);
-                    wzMesh.rotation.y = Math.PI / 2;
-                    wzScene.add(wzMesh);
-                    wzVertexMeshes.push(wzMesh);
-                });
-                wz_edges.forEach(([i, j]) => {
-                    const wzPoints = [
-                        new THREE.Vector3(wz_vertices[i].x, wz_vertices[i].y, wz_vertices[i].z),
-                        new THREE.Vector3(wz_vertices[j].x, wz_vertices[j].y, wz_vertices[j].z)
+                // camera frustrum
+                camera_edges_in_world.forEach(([start, end]) => {
+                    const _ruPoints = [
+                        project_vertex_4D_to_2D_func(start),
+                        project_vertex_4D_to_2D_func(end)
                     ];
-                    const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
-                    const wzLine = new THREE.Line(wzGeometry, edgeMaterial);
-                    wzScene.add(wzLine);
-                    wzEdgeMeshes.push(wzLine);
+                    const _ruGeometry = new THREE.BufferGeometry().setFromPoints(_ruPoints);
+                    const is_closest_4 = end.y > start.y;
+                    const material = is_closest_4 ? frustrumMaterial : frustrumFarMaterial;
+                    const _ruLine = new THREE.Line(_ruGeometry, material);
+                    scene2D.add(_ruLine);
+                    sceneEdgeList.push(_ruLine);
                 });
             }
-            // hyperfloor
-            for (let [i, j] of hyperfloor.edges) {
-                vi_wz = new THREE.Vector3(0, hyperfloor.vertices_in_world[i].z, -hyperfloor.vertices_in_world[i].w);
-                vj_wz = new THREE.Vector3(0, hyperfloor.vertices_in_world[j].z, -hyperfloor.vertices_in_world[j].w);
-                const wzPoints = [
-                    new THREE.Vector3(vi_wz.x, vi_wz.y, vi_wz.z),
-                    new THREE.Vector3(vj_wz.x, vj_wz.y, vj_wz.z)
-                ];
-                const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
-                const wzLine = new THREE.Line(wzGeometry, edgeMaterial);
-                wzScene.add(wzLine);
-                wzEdgeMeshes.push(wzLine);
-            }
-            // camera frustrum
-            camera_edges_in_world.forEach(([start, end]) => {
-                const wzPoints = [
-                    new THREE.Vector3(0, start.z, -start.w),
-                    new THREE.Vector3(0, end.z, -end.w)
-                ];
-                const wzGeometry = new THREE.BufferGeometry().setFromPoints(wzPoints);
-                const is_closest_4 = end.y > start.y;
-                const material = is_closest_4 ? frustrumMaterial : frustrumFarMaterial;
-                const wzLine = new THREE.Line(wzGeometry, material);
-                wzScene.add(wzLine);
-                wzEdgeMeshes.push(wzLine);
-            });
 
+            function xz_project_vertex(v) {
+                return new THREE.Vector3(0, v.z, -v.x);
+            }
+            function yz_project_vertex(v) {
+                return new THREE.Vector3(0, v.z, -v.y);
+            }
+            function wz_project_vertex(v) {
+                return new THREE.Vector3(0, v.z, -v.w);
+            }
+            project_scene_to_orthogonal(xz_project_vertex, xzScene, xzVertexMeshes, xzEdgeMeshes);
+            project_scene_to_orthogonal(yz_project_vertex, yzScene, yzVertexMeshes, yzEdgeMeshes);
+            project_scene_to_orthogonal(wz_project_vertex, wzScene, wzVertexMeshes, wzEdgeMeshes);
+
+            // UVL Camera Sensor Projection
             // Project Meshes into 3D Camera Sensor
             for (let hyperobject of hyperscene_visible_objects) {
                 let uvl_vertices = [];
@@ -1100,6 +1045,81 @@
                     vertexMeshes.push(mesh);
                 }
             }
+            // hypergizmo
+            if (GIZMO_MODE > 0) {
+                let gizmo_materials = [
+                    redGizmoMaterial,
+                    greenGizmoMaterial,
+                    blueGizmoMaterial,
+                    yellowGizmoMaterial
+                ];
+                let gizmo_axes_suvl = [];
+                let gizmo_axes_s = [];
+                if (GIZMO_MODE == 1) { // gizmo at fixed place in the world
+                    // camera equation
+                    for (let [start, end] of gizmo_axes_in_world) {
+                        let start_in_cam = hypercamera_T.inverse().transform_point(start);
+                        let end_in_cam = hypercamera_T.inverse().transform_point(end);
+                        let suvl_start = [ start_in_cam.x, start_in_cam.y, start_in_cam.z, start_in_cam.w ]; // TODO: apply intrinsics
+                        let suvl_end = [ end_in_cam.x, end_in_cam.y, end_in_cam.z, end_in_cam.w ]; // TODO: apply intrinsics
+                        let uvl_start = [ suvl_start[1] / suvl_start[0], suvl_start[2] / suvl_start[0], suvl_start[3] / suvl_start[0] ]; // perspective divide
+                        let uvl_end = [ suvl_end[1] / suvl_end[0], suvl_end[2] / suvl_end[0], suvl_end[3] / suvl_end[0] ]; // perspective divide
+                        gizmo_axes_suvl.push([ new THREE.Vector3(uvl_start[0], uvl_start[1], uvl_start[2]), new THREE.Vector3(uvl_end[0], uvl_end[1], uvl_end[2]) ]);
+                        gizmo_axes_s.push([ suvl_start[0], suvl_end[0] ]);
+                    }
+                } else { // gizmo at fixed place in the sensor
+                    let gizmo_origin_in_suvl = new Vector4D(1, 0, 0, 0); // center of sensor
+                    // camera equation
+                    for (let axis_vec of gizmo_axes_vectors_in_world) {
+                        let suvl_start = gizmo_origin_in_suvl;
+                        let suvl_vec = hypercamera_T.inverse().transform_vector(axis_vec);
+                        let uvl_vec = new Vector4D(0, suvl_vec.y, suvl_vec.z, suvl_vec.w).normalize();
+                        let uvl_start = [ suvl_start.y, suvl_start.z, suvl_start.w ];
+                        let uvl_end = [ uvl_start[0] + uvl_vec.y * 0.2, uvl_start[1] + uvl_vec.z * 0.2, uvl_start[2] + uvl_vec.w * 0.2 ];
+                        gizmo_axes_suvl.push([ new THREE.Vector3(uvl_start[0], uvl_start[1], uvl_start[2]), new THREE.Vector3(uvl_end[0], uvl_end[1], uvl_end[2]) ]);
+                        gizmo_axes_s.push([ 1, 1 ]);
+                    }
+
+                }
+                // Make threejs edges
+                for (let i = 0; i < gizmo_axes_suvl.length; i++) {
+                    const [start, end] = gizmo_axes_suvl[i];
+                    const [s_start, s_end] = gizmo_axes_s[i];
+                    const are_both_vertices_in_front = (s_start > 0 && s_end > 0);
+                    if (!are_both_vertices_in_front) {
+                        continue; // skip edges with vertices behind camera
+                    }
+                    const is_start_vertex_inside_sensor = (
+                        start.x >= hypercamera_sensor_uvl_range[0] &&
+                        start.x <= hypercamera_sensor_uvl_range[1] &&
+                        start.y >= hypercamera_sensor_uvl_range[2] &&
+                        start.y <= hypercamera_sensor_uvl_range[3] &&
+                        start.z >= hypercamera_sensor_uvl_range[4] &&
+                        start.z <= hypercamera_sensor_uvl_range[5]
+                    );
+                    const is_end_vertex_inside_sensor = (
+                        end.x >= hypercamera_sensor_uvl_range[0] &&
+                        end.x <= hypercamera_sensor_uvl_range[1] &&
+                        end.y >= hypercamera_sensor_uvl_range[2] &&
+                        end.y <= hypercamera_sensor_uvl_range[3] &&
+                        end.z >= hypercamera_sensor_uvl_range[4] &&
+                        end.z <= hypercamera_sensor_uvl_range[5]
+                    );
+                    const are_both_vertices_inside_sensor = (
+                        is_start_vertex_inside_sensor &&
+                        is_end_vertex_inside_sensor
+                    );
+                    if (are_both_vertices_inside_sensor) {
+                        const points = [start, end];
+                        let material = gizmo_materials[i];
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        const line = new THREE.Line(geometry, material);
+                        scene.add(line);
+                        edgeMeshes.push(line);
+                    }
+                }
+
+            }
             // hyperfloor
             let uvl_vertices = [];
             let uvl_vertices_s = []; // scaling factors
@@ -1231,6 +1251,9 @@
         window.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
             on_first_user_interaction();
+            if (e.key.toLowerCase() == 'g') {
+                GIZMO_MODE = (GIZMO_MODE + 1) % 3; // cycle through gizmo modes
+            }
         });
 
         window.addEventListener('keyup', (e) => {
@@ -1528,7 +1551,7 @@
                     moved = true;
                 }
 
-                if (keys['1'] || keys['2']) {
+                if (keys['1'] || keys['2'] || keys['0']) {
                     // Look at the selected vertex
                     // camera x axis is now normalized vector from camera to vertex
                     // camera z axis should now be on the plane composed by the new x axis and the world z axis
@@ -1536,9 +1559,12 @@
                         // ---- Step 1: compute z ----
                     let hyperobject_idx = keys['1'] ? 0 : 1;
                     let worldZ = new Vector4D(0, 0, 1, 0);
-                    let x = hyperobject_get_com(hyperscene_visible_objects[hyperobject_idx])
-                        .subtract(hypercamera_T.origin())
-                        .normalize();
+                    let lookAt_in_world = hyperobject_get_com(hyperscene_visible_objects[hyperobject_idx]);
+                    if (keys['0']) {
+                        lookAt_in_world = gizmo_axes_in_world[0][0]; // origin
+                    }
+                    // new camera x axis
+                    let x = lookAt_in_world.subtract(hypercamera_T.origin()).normalize();
                     let zProj = x.multiply_by_scalar(worldZ.dot(x));
                     let zPrime = worldZ.subtract(zProj);
                     let z = zPrime.normalize();
