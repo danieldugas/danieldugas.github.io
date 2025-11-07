@@ -385,7 +385,7 @@
             new Vector4D(0, 0, 0, 1.0)  // W axis
         ];
         const gizmo_length_in_world = 1.0;
-        let gizmo_z_in_world = -2; // floor_heightmap(0, 0, 0) + 0.1;
+        let gizmo_z_in_world = floor_heightmap(0, 0, 0);
         let gizmo_axes_in_world = [
             [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(gizmo_length_in_world, 0, gizmo_z_in_world, 0)], // X axis
             [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(0, gizmo_length_in_world, gizmo_z_in_world, 0)], // Y axis
@@ -406,11 +406,12 @@
             // [0, hf, 0, 0],
             // [0, 0, hf, 0],
             // [0, 0, 0, 1]
-        // ];
+        // ]; // see TODO s , for now assume identity intrinsics
         let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
         let hypercamera_is_unit_sensor = true;
 
         // define a hypercube object
+        const OSZ = floor_heightmap(0, 0, 0) + 3.0; // object spawn z
         let hypercube = new Hyperobject(
             // vertices in object frame
             [ 
@@ -452,7 +453,7 @@
             new Transform4D([
                 [1, 0, 0, 0, 4],
                 [0, 1, 0, 0, 0],
-                [0, 0, 1, 0, 0],
+                [0, 0, 1, 0, OSZ],
                 [0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 1]
             ])
@@ -485,7 +486,7 @@
             new Transform4D([
                 [1, 0, 0, 0, -4],
                 [0, 1, 0, 0, -3],
-                [0, 0, 1, 0, 0],
+                [0, 0, 1, 0, OSZ],
                 [0, 0, 0, 1, 4],
                 [0, 0, 0, 0, 1]
             ])
@@ -510,7 +511,7 @@
         const n_j = Math.floor((GRID_LIMS.y_max - GRID_LIMS.y_min) / GRID_RES) + 1;
         const n_k = Math.floor((GRID_LIMS.w_max - GRID_LIMS.w_min) / GRID_RES) + 1;
         function floor_heightmap(x, y, w) {
-            return -2 + x * 0.1; // flat floor at z = -2
+            return 0 + x * 0.1;
         }
         let grid_vertices = [];
         let grid_edges = [];
