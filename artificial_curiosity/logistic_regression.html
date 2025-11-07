@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Logistic Regression Gradient Step Demo</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    canvas { border: 1px solid #ccc; margin-top: 1rem; }
+    .controls { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Logistic Regression Gradient Step Demo</h1>
+  <p>This demo performs one gradient descent step on a simple 1D dataset and plots the predicted probability curve.</p>
+
+  <div class="controls">
+    <label>Learning rate: <input id="lr" type="number" value="0.1" step="0.01" /></label>
+    <button id="stepBtn">Step Gradient</button>
+    <br>
+    <span id="gradientInfo"></span>
+    <br>
+    <span id="paramsDisplay"></span>
+  </div>
+
+  <canvas id="plot" width="500" height="300"></canvas>
+
+  <script>
+    // Simple 1D dataset (x, y)
+    const data = [
+      { x: -2, y: 0 },
+      { x: -1, y: 0 },
+      { x:  0, y: 0 },
+      { x:  1, y: 1 },
+      { x:  2, y: 1 },
+      { x:  3, y: 1 }
+    ];
+
+    // Parameters w (weight) and b (bias)
+    let parameters = {
+        l1_w: 0,
+        l1_b: 0
+    }
+
+    function sigmoid(z) {
+      let p = 1 / (1 + Math.exp(-z));
+      let dp_dz = p * (1 - p);
+      return [p,  dp_dz];
+    }
+
+    function model(x, params) {
+        // dL/dw? dL/db?
+        // dL/dw = dL/dy^ * dy^/dz * dz/dw
+        // dL/db = dL/dy^ * dy^/dz * dz/db
+        // 
+        // dL/dy^ = - (y / y^) + ((1 - y) / (1 - y^))
+        // dy^/dz = y^ * (1 - y^)
+        // dz/dw = x
+        // dz/db = 1
+        let w = params.l1_w;
+        let b = params.l1_b;
+        let z = w * x + b;
+        let dz_dw = x;
+        let dz_db = 1;
+        let [yHat, dyHat_dz] = sigmoid(z);
+        // chain rule
+        let dyHat_dw = dyHat_dz * dz_dw;
+        let dyHat_db = dyHat_dz * dz_db;
+        let dyHat_dtheta = {
+            l1_w: dyHat_dw,
+            l1_b: dyHat_db
+        }
+        return [yHat, dyHat_dtheta];
+    }
+
+    function loss(yHat, y) {
+        if (yHat === 0) yHat = 1e-15;
+        if (yHat === 1) yHat = 1 - 1e-15;
+        const L = - (y * Math.log(yHat) + (1 - y) * Math.log(1 - yHat));
+        const dL_dyHat = - (y / yHat) + ((1 - y) / (1 - yHat));
+        return [L, dL_dyHat];
+    }
+
+    function stepGradient(lr) {
+        let dtheta = {
+            l1_w: 0,
+            l1_b: 0
+        }
+        // clear gradient info
+        document.getElementById('gradientInfo').textContent = '';
+        for (const { x, y } of data) {
+            // Forward f(x | theta) -> y^
+            // Backward wrt to params (dyHat/dw, dyHat/db, ...)
+            let [yHat, dyHat_dtheta] = model(x, parameters);
+            // Loss for that sample
+            // L = - (y * log(y^) + (1 - y) * log(1 - y^))
+            let [L, dL_dyHat] = loss(yHat, y);
+            // Gradient descent rule
+            // dw += - lr * dL/dw
+            dtheta.l1_w += -lr * dL_dyHat * dyHat_dtheta.l1_w;
+            dtheta.l1_b += -lr * dL_dyHat * dyHat_dtheta.l1_b;
+            // add to gradient info display
+            document.getElementById('gradientInfo').innerHTML += `x: ${x}, y: ${y.toFixed(2)}, ŷ: ${yHat.toFixed(3)}, L: ${L.toFixed(3)}, dL/dw: ${(dL_dyHat * dyHat_dtheta.l1_w).toFixed(3)}, dL/db: ${(dL_dyHat * dyHat_dtheta.l1_b).toFixed(3)}<br>`;
+        }
+        // show final gradient
+        document.getElementById('gradientInfo').innerHTML += `Total Gradient -> dw = -lr * dL/dw: ${dtheta.l1_w.toFixed(3)}, db = -lr * dL/db: ${dtheta.l1_b.toFixed(3)}`;
+        // Update parameters
+        parameters.l1_w += dtheta.l1_w;
+        parameters.l1_b += dtheta.l1_b;
+    }
+
+    function drawPlot() {
+      const canvas = document.getElementById('plot');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Coordinate transform
+      const xs = data.map(d => d.x);
+      const minX = Math.min(...xs) - 1;
+      const maxX = Math.max(...xs) + 1;
+
+      function toCanvasX(x) {
+        return ((x - minX) / (maxX - minX)) * canvas.width;
+      }
+      function toCanvasY(y) {
+        return canvas.height - y * canvas.height;
+      }
+
+      // Plot data points
+      ctx.fillStyle = 'black';
+      for (const { x, y } of data) {
+        const cx = toCanvasX(x);
+        const cy = toCanvasY(y);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+
+      // Plot predicted curve
+      ctx.beginPath();
+      const steps = 200;
+      for (let i = 0; i <= steps; i++) {
+        const x = minX + (i / steps) * (maxX - minX);
+        const [y, dyHat_dtheta] = model(x, parameters);
+        const cx = toCanvasX(x);
+        const cy = toCanvasY(y);
+        if (i === 0) ctx.moveTo(cx, cy);
+        else ctx.lineTo(cx, cy);
+      }
+      ctx.strokeStyle = 'blue';
+      ctx.stroke();
+    }
+
+    function displayModelParams() {
+      document.getElementById('paramsDisplay').textContent = `model: y = sigmoid(${parameters.l1_w.toFixed(3)} * x + ${parameters.l1_b.toFixed(3)})`;
+    }
+
+    document.getElementById('stepBtn').addEventListener('click', () => {
+      const lr = parseFloat(document.getElementById('lr').value);
+      stepGradient(lr);
+      drawPlot();
+      displayModelParams();
+    });
+
+    // Initial draw
+    drawPlot();
+    displayModelParams();
+  </script>
+</body>
+</html>
