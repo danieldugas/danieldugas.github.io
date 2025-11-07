@@ -24,6 +24,189 @@
 
   <canvas id="plot" width="500" height="300"></canvas>
 
+  <h3>Explanation</h3>
+
+  <p>
+    First, the problem setup:<br>
+    - There is a dataset consists of points (x, y) where y is either 0 or 1.<br>
+    - There is a true phenomenon that can generate these points, but we don't know what it is.<br>
+    - The model tries to predict the probability p(y=1|x)<br>
+  </p>
+  <p>
+    This is a useful setup for a binary classificiation problem,<br>
+    for example imagine an insurance agent that has to guess whether a house needs repairs (y=1 means the house should be repaired, y=0 means no repair needed).
+    based on the age of the house since it was last repaired (x in years).
+  </p>
+
+  <h4>Likelihood function</h4>
+
+  <p>
+    Likelihood is a useful concept: it is the probability of observing the whole dataset given the model.<br>
+    It is useful for comparing two models. For example, my friends might propose the following models:<br>
+    - Angela says "p(x) is always 0.5 (a.k.a., it's just random)"<br>
+    - Brad says "p(x) is 0.9 if x > 10 else 0.1 (a.k.a, most houses 10 years or older need repairs)"<br>
+    - Charlie says "p(x) is 1 (a.k.a. whenever I look at a house, it needs repairs, I never see a house that doesn't)"<br>
+    likelihood lets us ask who is more right, by switching the problem around:<br>
+    Assuming the person is right, how likely was it for us to observe the dataset we have?<br>
+  </p>
+
+  <p>
+    Likelihood formula:<br>
+    the probability is easy to calculate, it is the probability of each point multiplied together:<br>
+    - the first house was 2 years old and didn't need repairs (x=2, y=0). Our model guessed p(x=2)=0.1. The probability of observing this point is 1 - p(x=2) = 0.9<br>
+    - the second house was 3 years old and needed repairs (x=3, y=1). Our model guessed p(x=3)=0.1. The probability of observing this point is p(x=3) = 0.1<br>
+    - the third house was 15 years old and needed repairs (x=15, y=1). Our model guessed p(x=15)=0.9. The probability of observing this point is p(x=15) = 0.9<br>
+    The likelihood of observing both points is 0.9 * 0.1 * 0.9 = 0.081<br>
+
+    The general formula needs to cover both the cases where the houses needed repairs (y=1) and where they didn't (y=0), so we add an exponent and multiply both possibilities:<br>
+    <br>
+    L = Π p(x_i)<sup>y_i</sup> (1 - p(x_i))<sup>(1 - y_i)</sup><br>
+    <br>
+    where i goes over all points in the dataset.<br>
+  </p>
+
+  <p>
+    Now we can calculate the likelihood of the dataset for each of our friends' models:<br>
+    - Angela's model: L = 0.5 * 0.5 * 0.5 = <b>0.125</b><br>
+    - Brad's model: L = 0.9 * 0.1 * 0.9 = 0.081<br>
+    - Charlie's model: L = 0 * 1 * 1 = 0<br>
+    <br>
+    And there we have it, Angela's model is the best of the three - it has the highest likelihood for the dataset.<br>
+    Brad's model does really well on the first and last houses, but is much too confident about the second one.<br>
+    Charlie's model can't explain the second house at all, as it predicts that observation to be impossible (p=0).<br>
+  </p>
+
+  <h4>Choosing a parametric model space</h4>
+
+  <p>
+    In this example of logistic regression, instead of allowing any possible function for p(x),
+    we restrict ourselves to a specific family of functions, called the logistic functions:<br>
+    <br>
+    p(x) = sigmoid(w * x + b)<br>
+    <br>
+    This family of functions is defined by two parameters: w (weight) and b (bias), which can be tuned.<br>
+    The sigmoid function is defined as:<br>
+    <br>
+    sigmoid(z) = 1 / (1 + exp(-z))<br>
+    <br>
+    The sigmoid function has a nice property that it always outputs values between 0 and 1, which is perfect for probabilities.<br>
+    Similarly to a linear regression, the function is monotonic, it can't have multiple ups and downs
+    (this sort of limitation is sometimes referred to as a "bias")
+    but this is fine for our simple 1D dataset.<br>
+
+    <h4>Learning to improve our model</h4>
+
+    <p>
+        Let's say that unlike Angela, Brad and Charlie, we are not satisfied with just proposing models based on intuition.
+        Instead, we think that we can do better by learning from data.
+        <br>
+        How would we do this?
+    </p>
+
+    <p>
+        First, we can argue that there is probably a "best" model out there:
+        the one that maximizes the likelihood of observing the data we have.
+        <br>
+        Note: later you'll find we may need to add in assumptions too about smoothness or simplicity of the model, otherwise the best model may just "overfit" to the dataset and perform well on new data.
+        <br>
+        <br>
+        The idea is to start with some initial guess for the parameters (w, b),
+        and then try to nudge them in a way that increases the likelihood of the observed data, until it doesn't improve anymore.<br>
+        Then, it'll mean we have found a (local) maximum likelihood model!
+    </p>
+
+    <p>
+        Rather than nudging at random, we can be smarter:<br>
+        If we actually know how the likelihood changes when we change the parameters (this is called the gradient),
+        we can nudge the parameters in the direction that increases the likelihood the most.<br>
+        This is called gradient ascent (or gradient descent if we put a minus sign on the likelihood).<br>
+        <br> 
+        Can we get this gradient?
+    </p>
+
+    <h5>The Chain Rule</h5>
+
+    <p>
+        If a function is composed of multiple steps, we can use the chain rule to get the gradient with respect to the parameters.<br>
+        if we want to know dL/dw,<br>
+        we can rewrite it as:<br>
+        <br>
+        dL/dw<br>
+        = dL/dp dp/dw<br>
+        = dL/dp dp/dz dz/dw<br>
+        <br>
+        and the same for dL/db<br>
+        dL/db<br>
+        = dL/dp dp/db<br>
+        = dL/dp dp/dz dz/db<br>
+    </p>
+
+    <p>
+        In our case these components are almost all easy to get:
+        <br>
+        remember:<br>
+        <br>
+        z = w * x + b<br>
+        <br> so <br>
+        <br>
+        dz/dw = x<br>
+        <br> and, <br>
+        <br>
+        dz/db = 1<br>
+        <br>
+        Also remember:<br>
+        <br>
+        p = 1 / (1 + exp(-z))<br>
+        <br> so <br>
+        <br>
+        dp/dz = p * (1 - p)<br>
+        <br>
+        Finally, the only tricky part is dL/dp:<br>
+        <br>
+        the likelihood is a big multiplication, which makes derivatives tricky to work with.<br>
+        Here's where a useful trick comes in:<br>
+        instead of working with likelihood L, we can work with log-likelihood LL = log(L).<br>
+        Logarithm has a nice property that it turns multiplications into additions:<br>
+        <br>
+        LL = log(L) = Σ [ y_i * log(p_i) + (1 - y_i) * log(1 - p_i) ]<br>
+        <br>
+        where i goes over all points in the dataset.<br>
+        Now, we can get dLL/dp for a single data point as:<br>
+        <br>
+        dLL/dp = y / p - (1 - y) / (1 - p)<br>
+        <br>
+        <br>
+        Now we can just multiply these components to get the final gradients:<br>
+        <br>
+        dLL/dw = dLL/dp * dp/dz * dz/dw = [ y / p - (1 - y) / (1 - p) ] * p * (1 - p) * x = (y - p) * x<br>
+        dLL/db = dLL/dp * dp/dz * dz/db = [ y / p - (1 - y) / (1 - p) ] * p * (1 - p) * 1 = (y - p)<br>
+        <br>
+        <br>
+        where p is the predicted probability from our model, and y is the true label from the dataset.<br>
+    </p>
+
+    <h5>Gradient Descent</h5>
+
+    <p>
+        Now that we know the gradient, the final step is to apply it:<br>
+        - for each data point, calculate the predicted probability p from the model<br>
+        - calculate the gradients dLL/dw and dLL/db using the formulas above<br>
+        - average the gradients over all data points<br>
+        - update the parameters w and b by moving them a small step in the direction of the gradients: dw = - lr * dLL/dw<br>
+        <br>
+
+        Where does this last formula come from? The idea is that we want to move in a direction that increases the log-likelihood the most.<br>
+        If there are two directions, dw and db, and one of them has a larger gradient, it means that moving in that direction will increase the log-likelihood more.<br>
+        The learning rate is a multiplier that controls how big of a step we take in that direction.<br>
+        A bigger learning rate means we learn faster, but sometimes it can make us overshoot the maximum and make things worse.<br>
+        Note: this is why people use smarter optimizers, that try to automatically adjust the learning rate over time.<br>
+    </p>
+
+
+
+
+
+
   <script>
     // Simple 1D dataset (x, y)
     const data = [
