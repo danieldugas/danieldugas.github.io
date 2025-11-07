@@ -330,6 +330,33 @@
                 return new Transform4D(invMatrix);
             }
         }
+        class Hyperobject {
+            constructor(vertices_in_object, edges, simulate_physics, show_vertices, mass, pose) {
+                this.vertices_in_object = vertices_in_object; // in object frame
+                this.edges = edges;
+                this.simulate_physics = simulate_physics; // if true, object gets affected by physics
+                this.show_vertices = show_vertices;
+                this.mass = mass;
+                this.pose = pose; // Transform4D from object frame to world frame
+                // variables
+                this.velocity_in_world = new Vector4D(0, 0, 0, 0);
+                this.rotational_velocity = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
+                // computed properties
+                this.update_vertices_in_world();
+            }
+
+            update_vertices_in_world() {
+                this.vertices_in_world = [];
+                for (let v of this.vertices_in_object) {
+                    let v_world = this.pose.transform_point(v);
+                    this.vertices_in_world.push(v_world);
+                }
+            }
+
+            get_com() {
+                return this.pose.origin();
+            }
+        }
 
         // params
         let SIMULATE_PHYSICS = true;
@@ -383,34 +410,6 @@
         let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
         let hypercamera_is_unit_sensor = true;
 
-        class Hyperobject {
-            constructor(vertices_in_object, edges, simulate_physics, show_vertices, mass, pose) {
-                this.vertices_in_object = vertices_in_object; // in object frame
-                this.edges = edges;
-                this.simulate_physics = simulate_physics; // if true, object gets affected by physics
-                this.show_vertices = show_vertices;
-                this.mass = mass;
-                this.pose = pose; // Transform4D from object frame to world frame
-                // variables
-                this.velocity_in_world = new Vector4D(0, 0, 0, 0);
-                this.rotational_velocity = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
-                // computed properties
-                this.update_vertices_in_world();
-            }
-
-            update_vertices_in_world() {
-                this.vertices_in_world = [];
-                for (let v of this.vertices_in_object) {
-                    let v_world = this.pose.transform_point(v);
-                    this.vertices_in_world.push(v_world);
-                }
-            }
-
-            get_com() {
-                return this.pose.origin();
-            }
-        }
-
         // define a hypercube object
         let hypercube = new Hyperobject(
             // vertices in object frame
@@ -459,72 +458,7 @@
             ])
         );
             
-        // let hypercube = {
-        //     vertices_in_world: [
-        //         new Vector4D(-1, -1, -1, -1),
-        //         new Vector4D( 1, -1, -1, -1),
-        //         new Vector4D( 1,  1, -1, -1),
-        //         new Vector4D(-1,  1, -1, -1),
-        //         new Vector4D(-1, -1,  1, -1),
-        //         new Vector4D( 1, -1,  1, -1),
-        //         new Vector4D( 1,  1,  1, -1),
-        //         new Vector4D(-1,  1,  1, -1),
-        //         new Vector4D(-1, -1, -1,  1),
-        //         new Vector4D( 1, -1, -1,  1),
-        //         new Vector4D( 1,  1, -1,  1),
-        //         new Vector4D(-1,  1, -1,  1),
-        //         new Vector4D(-1, -1,  1,  1),
-        //         new Vector4D( 1, -1,  1,  1),
-        //         new Vector4D( 1,  1,  1,  1),
-        //         new Vector4D(-1,  1,  1,  1)
-        //     ],
-        //     edges: [
-        //         [0,1],[1,2],[2,3],[3,0],
-        //         [4,5],[5,6],[6,7],[7,4],
-        //         [0,4],[1,5],[2,6],[3,7],
-        //         [8,9],[9,10],[10,11],[11,8],
-        //         [12,13],[13,14],[14,15],[15,12],
-        //         [8,12],[9,13],[10,14],[11,15],
-        //         [0,8],[1,9],[2,10],[3,11],
-        //         [4,12],[5,13],[6,14],[7,15]
-        //     ],
-        //     simulate_physics: true, // if true, object gets affected by physics
-        //     show_vertices: true,
-        //     velocity_in_world: new Vector4D(0, 0, 0, 0),
-        //     rotational_velocity: {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0},
-        //     mass: 1.0
-        // };
-        // hypercube.vertices_in_world.forEach(v => {
-        //     v.x += 4;
-        // });
-
-        // Define a hyperpyramid object
-        // let hyperpyramid = {
-        //     vertices_in_world: [
-        //         new Vector4D(0, 0, 1, 0),
-        //         new Vector4D(1, 1, -1, 1),
-        //         new Vector4D(1, -1, -1, -1),
-        //         new Vector4D(-1, 1, -1, -1),
-        //         new Vector4D(-1, -1, -1, 1)
-        //     ],
-        //     edges: [
-        //         [0,1],[0,2],[0,3],[0,4],
-        //         [1,2],[1,3],[1,4],
-        //         [2,3],[2,4],
-        //         [3,4]
-        //     ],
-        //     simulate_physics: true, // if true, object gets affected by physics
-        //     show_vertices: true,
-        //     velocity_in_world: new Vector4D(0, 0, 0, 0),
-        //     rotational_velocity: {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0},
-        //     mass: 1.0
-        // };
-        // // Manually move to hyperpyramid by x- and y-
-        // hyperpyramid.vertices_in_world.forEach(v => {
-        //     v.x -= 4;
-        //     v.y -= 3;
-        //     v.w += 4;
-        // });
+        // define a hyperpyramid object
         let hyperpyramid = new Hyperobject(
             // vertices in object frame
             [
@@ -625,12 +559,7 @@
                 }
             }
         }
-        // let hyperfloor = {
-        //     vertices_in_world: grid_vertices,
-        //     edges: grid_edges,
-        //     simulate_physics: false, // if true, object gets affected by physics
-        //     show_vertices: false
-        // };
+        // create the class
         let hyperfloor = new Hyperobject(
             // vertices in object frame
             grid_vertices,
@@ -652,6 +581,7 @@
             ])
         );
 
+        // scene definition
         let hyperscene_visible_objects = [hypercube, hyperpyramid, hyperfloor];
 
         // OrbitControls implementation
