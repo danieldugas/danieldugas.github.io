@@ -35,6 +35,15 @@
             gap: 10px;
             z-index: 50;
         }
+        #additional-projection-container {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 50;
+        }
         .projection-view {
             background: rgba(0, 0, 0, 0.8);
             border: 2px solid #444;
@@ -90,6 +99,19 @@
             <div class="projection-label">WZ Projection (AnaKata View)</div>
             <div id="wz-canvas"></div>
         </div>
+    </div>
+    <div id="additional-projection-container">
+        <div class="projection-view">
+            <div class="projection-label">YW Projection (Weird View)</div>
+            <div id="yw-canvas"></div>
+        </div>
+        <div class="projection-view">
+            <div class="projection-label">XW Projection (Strange View)</div>
+            <div id="xw-canvas"></div>
+        </div>
+        <div class="projection-view">
+            <div class="projection-label">XY Projection (Top View)</div>
+            <div id="xy-canvas"></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -361,6 +383,7 @@
         // params
         let SIMULATE_PHYSICS = true;
         let GIZMO_MODE = 1; // 0: none, 1: in world middle, 2: in sensor middle
+        let EXTRA_VIEWS = false; // slow
 
         // track variables
         let user_has_interacted = false;
@@ -717,6 +740,37 @@
         wzRenderer.setSize(projectionSize, projectionSize);
         document.getElementById('wz-canvas').appendChild(wzRenderer.domElement);
 
+        // Setup YW projection (Weird view)
+        const ywScene = new THREE.Scene();
+        ywScene.background = new THREE.Color(0x0a0a1a);
+        const ywCamera = new THREE.OrthographicCamera(-CSZ, CSZ, CSZ, -CSZ, 0.1, 100);
+        ywCamera.position.set(20, 0, 0);
+        ywCamera.lookAt(0, 0, 0);
+        const ywRenderer = new THREE.WebGLRenderer({ antialias: true });
+        ywRenderer.setSize(projectionSize, projectionSize);
+        document.getElementById('yw-canvas').appendChild(ywRenderer.domElement);
+
+        // Setup XW projection (Strange view)
+        const xwScene = new THREE.Scene();
+        xwScene.background = new THREE.Color(0x0a0a1a);
+        const xwCamera = new THREE.OrthographicCamera(-CSZ, CSZ, CSZ, -CSZ, 0.1, 100);
+        xwCamera.position.set(20, 0, 0);
+        xwCamera.lookAt(0, 0, 0);
+        const xwRenderer = new THREE.WebGLRenderer({ antialias: true });
+        xwRenderer.setSize(projectionSize, projectionSize);
+        document.getElementById('xw-canvas').appendChild(xwRenderer.domElement);
+
+        // Setup XY projection (Top-down view)
+        const xyScene = new THREE.Scene();
+        xyScene.background = new THREE.Color(0x0a0a1a);
+        const xyCamera = new THREE.OrthographicCamera(-CSZ, CSZ, CSZ, -CSZ, 0.1, 100);
+        xyCamera.position.set(20, 0, 0);
+        xyCamera.lookAt(0, 0, 0);
+        const xyRenderer = new THREE.WebGLRenderer({ antialias: true });
+        xyRenderer.setSize(projectionSize, projectionSize);
+        document.getElementById('xy-canvas').appendChild(xyRenderer.domElement);
+
+
         // Add bounding boxes to projections
         const boxSize = scene_bound * 2;
         const xzBox = new THREE.LineSegments(
@@ -760,12 +814,19 @@
         // Threejs Mesh objects
         let vertexMeshes = [];
         let edgeMeshes = [];
+        // Orthogonal projection objects
         let xzVertexMeshes = [];
         let xzEdgeMeshes = [];
         let yzVertexMeshes = [];
         let yzEdgeMeshes = [];
         let wzVertexMeshes = [];
         let wzEdgeMeshes = [];
+        let ywVertexMeshes = [];
+        let ywEdgeMeshes = [];
+        let xwVertexMeshes = [];
+        let xwEdgeMeshes = [];
+        let xyVertexMeshes = [];
+        let xyEdgeMeshes = [];
 
 
         // Create vertex meshes
@@ -788,6 +849,18 @@
             wzVertexMeshes.forEach(mesh => mesh.material.dispose());
             wzVertexMeshes.forEach(mesh => wzScene.remove(mesh));
             wzVertexMeshes = [];
+            ywVertexMeshes.forEach(mesh => mesh.geometry.dispose());
+            ywVertexMeshes.forEach(mesh => mesh.material.dispose());
+            ywVertexMeshes.forEach(mesh => ywScene.remove(mesh));
+            ywVertexMeshes = [];
+            xwVertexMeshes.forEach(mesh => mesh.geometry.dispose());
+            xwVertexMeshes.forEach(mesh => mesh.material.dispose());
+            xwVertexMeshes.forEach(mesh => xwScene.remove(mesh));
+            xwVertexMeshes = [];
+            xyVertexMeshes.forEach(mesh => mesh.geometry.dispose());
+            xyVertexMeshes.forEach(mesh => mesh.material.dispose());
+            xyVertexMeshes.forEach(mesh => xyScene.remove(mesh));
+            xyVertexMeshes = [];
             // Clear existing edges
             edgeMeshes.forEach(mesh => mesh.geometry.dispose());
             edgeMeshes.forEach(mesh => mesh.material.dispose());
@@ -805,6 +878,18 @@
             wzEdgeMeshes.forEach(mesh => mesh.material.dispose());
             wzEdgeMeshes.forEach(mesh => wzScene.remove(mesh));
             wzEdgeMeshes = [];
+            ywEdgeMeshes.forEach(mesh => mesh.geometry.dispose());
+            ywEdgeMeshes.forEach(mesh => mesh.material.dispose());
+            ywEdgeMeshes.forEach(mesh => ywScene.remove(mesh));
+            ywEdgeMeshes = [];
+            xwEdgeMeshes.forEach(mesh => mesh.geometry.dispose());
+            xwEdgeMeshes.forEach(mesh => mesh.material.dispose());
+            xwEdgeMeshes.forEach(mesh => xwScene.remove(mesh));
+            xwEdgeMeshes = [];
+            xyEdgeMeshes.forEach(mesh => mesh.geometry.dispose());
+            xyEdgeMeshes.forEach(mesh => mesh.material.dispose());
+            xyEdgeMeshes.forEach(mesh => xyScene.remove(mesh));
+            xyEdgeMeshes = [];
 
             // Graph data structure
             // meshes reprojected "inside" the camera sensor
@@ -915,6 +1000,21 @@
             render_in_threejs_orthogonal_scene(xz_project_vertex, xzScene, xzVertexMeshes, xzEdgeMeshes);
             render_in_threejs_orthogonal_scene(yz_project_vertex, yzScene, yzVertexMeshes, yzEdgeMeshes);
             render_in_threejs_orthogonal_scene(wz_project_vertex, wzScene, wzVertexMeshes, wzEdgeMeshes);
+
+            if (EXTRA_VIEWS) {
+                function yw_project_vertex(v) {
+                    return new THREE.Vector3(0, v.w, -v.y);
+                }
+                function xw_project_vertex(v) {
+                    return new THREE.Vector3(0, v.w, -v.x);
+                }
+                function xy_project_vertex(v) {
+                    return new THREE.Vector3(0, -v.y, -v.x);
+                }
+                render_in_threejs_orthogonal_scene(yw_project_vertex, ywScene, ywVertexMeshes, ywEdgeMeshes);
+                render_in_threejs_orthogonal_scene(xw_project_vertex, xwScene, xwVertexMeshes, xwEdgeMeshes);
+                render_in_threejs_orthogonal_scene(xy_project_vertex, xyScene, xyVertexMeshes, xyEdgeMeshes);
+            }
 
             // UVL Camera Sensor Projection
             // Project Meshes into 3D Camera Sensor
@@ -1185,9 +1285,14 @@
         const keys = {};
         window.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
+            // first interaction, for example used to vanish the title
             on_first_user_interaction();
+            // Toggle keys (don't repeat on hold)
             if (e.key.toLowerCase() == 'g') {
                 GIZMO_MODE = (GIZMO_MODE + 1) % 3; // cycle through gizmo modes
+            }
+            if (e.key.toLowerCase() == 'v') {
+                EXTRA_VIEWS = !EXTRA_VIEWS;
             }
         });
 
@@ -1699,6 +1804,15 @@
             xzRenderer.render(xzScene, xzCamera);
             yzRenderer.render(yzScene, yzCamera);
             wzRenderer.render(wzScene, wzCamera);
+            if (EXTRA_VIEWS) {
+                // make sure div is visible
+                document.getElementById('additional-projection-container').style.display = 'flex';
+                ywRenderer.render(ywScene, ywCamera);
+                xwRenderer.render(xwScene, xwCamera);
+                xyRenderer.render(xyScene, xyCamera);
+            } else {
+                document.getElementById('additional-projection-container').style.display = 'none';
+            }
         }
 
         // Initialize
