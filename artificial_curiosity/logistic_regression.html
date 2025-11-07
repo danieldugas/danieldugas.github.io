@@ -3,15 +3,107 @@
 <head>
   <meta charset="UTF-8" />
   <title>Logistic Regression Gradient Step Demo</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 1rem; }
-    canvas { border: 1px solid #ccc; margin-top: 1rem; }
-    .controls { margin-top: 1rem; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.6;
+      color: #333;
+    }
+    
+    h1 {
+      color: #2c3e50;
+      border-bottom: 3px solid #3498db;
+      padding-bottom: 0.5rem;
+    }
+    
+    h3, h4, h5 {
+      color: #34495e;
+      margin-top: 2rem;
+    }
+    
+    canvas {
+      border: 2px solid #3498db;
+      margin-top: 1rem;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .controls {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      border: 1px solid #dee2e6;
+    }
+    
+    .controls label {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    
+    .controls input {
+      padding: 0.4rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      width: 80px;
+    }
+    
+    .controls button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 0.5rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-left: 1rem;
+    }
+    
+    .controls button:hover {
+      background: #2980b9;
+    }
+    
+    #gradientInfo {
+      display: block;
+      margin-top: 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      background: white;
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid #dee2e6;
+    }
+    
+    #paramsDisplay {
+      display: block;
+      margin-top: 0.5rem;
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 1.1rem;
+    }
+    
+    p {
+      margin: 1rem 0;
+      text-align: justify;
+    }
+    
+    .math-block {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-left: 4px solid #3498db;
+      margin: 1rem 0;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
   <h1>Logistic Regression Gradient Step Demo</h1>
-  <p>This demo performs one gradient descent step on a simple 1D dataset and plots the predicted probability curve.</p>
+  <p>This demo performs one gradient descent step of a logistic regression function on a simple 1D dataset,<br>
+     and plots the predicted probability curve.</p>
 
   <div class="controls">
     <label>Learning rate: <input id="lr" type="number" value="0.1" step="0.01" /></label>
@@ -30,7 +122,7 @@
     First, the problem setup:<br>
     - There is a dataset consists of points (x, y) where y is either 0 or 1.<br>
     - There is a true phenomenon that can generate these points, but we don't know what it is.<br>
-    - The model tries to predict the probability p(y=1|x)<br>
+    - The model tries to predict the probability \(p(y=1|x)\)<br>
   </p>
   <p>
     This is a useful setup for a binary classificiation problem,<br>
@@ -56,14 +148,14 @@
     - the first house was 2 years old and didn't need repairs (x=2, y=0). Our model guessed p(x=2)=0.1. The probability of observing this point is 1 - p(x=2) = 0.9<br>
     - the second house was 3 years old and needed repairs (x=3, y=1). Our model guessed p(x=3)=0.1. The probability of observing this point is p(x=3) = 0.1<br>
     - the third house was 15 years old and needed repairs (x=15, y=1). Our model guessed p(x=15)=0.9. The probability of observing this point is p(x=15) = 0.9<br>
-    The likelihood of observing both points is 0.9 * 0.1 * 0.9 = 0.081<br>
-
-    The general formula needs to cover both the cases where the houses needed repairs (y=1) and where they didn't (y=0), so we add an exponent and multiply both possibilities:<br>
-    <br>
-    L = Π p(x_i)<sup>y_i</sup> (1 - p(x_i))<sup>(1 - y_i)</sup><br>
-    <br>
-    where i goes over all points in the dataset.<br>
+    The likelihood of observing all three points is 0.9 * 0.1 * 0.9 = 0.081<br>
   </p>
+
+  <div class="math-block">
+    The general formula needs to cover both the cases where the houses needed repairs (y=1) and where they didn't (y=0), so we add an exponent and multiply both possibilities:
+    $$L = \prod_i p(x_i)^{y_i} (1 - p(x_i))^{(1 - y_i)}$$
+    where i goes over all points in the dataset.
+  </div>
 
   <p>
     Now we can calculate the likelihood of the dataset for each of our friends' models:<br>
@@ -80,132 +172,143 @@
 
   <p>
     In this example of logistic regression, instead of allowing any possible function for p(x),
-    we restrict ourselves to a specific family of functions, called the logistic functions:<br>
-    <br>
-    p(x) = sigmoid(w * x + b)<br>
-    <br>
+    we restrict ourselves to a specific family of functions, called the logistic functions:
+  </p>
+
+  <div class="math-block">
+    $$p(x) = \sigma(w \cdot x + b)$$
+  </div>
+
+  <p>
     This family of functions is defined by two parameters: w (weight) and b (bias), which can be tuned.<br>
-    The sigmoid function is defined as:<br>
-    <br>
-    sigmoid(z) = 1 / (1 + exp(-z))<br>
-    <br>
+    The sigmoid function is defined as:
+  </p>
+
+  <div class="math-block">
+    $$\sigma(z) = \frac{1}{1 + e^{-z}}$$
+  </div>
+
+  <p>
     The sigmoid function has a nice property that it always outputs values between 0 and 1, which is perfect for probabilities.<br>
     Similarly to a linear regression, the function is monotonic, it can't have multiple ups and downs
     (this sort of limitation is sometimes referred to as a "bias")
-    but this is fine for our simple 1D dataset.<br>
+    but this is fine for our simple 1D dataset.
+  </p>
 
-    <h4>Learning to improve our model</h4>
+  <h4>Learning to improve our model</h4>
 
-    <p>
-        Let's say that unlike Angela, Brad and Charlie, we are not satisfied with just proposing models based on intuition.
-        Instead, we think that we can do better by learning from data.
-        <br>
-        How would we do this?
-    </p>
+  <p>
+    Let's say that unlike Angela, Brad and Charlie, we are not satisfied with just proposing models based on intuition.
+    Instead, we think that we can do better by learning from data.
+    <br>
+    How would we do this?
+  </p>
 
-    <p>
-        First, we can argue that there is probably a "best" model out there:
-        the one that maximizes the likelihood of observing the data we have.
-        <br>
-        Note: later you'll find we may need to add in assumptions too about smoothness or simplicity of the model, otherwise the best model may just "overfit" to the dataset and perform well on new data.
-        <br>
-        <br>
-        The idea is to start with some initial guess for the parameters (w, b),
-        and then try to nudge them in a way that increases the likelihood of the observed data, until it doesn't improve anymore.<br>
-        Then, it'll mean we have found a (local) maximum likelihood model!
-    </p>
+  <p>
+    First, we can argue that there is probably a "best" model out there:
+    the one that maximizes the likelihood of observing the data we have.
+    <br>
+    Note: later you'll find we may need to add in assumptions too about smoothness or simplicity of the model, otherwise the best model may just "overfit" to the dataset and perform well on new data.
+    <br>
+    <br>
+    The idea is to start with some initial guess for the parameters (w, b),
+    and then try to nudge them in a way that increases the likelihood of the observed data, until it doesn't improve anymore.<br>
+    Then, it'll mean we have found a (local) maximum likelihood model!
+  </p>
 
-    <p>
-        Rather than nudging at random, we can be smarter:<br>
-        If we actually know how the likelihood changes when we change the parameters (this is called the gradient),
-        we can nudge the parameters in the direction that increases the likelihood the most.<br>
-        This is called gradient ascent (or gradient descent if we put a minus sign on the likelihood).<br>
-        <br> 
-        Can we get this gradient?
-    </p>
+  <p>
+    Rather than nudging at random, we can be smarter:<br>
+    If we actually know how the likelihood changes when we change the parameters (this is called the gradient),
+    we can nudge the parameters in the direction that increases the likelihood the most.<br>
+    This is called gradient ascent (or gradient descent if we put a minus sign on the likelihood).<br>
+    <br> 
+    Can we get this gradient?
+  </p>
 
-    <h5>The Chain Rule</h5>
+  <h5>The Chain Rule</h5>
 
-    <p>
-        If a function is composed of multiple steps, we can use the chain rule to get the gradient with respect to the parameters.<br>
-        if we want to know dL/dw,<br>
-        we can rewrite it as:<br>
-        <br>
-        dL/dw<br>
-        = dL/dp dp/dw<br>
-        = dL/dp dp/dz dz/dw<br>
-        <br>
-        and the same for dL/db<br>
-        dL/db<br>
-        = dL/dp dp/db<br>
-        = dL/dp dp/dz dz/db<br>
-    </p>
+  <p>
+    If a function is composed of multiple steps, we can use the chain rule to get the gradient with respect to the parameters.<br>
+    if we want to know \(\frac{dL}{dw}\), we can rewrite it as:
+  </p>
 
-    <p>
-        In our case these components are almost all easy to get:
-        <br>
-        remember:<br>
-        <br>
-        z = w * x + b<br>
-        <br> so <br>
-        <br>
-        dz/dw = x<br>
-        <br> and, <br>
-        <br>
-        dz/db = 1<br>
-        <br>
-        Also remember:<br>
-        <br>
-        p = 1 / (1 + exp(-z))<br>
-        <br> so <br>
-        <br>
-        dp/dz = p * (1 - p)<br>
-        <br>
-        Finally, the only tricky part is dL/dp:<br>
-        <br>
-        the likelihood is a big multiplication, which makes derivatives tricky to work with.<br>
-        Here's where a useful trick comes in:<br>
-        instead of working with likelihood L, we can work with log-likelihood LL = log(L).<br>
-        Logarithm has a nice property that it turns multiplications into additions:<br>
-        <br>
-        LL = log(L) = Σ [ y_i * log(p_i) + (1 - y_i) * log(1 - p_i) ]<br>
-        <br>
-        where i goes over all points in the dataset.<br>
-        Now, we can get dLL/dp for a single data point as:<br>
-        <br>
-        dLL/dp = y / p - (1 - y) / (1 - p)<br>
-        <br>
-        <br>
-        Now we can just multiply these components to get the final gradients:<br>
-        <br>
-        dLL/dw = dLL/dp * dp/dz * dz/dw = [ y / p - (1 - y) / (1 - p) ] * p * (1 - p) * x = (y - p) * x<br>
-        dLL/db = dLL/dp * dp/dz * dz/db = [ y / p - (1 - y) / (1 - p) ] * p * (1 - p) * 1 = (y - p)<br>
-        <br>
-        <br>
-        where p is the predicted probability from our model, and y is the true label from the dataset.<br>
-    </p>
+  <div class="math-block">
+    $$\frac{dL}{dw} = \frac{dL}{dp} \frac{dp}{dw} = \frac{dL}{dp} \frac{dp}{dz} \frac{dz}{dw}$$
+  </div>
 
-    <h5>Gradient Descent</h5>
+  <p>
+    and the same for \(\frac{dL}{db}\):
+  </p>
 
-    <p>
-        Now that we know the gradient, the final step is to apply it:<br>
-        - for each data point, calculate the predicted probability p from the model<br>
-        - calculate the gradients dLL/dw and dLL/db using the formulas above<br>
-        - average the gradients over all data points<br>
-        - update the parameters w and b by moving them a small step in the direction of the gradients: dw = - lr * dLL/dw<br>
-        <br>
+  <div class="math-block">
+    $$\frac{dL}{db} = \frac{dL}{dp} \frac{dp}{db} = \frac{dL}{dp} \frac{dp}{dz} \frac{dz}{db}$$
+  </div>
 
-        Where does this last formula come from? The idea is that we want to move in a direction that increases the log-likelihood the most.<br>
-        If there are two directions, dw and db, and one of them has a larger gradient, it means that moving in that direction will increase the log-likelihood more.<br>
-        The learning rate is a multiplier that controls how big of a step we take in that direction.<br>
-        A bigger learning rate means we learn faster, but sometimes it can make us overshoot the maximum and make things worse.<br>
-        Note: this is why people use smarter optimizers, that try to automatically adjust the learning rate over time.<br>
-    </p>
+  <p>
+    In our case these components are almost all easy to get:
+    <br>
+    remember:
+  </p>
 
+  <div class="math-block">
+    $$z = w \cdot x + b$$
+    $$\frac{dz}{dw} = x$$
+    $$\frac{dz}{db} = 1$$
+  </div>
 
+  <p>Also remember:</p>
 
+  <div class="math-block">
+    $$p = \frac{1}{1 + e^{-z}}$$
+    $$\frac{dp}{dz} = p(1 - p)$$
+  </div>
 
+  <p>
+    Finally, the only tricky part is \(\frac{dL}{dp}\):
+    <br>
+    <br>
+    the likelihood is a big multiplication, which makes derivatives harder to work with.<br>
+    Here's where a useful trick comes in:<br>
+    instead of working with likelihood L, we can work with log-likelihood LL = log(L).<br>
+    Logarithm has a nice property that it turns multiplications into additions:
+  </p>
 
+  <div class="math-block">
+    $$LL = \log(L) = \sum_i \left[ y_i \log(p_i) + (1 - y_i) \log(1 - p_i) \right]$$
+  </div>
+
+  <p>where i goes over all points in the dataset.<br>
+    Now, we can get \(\frac{dLL}{dp}\) for a single data point as:</p>
+
+  <div class="math-block">
+    $$\frac{dLL}{dp} = \frac{y}{p} - \frac{(1 - y)}{(1 - p)}$$
+  </div>
+
+  <p>Now we can just multiply these components to get the final gradients:</p>
+
+  <div class="math-block">
+    $$\frac{dLL}{dw} = \frac{dLL}{dp} \cdot \frac{dp}{dz} \cdot \frac{dz}{dw} = \left[\frac{y}{p} - \frac{(1 - y)}{(1 - p)}\right] \cdot p(1 - p) \cdot x = (y - p) \cdot x$$
+    $$\frac{dLL}{db} = \frac{dLL}{dp} \cdot \frac{dp}{dz} \cdot \frac{dz}{db} = \left[\frac{y}{p} - \frac{(1 - y)}{(1 - p)}\right] \cdot p(1 - p) \cdot 1 = (y - p)$$
+  </div>
+
+  <p>where p is the predicted probability from our model, and y is the true label from the dataset.</p>
+
+  <h5>Gradient Descent</h5>
+
+  <p>
+    Now that we know the gradient, the final step is to apply it:<br>
+    - for each data point, calculate the predicted probability p from the model<br>
+    - calculate the gradients \(\frac{dLL}{dw}\) and \(\frac{dLL}{db}\) using the formulas above<br>
+    - average the gradients over all data points<br>
+    - update the parameters w and b by moving them a small step in the direction of the gradients: \(dw = -\text{lr} \cdot \frac{dLL}{dw}\)<br>
+    <br>
+
+    Where does this last formula come from? The idea is that we want to move in a direction that increases the log-likelihood the most.<br>
+    If there are two directions, dw and db, and one of them has a larger gradient, it means that moving in that direction will increase the log-likelihood more.<br>
+    The learning rate is a multiplier that controls how big of a step we take in that direction.<br>
+    A bigger learning rate means we learn faster, but sometimes it can make us overshoot the maximum and make things worse.<br>
+    Note: this is why people use smarter optimizers, that try to automatically adjust the learning rate over time.<br>
+  </p>
 
   <script>
     // Simple 1D dataset (x, y)
@@ -282,7 +385,7 @@
             dtheta.l1_w += -lr * dL_dyHat * dyHat_dtheta.l1_w;
             dtheta.l1_b += -lr * dL_dyHat * dyHat_dtheta.l1_b;
             // add to gradient info display
-            document.getElementById('gradientInfo').innerHTML += `x: ${x}, y: ${y.toFixed(2)}, ŷ: ${yHat.toFixed(3)}, L: ${L.toFixed(3)}, dL/dw: ${(dL_dyHat * dyHat_dtheta.l1_w).toFixed(3)}, dL/db: ${(dL_dyHat * dyHat_dtheta.l1_b).toFixed(3)}<br>`;
+            document.getElementById('gradientInfo').innerHTML += `x: ${x}, y: ${y.toFixed(2)}, ŷ: ${yHat.toFixed(3)}, L: ${L.toFixed(3)}, dL/dw: ${(dL_dyHat * dyHat_dtheta.l1_w).toFixed(3)}, dL/db: ${(dL_dyHat * dyHat_dtheta.l1_b).toFixed(3)}<br>`;
         }
         // show final gradient
         document.getElementById('gradientInfo').innerHTML += `Total Gradient -> dw = -lr * dL/dw: ${dtheta.l1_w.toFixed(3)}, db = -lr * dL/db: ${dtheta.l1_b.toFixed(3)}`;
