@@ -44,6 +44,15 @@
             gap: 10px;
             z-index: 50;
         }
+        #physics-debug-container {
+            position: absolute;
+            top: 10px;
+            right: 220px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 50;
+        }
         .projection-view {
             background: rgba(0, 0, 0, 0.8);
             border: 2px solid #444;
@@ -113,6 +122,14 @@
         <div class="projection-view">
             <div class="projection-label">XY Projection (Top View)</div>
             <div id="xy-canvas"></div>
+        </div>
+    </div>
+    <div id="physics-debug-container">
+        <div class="projection-view">
+            <div class="projection-label">Physics</div>
+            <div id="physics-debug-text" style="color:#444"></div>
+        </div>
+
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -354,13 +371,14 @@
             }
         }
         class Hyperobject {
-            constructor(vertices_in_object, edges, simulate_physics, show_vertices, mass, pose) {
+            constructor(vertices_in_object, edges, simulate_physics, show_vertices, mass, pose, name) {
                 this.vertices_in_object = vertices_in_object; // in object frame
                 this.edges = edges;
                 this.simulate_physics = simulate_physics; // if true, object gets affected by physics
                 this.show_vertices = show_vertices;
                 this.mass = mass;
                 this.pose = pose; // Transform4D from object frame to world frame
+                this.name = name;
                 // variables
                 this.velocity_in_world = new Vector4D(0, 0, 0, 0);
                 this.rotational_velocity = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
@@ -383,11 +401,14 @@
 
         // params
         let SIMULATE_PHYSICS = true;
+        let DEBUG_PHYSICS = false;
+        let STEP_PHYSICS_ONCE = false;
         let GIZMO_MODE = 1; // 0: none, 1: in world middle, 2: in sensor middle
         let EXTRA_VIEWS = false; // slow
 
         // track variables
         let user_has_interacted = false;
+        let physics_time_s = 0;
 
         function on_first_user_interaction() {
             // HACK: remove spash at first interaction
@@ -480,7 +501,9 @@
                 [0, 0, 1, 0, OSZ],
                 [0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 1]
-            ])
+            ]),
+            // name
+            "Hypercube"
         );
             
         // define a hyperpyramid object
@@ -513,7 +536,9 @@
                 [0, 0, 1, 0, OSZ],
                 [0, 0, 0, 1, 4],
                 [0, 0, 0, 0, 1]
-            ])
+            ]),
+            // name
+            "Hyperpyramid"
         );
 
         // build a hyperfloor surface (triangle mesh)
@@ -603,7 +628,9 @@
                 [0, 0, 1, 0, 0],
                 [0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 1]
-            ])
+            ]),
+            // name
+            "Hyperfloor"
         );
 
         // scene definition
@@ -1293,7 +1320,19 @@
                 GIZMO_MODE = (GIZMO_MODE + 1) % 3; // cycle through gizmo modes
             }
             if (e.key.toLowerCase() == 'v') {
-                EXTRA_VIEWS = !EXTRA_VIEWS;
+                EXTRA_VIEWS = !EXTRA_VIEWS; // toggle extra views
+            }
+            if (e.key.toLowerCase() == '.') {
+                SIMULATE_PHYSICS = true;
+                STEP_PHYSICS_ONCE = true;
+            }
+            if (e.key.toLowerCase() == ',') {
+                DEBUG_PHYSICS = !DEBUG_PHYSICS;
+                if (DEBUG_PHYSICS) {
+                    document.getElementById('physics-debug-container').style.display = 'flex';
+                } else {
+                    document.getElementById('physics-debug-container').style.display = 'none';
+                }
             }
         });
 
@@ -1343,6 +1382,9 @@
             if (SIMULATE_PHYSICS) {
                 moved = true;
 
+                // debug log
+                let html_physics_log = '';
+
                 const FLOOR_STIFFNESS = 100;
                 const FLOOR_DAMPING = 10;
                 const GRAVITY = -9.81;
@@ -1350,8 +1392,12 @@
                 const FLOOR_SIDE_FRICTION_COEFFICIENT = 1;
                 const dt = 0.016; // ~60fps
 
+                html_physics_log += '<b>Sim Time:</b> ' + physics_time_s.toFixed(2) + ' s<br>';
+
                 for (let hyperobject of hyperscene_visible_objects) {
                     if (hyperobject.simulate_physics) {
+
+                        html_physics_log += `<b>Object:</b> ${hyperobject.name}<br>`;
 
                         // calculate hyperobject center of mass 
                         let hyperobject_com = hyperobject.get_com();
@@ -1443,6 +1489,25 @@
                                 com_torque.zw += r.z * contact_force.w - r.w * contact_force.z;
                             }
                         }
+
+                        html_physics_log += `x y z w<br>`;
+                        html_physics_log += `Com Force: (${com_force.x.toFixed(3)}, ${com_force.y.toFixed(3)}, ${com_force.z.toFixed(3)}, ${com_force.w.toFixed(3)})<br>`;
+                        html_physics_log += `Com Vel: (${hyperobject.velocity_in_world.x.toFixed(3)}, ${hyperobject.velocity_in_world.y.toFixed(3)}, ${hyperobject.velocity_in_world.z.toFixed(3)}, ${hyperobject.velocity_in_world.w.toFixed(3)})<br>`;
+                        html_physics_log += `xy xz xw yz yw zw<br>`;
+                        html_physics_log += 'Com Torque: (' +
+                            `${com_torque.xy.toFixed(3)}, ` +
+                            `${com_torque.xz.toFixed(3)}, ` +
+                            `${com_torque.xw.toFixed(3)}, ` +
+                            `${com_torque.yz.toFixed(3)}, ` +
+                            `${com_torque.yw.toFixed(3)}, ` +
+                            `${com_torque.zw.toFixed(3)})<br>`;
+                        html_physics_log += 'Com Ang Vel: (' +
+                            `${hyperobject.rotational_velocity.xy.toFixed(3)}, ` +
+                            `${hyperobject.rotational_velocity.xz.toFixed(3)}, ` +
+                            `${hyperobject.rotational_velocity.xw.toFixed(3)}, ` +
+                            `${hyperobject.rotational_velocity.yz.toFixed(3)}, ` +
+                            `${hyperobject.rotational_velocity.yw.toFixed(3)}, ` +
+                            `${hyperobject.rotational_velocity.zw.toFixed(3)})<br>`;
                         
                         // 3. Integrate velocities (simple Euler integration)
                         
@@ -1479,6 +1544,19 @@
                         );
                         hyperobject.update_vertices_in_world();
                     }
+                }
+
+                physics_time_s += dt;
+
+                if (DEBUG_PHYSICS) {
+                    document.getElementById('physics-debug-text').innerHTML = html_physics_log;
+                } else {
+                    document.getElementById('physics-debug-text').innerHTML = '';
+                }
+
+                if (STEP_PHYSICS_ONCE) {
+                    SIMULATE_PHYSICS = false;
+                    STEP_PHYSICS_ONCE = false;
                 }
             } // End of SIMULATE_PHYSICS
             
