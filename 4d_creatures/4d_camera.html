@@ -92,8 +92,8 @@
         <span id="title-span" style="color:rgb(0, 235, 235);font-size:48px;font-weight:bold;">
         HYPERCAMERA
         </span>
-        <span id="warning-camera-inverted" style="color:rgb(79, 123, 136);font-size:24px;font-weight:bold;">
-        </span>
+        <span id="warning-camera-inverted" style="color:rgb(79, 123, 136);font-size:24px;font-weight:bold;"></span>
+        <span id="warning-physics-paused" style="color:rgb(79, 123, 136);font-size:24px;font-weight:bold;"></span>
     </div>
     <div id="main-canvas"></div>
     <div id="projection-container">
@@ -1334,6 +1334,9 @@
                     document.getElementById('physics-debug-container').style.display = 'none';
                 }
             }
+            if (e.key.toLowerCase() == 'm') {
+                SIMULATE_PHYSICS = true;
+            }
         });
 
         window.addEventListener('keyup', (e) => {
@@ -1430,7 +1433,13 @@
                         let friction_force = hyperobject.velocity_in_world.multiply_by_scalar(-AIR_FRICTION_COEFFICIENT);
                         com_force = com_force.add(friction_force);
 
-                        
+                        // Add a general air friction rotational torque
+                        com_torque.xy += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.xy;
+                        com_torque.xz += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.xz;
+                        com_torque.xw += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.xw;
+                        com_torque.yz += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.yz;
+                        com_torque.yw += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.yw;
+                        com_torque.zw += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.zw;
                         
                         // 2. Check for collisions with floor and accumulate forces/torques
                         for (let v of hyperobject.vertices_in_world) {
@@ -1490,24 +1499,23 @@
                             }
                         }
 
-                        html_physics_log += `x y z w<br>`;
-                        html_physics_log += `Com Force: (${com_force.x.toFixed(3)}, ${com_force.y.toFixed(3)}, ${com_force.z.toFixed(3)}, ${com_force.w.toFixed(3)})<br>`;
-                        html_physics_log += `Com Vel: (${hyperobject.velocity_in_world.x.toFixed(3)}, ${hyperobject.velocity_in_world.y.toFixed(3)}, ${hyperobject.velocity_in_world.z.toFixed(3)}, ${hyperobject.velocity_in_world.w.toFixed(3)})<br>`;
-                        html_physics_log += `xy xz xw yz yw zw<br>`;
-                        html_physics_log += 'Com Torque: (' +
-                            `${com_torque.xy.toFixed(3)}, ` +
-                            `${com_torque.xz.toFixed(3)}, ` +
-                            `${com_torque.xw.toFixed(3)}, ` +
-                            `${com_torque.yz.toFixed(3)}, ` +
-                            `${com_torque.yw.toFixed(3)}, ` +
-                            `${com_torque.zw.toFixed(3)})<br>`;
-                        html_physics_log += 'Com Ang Vel: (' +
-                            `${hyperobject.rotational_velocity.xy.toFixed(3)}, ` +
-                            `${hyperobject.rotational_velocity.xz.toFixed(3)}, ` +
-                            `${hyperobject.rotational_velocity.xw.toFixed(3)}, ` +
-                            `${hyperobject.rotational_velocity.yz.toFixed(3)}, ` +
-                            `${hyperobject.rotational_velocity.yw.toFixed(3)}, ` +
-                            `${hyperobject.rotational_velocity.zw.toFixed(3)})<br>`;
+
+                        const fmt = (n) => {
+                            let str = n.toFixed(3);
+                            str = (n < 0 ? str.slice(1) : str); // remove minus for padding
+                            str = str.padStart(8, '_');
+                            str = (n >= 0 ? '+' + str : '-' + str);
+                            return str
+                        };
+
+                        html_physics_log += `<table style="border-collapse: collapse; font-family: monospace;">`;
+                        html_physics_log += `<tr><th>Property</th><th>x</th><th>y</th><th>z</th><th>w</th><th></th><th></th></tr>`;
+                        html_physics_log += `<tr><td>Com Force</td><td>${fmt(com_force.x)}</td><td>${fmt(com_force.y)}</td><td>${fmt(com_force.z)}</td><td>${fmt(com_force.w)}</td><td></td><td></td></tr>`;
+                        html_physics_log += `<tr><td>Com Vel</td><td>${fmt(hyperobject.velocity_in_world.x)}</td><td>${fmt(hyperobject.velocity_in_world.y)}</td><td>${fmt(hyperobject.velocity_in_world.z)}</td><td>${fmt(hyperobject.velocity_in_world.w)}</td><td></td><td></td></tr>`;
+                        html_physics_log += `<tr><th></th><th>xy</th><th>xz</th><th>xw</th><th>yz</th><th>yw</th><th>zw</th></tr>`;
+                        html_physics_log += `<tr><td>Com Torque</td><td>${fmt(com_torque.xy)}</td><td>${fmt(com_torque.xz)}</td><td>${fmt(com_torque.xw)}</td><td>${fmt(com_torque.yz)}</td><td>${fmt(com_torque.yw)}</td><td>${fmt(com_torque.zw)}</td></tr>`;
+                        html_physics_log += `<tr><td>Com Ang Vel</td><td>${fmt(hyperobject.rotational_velocity.xy)}</td><td>${fmt(hyperobject.rotational_velocity.xz)}</td><td>${fmt(hyperobject.rotational_velocity.xw)}</td><td>${fmt(hyperobject.rotational_velocity.yz)}</td><td>${fmt(hyperobject.rotational_velocity.yw)}</td><td>${fmt(hyperobject.rotational_velocity.zw)}</td></tr>`;
+                        html_physics_log += `</table>`;
                         
                         // 3. Integrate velocities (simple Euler integration)
                         
@@ -1542,6 +1550,14 @@
                             hyperobject.velocity_in_world.w * dt,
                             false
                         );
+                        // rotate the pose matrix by rotational velocity * dt
+                        hyperobject.pose.rotate_self_by_delta('XY', hyperobject.rotational_velocity.xy * dt, false);
+                        hyperobject.pose.rotate_self_by_delta('XZ', hyperobject.rotational_velocity.xz * dt, false);
+                        hyperobject.pose.rotate_self_by_delta('XW', hyperobject.rotational_velocity.xw * dt, false);
+                        hyperobject.pose.rotate_self_by_delta('YZ', hyperobject.rotational_velocity.yz * dt, false);
+                        hyperobject.pose.rotate_self_by_delta('YW', hyperobject.rotational_velocity.yw * dt, false);
+                        hyperobject.pose.rotate_self_by_delta('ZW', hyperobject.rotational_velocity.zw * dt, false);
+                        // update vertices
                         hyperobject.update_vertices_in_world();
                     }
                 }
@@ -1871,6 +1887,13 @@
                 document.getElementById('warning-camera-inverted').innerText = "Warning: Camera is inverted";
             } else {
                 document.getElementById('warning-camera-inverted').innerText = "";
+            }
+
+            // display warning when physics is paused
+            if (!SIMULATE_PHYSICS) {
+                document.getElementById('warning-physics-paused').innerText = "[PHYSICS PAUSED] (press m to resume)";
+            } else {
+                document.getElementById('warning-physics-paused').innerText = "";
             }
             
             // update threejs scene since hyperscene has changed
