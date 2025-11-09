@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transparent Cube Grid</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    
+    // Create 10x10x10 grid of cubes
+    const cubes = [];
+    const spacing = 1.2;
+    const gridSize = 10;
+    const offset = (gridSize - 1) * spacing / 2;
+    
+    for (let x = 0; x < gridSize; x++) {
+      for (let y = 0; y < gridSize; y++) {
+        for (let z = 0; z < gridSize; z++) {
+          const geometry = new THREE.BoxGeometry(1, 1, 1);
+          
+          // Random color for each cube
+          const color = new THREE.Color(Math.random(), Math.random(), Math.random());
+          
+          const material = new THREE.MeshStandardMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.5,
+            side: THREE.DoubleSide
+          });
+          
+          const cube = new THREE.Mesh(geometry, material);
+          cube.position.set(
+            x * spacing - offset,
+            y * spacing - offset,
+            z * spacing - offset
+          );
+          
+          scene.add(cube);
+          cubes.push(cube);
+        }
+      }
+    }
+    
+    // Add lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    
+    const pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(10, 10, 10);
+    scene.add(pointLight);
+    
+    const pointLight2 = new THREE.PointLight(0xffffff, 0.5);
+    pointLight2.position.set(-10, -10, -10);
+    scene.add(pointLight2);
+    
+    // Position camera
+    camera.position.set(15, 15, 15);
+    camera.lookAt(0, 0, 0);
+    
+    // Animation loop
+    let time = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      time += 0.01;
+      
+
+      
+      // Rotate camera around the grid
+      camera.position.x = Math.cos(time * 0.2) * 20;
+      camera.position.z = Math.sin(time * 0.2) * 20;
+      camera.lookAt(0, 0, 0);
+      
+      renderer.render(scene, camera);
+    }
+    
+    animate();
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

@@ -371,9 +371,10 @@
             }
         }
         class Hyperobject {
-            constructor(vertices_in_object, edges, simulate_physics, show_vertices, mass, pose, name) {
+            constructor(vertices_in_object, edges, tetras, simulate_physics, show_vertices, mass, pose, name) {
                 this.vertices_in_object = vertices_in_object; // in object frame
                 this.edges = edges;
+                this.tetras = tetras;
                 this.simulate_physics = simulate_physics; // if true, object gets affected by physics
                 this.show_vertices = show_vertices;
                 this.mass = mass;
@@ -405,6 +406,7 @@
         let STEP_PHYSICS_ONCE = false;
         let GIZMO_MODE = 1; // 0: none, 1: in world middle, 2: in sensor middle
         let EXTRA_VIEWS = false; // slow
+        let UVL_VOXEL_Z_RASTERIZATION_MODE = false; 
 
         // track variables
         let user_has_interacted = false;
@@ -417,6 +419,104 @@
                 // change text in warning div to nothing
                 document.getElementById('title-span').innerHTML = '';
             }
+        }
+
+        // Tetrahedras
+        function create_40_tetrahedra_tiling_of_hypercube(cube_vertices) {
+            // cube_vertices need to all be -1 or 1 values (i.e. in unit cube coord system) for this to work!
+
+            const p = 1.0;
+            const n = -1.0;
+            // for the 3D cube, these are the tetrahedra vertices
+            // [[p, n, n], [n, n, n], [p, p, n], [p, n, p]], // tet at corner p n n
+            // [[n, p, n], [p, p, n], [n, n, n], [n, p, p]], // tet at corner n p n
+            // [[n, n, p], [p, n, p], [n, p, p], [n, n, n]], // tet at corner n n p
+            // [[p, p, p], [n, p, p], [p, n, p], [p, p, n]], // tet at corner p p p
+            // [[n, n, n], [p, p, n], [n, p, p], [p, n, p]]  // tet at center
+
+            // to create 5 tet at each of the 8 cubes in the hypercube, we set one of the 4dims to either p or n and fill the remaining 3 with the above
+            // for example if we tetrahedralize the cube at z = n, we set z = n and fill x=0, y=1, w=2 with the above
+            // [[p, n, z, n], [n, n, z, n], [p, p, z, n], [p, n, z, p]]
+            const xn = -1.0; // fixed x for this cube
+            const xp = 1.0;  // fixed x for this cube
+            const yn = -1.0; // fixed y for this cube
+            const yp = 1.0;  // fixed y for this cube
+            const zn = -1.0; // fixed z for this cube
+            const zp = 1.0;  // fixed z for this cube
+            const wn = -1.0; // fixed w for this cube
+            const wp = 1.0;  // fixed w for this cube
+            const tetrahedron_40_tiling_of_hypercube = [
+                // cube at x = n
+                [[xn, p, n, n], [xn, n, n, n], [xn, p, p, n], [xn, p, n, p]], // tet at corner p n n
+                [[xn, n, p, n], [xn, p, p, n], [xn, n, n, n], [xn, n, p, p]], // tet at corner n p n
+                [[xn, n, n, p], [xn, p, n, p], [xn, n, p, p], [xn, n, n, n]], // tet at corner n n p
+                [[xn, p, p, p], [xn, n, p, p], [xn, p, n, p], [xn, p, p, n]], // tet at corner p p p
+                [[xn, n, n, n], [xn, p, p, n], [xn, n, p, p], [xn, p, n, p]], // tet at center
+                // cube at x = p
+                [[xp, p, n, n], [xp, n, n, n], [xp, p, p, n], [xp, p, n, p]], // tet at corner p n n
+                [[xp, n, p, n], [xp, p, p, n], [xp, n, n, n], [xp, n, p, p]], // tet at corner n p n
+                [[xp, n, n, p], [xp, p, n, p], [xp, n, p, p], [xp, n, n, n]], // tet at corner n n p
+                [[xp, p, p, p], [xp, n, p, p], [xp, p, n, p], [xp, p, p, n]], // tet at corner p p p
+                [[xp, n, n, n], [xp, p, p, n], [xp, n, p, p], [xp, p, n, p]], // tet at center
+                // cube at y = n
+                [[p, yn, n, n], [n, yn, n, n], [p, yn, p, n], [p, yn, n, p]], // tet at corner p n n
+                [[n, yn, p, n], [p, yn, p, n], [n, yn, n, n], [n, yn, p, p]], // tet at corner n p n
+                [[n, yn, n, p], [p, yn, n, p], [n, yn, p, p], [n, yn, n, n]], // tet at corner n n p
+                [[p, yn, p, p], [n, yn, p, p], [p, yn, n, p], [p, yn, p, n]], // tet at corner p p p
+                [[n, yn, n, n], [p, yn, p, n], [n, yn, p, p], [p, yn, n, p]], // tet at center
+                // cube at y = p
+                [[p, yp, n, n], [n, yp, n, n], [p, yp, p, n], [p, yp, n, p]], // tet at corner p n n
+                [[n, yp, p, n], [p, yp, p, n], [n, yp, n, n], [n, yp, p, p]], // tet at corner n p n
+                [[n, yp, n, p], [p, yp, n, p], [n, yp, p, p], [n, yp, n, n]], // tet at corner n n p
+                [[p, yp, p, p], [n, yp, p, p], [p, yp, n, p], [p, yp, p, n]], // tet at corner p p p
+                [[n, yp, n, n], [p, yp, p, n], [n, yp, p, p], [p, yp, n, p]], // tet at center
+                // cube at z = n
+                [[p, n, zn, n], [n, n, zn, n], [p, p, zn, n], [p, n, zn, p]], // tet at corner p n n
+                [[n, p, zn, n], [p, p, zn, n], [n, n, zn, n], [n, p, zn, p]], // tet at corner n p n
+                [[n, n, zn, p], [p, n, zn, p], [n, p, zn, p], [n, n, zn, n]], // tet at corner n n p
+                [[p, p, zn, p], [n, p, zn, p], [p, n, zn, p], [p, p, zn, n]], // tet at corner p p p
+                [[n, n, zn, n], [p, p, zn, n], [n, p, zn, p], [p, n, zn, p]], // tet at center
+                // cube at z = p 
+                [[p, n, zp, n], [n, n, zp, n], [p, p, zp, n], [p, n, zp, p]], // tet at corner p n n
+                [[n, p, zp, n], [p, p, zp, n], [n, n, zp, n], [n, p, zp, p]], // tet at corner n p n
+                [[n, n, zp, p], [p, n, zp, p], [n, p, zp, p], [n, n, zp, n]], // tet at corner n n p
+                [[p, p, zp, p], [n, p, zp, p], [p, n, zp, p], [p, p, zp, n]], // tet at corner p p p
+                [[n, n, zp, n], [p, p, zp, n], [n, p, zp, p], [p, n, zp, p]], // tet at center
+                // cube at w = n
+                [[p, n, n, wn], [n, n, n, wn], [p, p, n, wn], [p, n, p, wn]], // tet at corner p n n
+                [[n, p, n, wn], [p, p, n, wn], [n, n, n, wn], [n, p, p, wn]], // tet at corner n p n
+                [[n, n, p, wn], [p, n, p, wn], [n, p, p, wn], [n, n, n, wn]], // tet at corner n n p
+                [[p, p, p, wn], [n, p, p, wn], [p, n, p, wn], [p, p, n, wn]], // tet at corner p p p
+                [[n, n, n, wn], [p, p, n, wn], [n, p, p, wn], [p, n, p, wn]], // tet at center
+                // cube at w = p
+                [[p, n, n, wp], [n, n, n, wp], [p, p, n, wp], [p, n, p, wp]], // tet at corner p n n
+                [[n, p, n, wp], [p, p, n, wp], [n, n, n, wp], [n, p, p, wp]], // tet at corner n p n
+                [[n, n, p, wp], [p, n, p, wp], [n, p, p, wp], [n, n, n, wp]], // tet at corner n n p
+                [[p, p, p, wp], [n, p, p, wp], [p, n, p, wp], [p, p, n, wp]], // tet at corner p p p
+                [[n, n, n, wp], [p, p, n, wp], [n, p, p, wp], [p, n, p, wp]]  // tet at center
+            ];
+
+            // convert to index
+            let tetrahedra_indices = [];
+            for (let tet of tetrahedron_40_tiling_of_hypercube) {
+                let tet_indices = [];
+                for (let v of tet) {
+                    // find index in cube_vertices
+                    for (let i = 0; i < cube_vertices.length; i++) {
+                        let cv = cube_vertices[i];
+                        if (cv.x === v[0] && cv.y === v[1] && cv.z === v[2] && cv.w === v[3]) {
+                            tet_indices.push(i);
+                            break;
+                        }
+                    }
+                }
+                if (tet_indices.length !== 4) {
+                    console.error("Error creating tetrahedra indices");
+                }
+                tetrahedra_indices.push(tet_indices);
+            }
+
+            return tetrahedra_indices;
         }
 
         // Hyperscene and Hypercam definition
@@ -452,14 +552,13 @@
             // [0, 0, hf, 0],
             // [0, 0, 0, 1]
         // ]; // see TODO s , for now assume identity intrinsics
+        let hypercamera_sensor_size = 1
         let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
         let hypercamera_is_unit_sensor = true;
 
         // define a hypercube object
         const OSZ = floor_heightmap(0, 0, 0) + 3.0; // object spawn z
-        let hypercube = new Hyperobject(
-            // vertices in object frame
-            [ 
+        const const_hypercube_vertices = [ 
                 new Vector4D(-1, -1, -1, -1),
                 new Vector4D( 1, -1, -1, -1),
                 new Vector4D( 1,  1, -1, -1),
@@ -476,7 +575,10 @@
                 new Vector4D( 1, -1,  1,  1),
                 new Vector4D( 1,  1,  1,  1),
                 new Vector4D(-1,  1,  1,  1)
-            ],
+            ];
+        let hypercube = new Hyperobject(
+            // vertices in object frame
+            const_hypercube_vertices,
             // edges:
             [
                 [0,1],[1,2],[2,3],[3,0],
@@ -488,6 +590,8 @@
                 [0,8],[1,9],[2,10],[3,11],
                 [4,12],[5,13],[6,14],[7,15]
             ],
+            // tetras
+            create_40_tetrahedra_tiling_of_hypercube(const_hypercube_vertices),
             // simulate_physics
             true,
             // show_vertices
@@ -505,6 +609,7 @@
             // name
             "Hypercube"
         );
+
             
         // define a hyperpyramid object
         let hyperpyramid = new Hyperobject(
@@ -523,6 +628,8 @@
                 [2,3],[2,4],
                 [3,4]
             ],
+            // tetras
+            [],
             // simulate_physics
             true,
             // show_vertices
@@ -615,6 +722,8 @@
             grid_vertices,
             // edges
             grid_edges,
+            // tetras
+            [],
             // simulate_physics
             false,
             // show_vertices
@@ -723,13 +832,13 @@
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(2, 2, 2);
         camera.lookAt(0, 0, 0);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('main-canvas').appendChild(renderer.domElement);
         const controls = new THREE.OrbitControls(camera, renderer.domElement); // Add OrbitControls
         
         // Create bounding box
-        const UVLBoxSize = 2; // we assume the UVL range is -1 to 1 in each dimension (see hypercamera_sensor_uvl_range)
+        const UVLBoxSize = 2 * hypercamera_sensor_size; // we assume the UVL range is -1 to 1 in each dimension (see hypercamera_sensor_uvl_range)
         const boxGeometry = new THREE.BoxGeometry(UVLBoxSize, UVLBoxSize, UVLBoxSize);
         const boxEdges = new THREE.EdgesGeometry(boxGeometry);
         const boxMaterial = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 });
@@ -1043,6 +1152,137 @@
                 render_in_threejs_orthogonal_scene(xw_project_vertex, xwScene, xwVertexMeshes, xwEdgeMeshes);
                 render_in_threejs_orthogonal_scene(xy_project_vertex, xyScene, xyVertexMeshes, xyEdgeMeshes);
             }
+
+            // UVL Voxel Z Rasterization Mode
+            // 10x10x10 grid from -sensor_uvl_range to +sensor_uvl_range
+            // Solves M x = b for 4x4 matrix M and 4-element vector b
+            if (UVL_VOXEL_Z_RASTERIZATION_MODE === true) {
+                // Returns x = [x0,x1,x2,x3] or throws error if singular
+                function solve4x4(M, b) {
+                    // Make a deep copy to avoid modifying original
+                    const A = M.map(row => row.slice());
+                    const x = b.slice();
+
+                    const n = 4;
+                    for (let i = 0; i < n; i++) {
+                        // Partial pivoting
+                        let maxRow = i;
+                        let maxVal = Math.abs(A[i][i]);
+                        for (let k = i + 1; k < n; k++) {
+                            if (Math.abs(A[k][i]) > maxVal) {
+                                maxVal = Math.abs(A[k][i]);
+                                maxRow = k;
+                            }
+                        }
+                        if (maxVal < 1e-12) throw new Error("Matrix singular or nearly singular");
+
+                        // Swap rows i and maxRow
+                        [A[i], A[maxRow]] = [A[maxRow], A[i]];
+                        [x[i], x[maxRow]] = [x[maxRow], x[i]];
+
+                        // Eliminate below
+                        for (let k = i + 1; k < n; k++) {
+                            const factor = A[k][i] / A[i][i];
+                            for (let j = i; j < n; j++) A[k][j] -= factor * A[i][j];
+                            x[k] -= factor * x[i];
+                        }
+                    }
+
+                    // Back substitution
+                    const sol = new Array(n);
+                    for (let i = n - 1; i >= 0; i--) {
+                        let sum = x[i];
+                        for (let j = i + 1; j < n; j++) sum -= A[i][j] * sol[j];
+                        sol[i] = sum / A[i][i];
+                    }
+                    return sol;
+                }
+                const GRID_RES_UVL = 10;
+                const VOXEL_SIDE = hypercamera_sensor_size * 2 / GRID_RES_UVL;
+                for (let i_u = 0; i_u < GRID_RES_UVL; i_u++) {
+                    for (let i_v = 0; i_v < GRID_RES_UVL; i_v++) {
+                        for (let i_l = 0; i_l < GRID_RES_UVL; i_l++) {
+                            const u = hypercamera_sensor_uvl_range[0] + (i_u + 0.5) * (hypercamera_sensor_uvl_range[1] - hypercamera_sensor_uvl_range[0]) / GRID_RES_UVL;
+                            const v = hypercamera_sensor_uvl_range[2] + (i_v + 0.5) * (hypercamera_sensor_uvl_range[3] - hypercamera_sensor_uvl_range[2]) / GRID_RES_UVL;
+                            const l = hypercamera_sensor_uvl_range[4] + (i_l + 0.5) * (hypercamera_sensor_uvl_range[5] - hypercamera_sensor_uvl_range[4]) / GRID_RES_UVL;
+
+                            // convert from suvl to world
+                            let ray_vector_in_camera = new Vector4D(1, u, v, l).normalize(); // direction from camera origin
+                            let ray_origin_in_camera = new Vector4D(0, 0, 0, 0); // camera origin
+
+                            let hit_distance = Infinity;
+                            // Does the ray hit? Z_buffer
+                            for (let hyperobject of hyperscene_visible_objects) {
+                                for (let tetrahydron of hyperobject.tetras) {
+                                    let tetra_verts_in_world = tetrahydron.map(idx => hyperobject.vertices_in_world[idx]);
+                                    let tetra_verts_in_camera = tetra_verts_in_world.map(v => hypercamera_T.inverse().transform_point(v));
+
+                                    // Solve ray-tetrahedron intersection
+                                    // O + tD = (1-a-b-c)V0 + aV1 + bV2 + cV3
+                                    const V0 = tetra_verts_in_camera[0];
+                                    const V1 = tetra_verts_in_camera[1];
+                                    const V2 = tetra_verts_in_camera[2];
+                                    const V3 = tetra_verts_in_camera[3];
+
+                                    const U1 = V1.subtract(V0);
+                                    const U2 = V2.subtract(V0);
+                                    const U3 = V3.subtract(V0);
+                                    const B = V0.subtract(ray_origin_in_camera); // V0 - O
+
+                                    // Build 4x4 matrix columns: [D, U1, U2, U3]
+                                    const M = [
+                                        [ray_vector_in_camera.x, U1.x, U2.x, U3.x],
+                                        [ray_vector_in_camera.y, U1.y, U2.y, U3.y],
+                                        [ray_vector_in_camera.z, U1.z, U2.z, U3.z],
+                                        [ray_vector_in_camera.w, U1.w, U2.w, U3.w]
+                                    ];
+
+                                    const b = [B.x, B.y, B.z, B.w];
+
+                                    // Solve 4x4 linear system M * [t,a,b,c] = b
+                                    let solution;
+                                    try {
+                                        solution = solve4x4(M, b); // implement or import a stable 4x4 solver
+                                    } catch(e) {
+                                        continue; // singular matrix: ray parallel to tetra
+                                    }
+
+                                    const t = solution[0];
+                                    const a = solution[1];
+                                    const b_ = solution[2];
+                                    const c = solution[3];
+                                    const alpha = 1 - a - b_ - c;
+
+                                    // Check if point is inside tetrahedron and in front of camera
+                                    const eps = 1e-9;
+                                    if (t >= 0 && alpha >= -eps && a >= -eps && b_ >= -eps && c >= -eps) {
+                                        if (t < hit_distance) {
+                                            hit_distance = t; // closer hit
+                                        }
+                                    }
+                                }
+                            } 
+                            
+
+                            // create voxel cube at (u,v,l)
+                            if (hit_distance !== Infinity) {
+                                const geometry = new THREE.BoxGeometry(VOXEL_SIDE, VOXEL_SIDE, VOXEL_SIDE);
+                                const color = new THREE.Color(0x00aaff);
+                                const material = new THREE.MeshBasicMaterial({
+                                    color: color,
+                                    transparent: true,
+                                    opacity: 0.1
+                                    // side: THREE.DoubleSide
+                                });
+                                const cube = new THREE.Mesh(geometry, material);
+                                cube.position.set(u, v, l);
+                                scene.add(cube);
+                                vertexMeshes.push(cube);
+                            }
+                        }
+                    }
+                }
+            } // end of UVL Voxel Z Rasterization Mode
 
             // UVL Camera Sensor Projection
             // Project Meshes into 3D Camera Sensor
