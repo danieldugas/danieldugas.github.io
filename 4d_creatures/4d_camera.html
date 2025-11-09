@@ -1188,32 +1188,36 @@
             // Solves M x = b for 4x4 matrix M and 4-element vector b
             if (UVL_VOXEL_Z_RASTERIZATION_MODE === true) {
                 const GRID_RES_UVL = 8;
-                // Returns x = [x0,x1,x2,x3] or throws error if singular
+                
+                // Optimized 4x4 solver with early exit checks
                 function solve4x4(M, b) {
-                    // Make a deep copy to avoid modifying original
                     const A = M.map(row => row.slice());
                     const x = b.slice();
-
                     const n = 4;
+                    
                     for (let i = 0; i < n; i++) {
                         // Partial pivoting
                         let maxRow = i;
                         let maxVal = Math.abs(A[i][i]);
                         for (let k = i + 1; k < n; k++) {
-                            if (Math.abs(A[k][i]) > maxVal) {
-                                maxVal = Math.abs(A[k][i]);
+                            const absVal = Math.abs(A[k][i]);
+                            if (absVal > maxVal) {
+                                maxVal = absVal;
                                 maxRow = k;
                             }
                         }
-                        if (maxVal < 1e-12) throw new Error("Matrix singular or nearly singular");
+                        if (maxVal < 1e-12) throw new Error("Singular matrix");
 
-                        // Swap rows i and maxRow
-                        [A[i], A[maxRow]] = [A[maxRow], A[i]];
-                        [x[i], x[maxRow]] = [x[maxRow], x[i]];
+                        // Swap rows
+                        if (maxRow !== i) {
+                            [A[i], A[maxRow]] = [A[maxRow], A[i]];
+                            [x[i], x[maxRow]] = [x[maxRow], x[i]];
+                        }
 
                         // Eliminate below
+                        const invAii = 1 / A[i][i];
                         for (let k = i + 1; k < n; k++) {
-                            const factor = A[k][i] / A[i][i];
+                            const factor = A[k][i] * invAii;
                             for (let j = i; j < n; j++) A[k][j] -= factor * A[i][j];
                             x[k] -= factor * x[i];
                         }
@@ -1228,91 +1232,115 @@
                     }
                     return sol;
                 }
+
                 const VOXEL_SIDE = hypercamera_sensor_size * 2 / GRID_RES_UVL;
+                const eps = 1e-9;
+                
+                // Setup the voxel grid in the sensor
+                const u_start = hypercamera_sensor_uvl_range[0];
+                const u_step = (hypercamera_sensor_uvl_range[1] - u_start) / GRID_RES_UVL;
+                const v_start = hypercamera_sensor_uvl_range[2];
+                const v_step = (hypercamera_sensor_uvl_range[3] - v_start) / GRID_RES_UVL;
+                const l_start = hypercamera_sensor_uvl_range[4];
+                const l_step = (hypercamera_sensor_uvl_range[5] - l_start) / GRID_RES_UVL;
+                
+                // Pre-transform all tetrahedra to camera space (suvl) once
+                const camera_inverse = hypercamera_T.inverse();
+                const transformed_objects = hyperscene_visible_objects.map(obj => ({
+                    color: obj.color,
+                    tetras: obj.tetras.map(tetra => 
+                        tetra.map(idx => camera_inverse.transform_point(obj.vertices_in_world[idx]))
+                    )
+                }));
+                
+                // Ray origin is constant
+                const ray_origin = new Vector4D(0, 0, 0, 0);
+                
+                // generate 1000 rays
+                const voxels_to_create = [];
+                
                 for (let i_u = 0; i_u < GRID_RES_UVL; i_u++) {
+                    const u = u_start + (i_u + 0.5) * u_step;
+                    
                     for (let i_v = 0; i_v < GRID_RES_UVL; i_v++) {
+                        const v = v_start + (i_v + 0.5) * v_step;
+                        
                         for (let i_l = 0; i_l < GRID_RES_UVL; i_l++) {
-                            const u = hypercamera_sensor_uvl_range[0] + (i_u + 0.5) * (hypercamera_sensor_uvl_range[1] - hypercamera_sensor_uvl_range[0]) / GRID_RES_UVL;
-                            const v = hypercamera_sensor_uvl_range[2] + (i_v + 0.5) * (hypercamera_sensor_uvl_range[3] - hypercamera_sensor_uvl_range[2]) / GRID_RES_UVL;
-                            const l = hypercamera_sensor_uvl_range[4] + (i_l + 0.5) * (hypercamera_sensor_uvl_range[5] - hypercamera_sensor_uvl_range[4]) / GRID_RES_UVL;
-
-                            // convert from suvl to world
-                            let ray_vector_in_camera = new Vector4D(1, u, v, l).normalize(); // direction from camera origin
-                            let ray_origin_in_camera = new Vector4D(0, 0, 0, 0); // camera origin
-
+                            const l = l_start + (i_l + 0.5) * l_step;
+                            
+                            const ray_dir = new Vector4D(1, u, v, l).normalize();
+                            
                             let hit_distance = Infinity;
                             let hit_color = null;
-                            // Does the ray hit? Z_buffer
-                            for (let hyperobject of hyperscene_visible_objects) {
-                                for (let tetrahydron of hyperobject.tetras) {
-                                    let tetra_verts_in_world = tetrahydron.map(idx => hyperobject.vertices_in_world[idx]);
-                                    let tetra_verts_in_camera = tetra_verts_in_world.map(v => hypercamera_T.inverse().transform_point(v));
-
-                                    // Solve ray-tetrahedron intersection
-                                    // O + tD = (1-a-b-c)V0 + aV1 + bV2 + cV3
-                                    const V0 = tetra_verts_in_camera[0];
-                                    const V1 = tetra_verts_in_camera[1];
-                                    const V2 = tetra_verts_in_camera[2];
-                                    const V3 = tetra_verts_in_camera[3];
-
+                            
+                            // Test intersection with all tetrahedra
+                            for (let obj of transformed_objects) {
+                                for (let tetra_verts of obj.tetras) {
+                                    const V0 = tetra_verts[0];
+                                    const V1 = tetra_verts[1];
+                                    const V2 = tetra_verts[2];
+                                    const V3 = tetra_verts[3];
+                                    
+                                    // Edge vectors
                                     const U1 = V1.subtract(V0);
                                     const U2 = V2.subtract(V0);
                                     const U3 = V3.subtract(V0);
-                                    const B = ray_origin_in_camera.subtract(V0); // O - V0
-
-                                    // Build 4x4 matrix columns: [D, U1, U2, U3]
+                                    const B = ray_origin.subtract(V0);
+                                    
+                                    // Build matrix: columns [-D, U1, U2, U3]
                                     const M = [
-                                        [-ray_vector_in_camera.x, U1.x, U2.x, U3.x],
-                                        [-ray_vector_in_camera.y, U1.y, U2.y, U3.y],
-                                        [-ray_vector_in_camera.z, U1.z, U2.z, U3.z],
-                                        [-ray_vector_in_camera.w, U1.w, U2.w, U3.w]
+                                        [-ray_dir.x, U1.x, U2.x, U3.x],
+                                        [-ray_dir.y, U1.y, U2.y, U3.y],
+                                        [-ray_dir.z, U1.z, U2.z, U3.z],
+                                        [-ray_dir.w, U1.w, U2.w, U3.w]
                                     ];
-
+                                    
                                     const b = [B.x, B.y, B.z, B.w];
-
-                                    // Solve 4x4 linear system M * [t,a,b,c] = b
+                                    
                                     let solution;
                                     try {
-                                        solution = solve4x4(M, b); // implement or import a stable 4x4 solver
+                                        solution = solve4x4(M, b);
                                     } catch(e) {
-                                        continue; // singular matrix: ray parallel to tetra
+                                        continue; // Singular matrix
                                     }
-
+                                    
                                     const t = solution[0];
                                     const a = solution[1];
                                     const b_ = solution[2];
                                     const c = solution[3];
                                     const alpha = 1 - a - b_ - c;
-
-                                    // Check if point is inside tetrahedron and in front of camera
-                                    const eps = 1e-9;
-                                    if (t >= 0 && alpha >= -eps && a >= -eps && b_ >= -eps && c >= -eps) {
-                                        if (t < hit_distance) {
-                                            hit_distance = t; // closer hit
-                                            hit_color = hyperobject.color;
-                                        }
+                                    
+                                    // Check if valid intersection (inside tetra, in front of camera)
+                                    if (t >= 0 && t < hit_distance && 
+                                        alpha >= -eps && a >= -eps && b_ >= -eps && c >= -eps) {
+                                        hit_distance = t;
+                                        hit_color = obj.color;
                                     }
                                 }
-                            } 
+                            }
                             
-
-                            // create voxel cube at (u,v,l)
+                            // Store voxel data for batch creation
                             if (hit_distance !== Infinity) {
-                                const geometry = new THREE.BoxGeometry(VOXEL_SIDE, VOXEL_SIDE, VOXEL_SIDE);
-                                const color = new THREE.Color(hit_color);
-                                const material = new THREE.MeshBasicMaterial({
-                                    color: color,
-                                    transparent: true,
-                                    opacity: 0.1
-                                    // side: THREE.DoubleSide
-                                });
-                                const cube = new THREE.Mesh(geometry, material);
-                                cube.position.set(u, v, l);
-                                scene.add(cube);
-                                vertexMeshes.push(cube);
+                                voxels_to_create.push({ u, v, l, color: hit_color });
                             }
                         }
                     }
+                }
+                
+                // Batch create all voxels (reuse geometry for better performance)
+                const geometry = new THREE.BoxGeometry(VOXEL_SIDE, VOXEL_SIDE, VOXEL_SIDE);
+                
+                for (let voxel of voxels_to_create) {
+                    const color = new THREE.Color(voxel.color);
+                    const material = new THREE.MeshBasicMaterial({
+                        color: color,
+                        transparent: true,
+                        opacity: 0.1
+                    });
+                    const cube = new THREE.Mesh(geometry, material);
+                    cube.position.set(voxel.u, voxel.v, voxel.l);
+                    scene.add(cube);
+                    vertexMeshes.push(cube);
                 }
             } // end of UVL Voxel Z Rasterization Mode
 
