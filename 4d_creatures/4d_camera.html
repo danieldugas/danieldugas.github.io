@@ -1971,7 +1971,19 @@
                     let zPrime = worldZ.subtract(zProj);
                     let z = zPrime.normalize();
 
-                    // ---- Step 2: compute y ----
+                    // ---- Step 2: compute w ----
+                    // We want the camera w vector to be as close as possible to the world w axis
+                    // Otherwise the camera feels "fragged" in the usual xyz axes
+                    // let vW = new Vector4D(0, 0, 0, 1); // world w axis
+                    // Or we pick the current camera w, seems more robust
+                    let vW = new Vector4D(hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]);
+
+                    let wPrime = vW
+                        .subtract(x.multiply_by_scalar(vW.dot(x)))
+                        .subtract(z.multiply_by_scalar(vW.dot(z)));
+                    let w = wPrime.normalize();
+
+                    // ---- Step 3: compute y ----
                     // pick a vector not colinear with x, z
                     // let vY = new Vector4D(0, 1, 0, 0);
                     // pick the current y axis of the camera
@@ -1979,20 +1991,10 @@
 
                     let yPrime = vY
                         .subtract(x.multiply_by_scalar(vY.dot(x)))
-                        .subtract(z.multiply_by_scalar(vY.dot(z)));
+                        .subtract(z.multiply_by_scalar(vY.dot(z)))
+                        .subtract(w.multiply_by_scalar(vY.dot(w)));
                     let y = yPrime.normalize();
 
-                    // ---- Step 3: compute w ----
-                    // pick another vector
-                    // let vW = new Vector4D(0, 0, 0, 1);
-                    // pick the current w axis of the camera
-                    let vW = new Vector4D(hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]);
-
-                    let wPrime = vW
-                        .subtract(x.multiply_by_scalar(vW.dot(x)))
-                        .subtract(z.multiply_by_scalar(vW.dot(z)))
-                        .subtract(y.multiply_by_scalar(vW.dot(y)));
-                    let w = wPrime.normalize();
 
                     const PROGRESSIVE_ROTATION_TO_TARGET = true;
 
