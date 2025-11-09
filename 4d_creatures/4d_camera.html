@@ -102,7 +102,7 @@
             <div id="xz-canvas"></div>
         </div>
         <div class="projection-view">
-            <div class="projection-label">YZ Projection (Back View)</div>
+            <div class="projection-label">YZ Projection (Front View)</div>
             <div id="yz-canvas"></div>
         </div>
         <div class="projection-view">
@@ -860,7 +860,7 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a2e);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(2, 2, 2);
+        camera.position.set(2, 2, -2);
         camera.lookAt(0, 0, 0);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1083,7 +1083,8 @@
             }
 
             // Project 4D Scene into 2D Orthogonal Views
-            function render_in_threejs_orthogonal_scene(project_vertex_4D_to_2D_func, scene2D, sceneMeshList, sceneEdgeList) {
+            function render_in_threejs_orthogonal_scene(project_vertex_4D_to_2D_func, towardscam_func, scene2D, sceneMeshList, sceneEdgeList) {
+                // hyperobjects
                 for (let hyperobject of hyperscene_visible_objects) {
                     let _ru_vertices = [];
                     let _ru_edges = [];
@@ -1147,7 +1148,7 @@
                         project_vertex_4D_to_2D_func(end)
                     ];
                     const _ruGeometry = new THREE.BufferGeometry().setFromPoints(_ruPoints);
-                    const is_closest_4 = end.y > start.y;
+                    const is_closest_4 = towardscam_func(end) >= towardscam_func(start);
                     const material = is_closest_4 ? frustrumMaterial : frustrumFarMaterial;
                     const _ruLine = new THREE.Line(_ruGeometry, material);
                     scene2D.add(_ruLine);
@@ -1155,32 +1156,26 @@
                 });
             }
 
-            function xz_project_vertex(v) {
-                return new THREE.Vector3(0, v.z, -v.x);
-            }
-            function yz_project_vertex(v) {
-                return new THREE.Vector3(0, v.z, -v.y);
-            }
-            function wz_project_vertex(v) {
-                return new THREE.Vector3(0, v.z, -v.w);
-            }
-            render_in_threejs_orthogonal_scene(xz_project_vertex, xzScene, xzVertexMeshes, xzEdgeMeshes);
-            render_in_threejs_orthogonal_scene(yz_project_vertex, yzScene, yzVertexMeshes, yzEdgeMeshes);
-            render_in_threejs_orthogonal_scene(wz_project_vertex, wzScene, wzVertexMeshes, wzEdgeMeshes);
+            function xz_project_vertex(v) { return new THREE.Vector3(0, v.z, -v.x); }
+            function xz_towardscam_dim(v) { return -v.y; }
+            function yz_project_vertex(v) { return new THREE.Vector3(0, v.z, -v.y); }
+            function yz_towardscam_dim(v) { return v.x; }
+            function wz_project_vertex(v) { return new THREE.Vector3(0, v.z, -v.w); }
+            function wz_towardscam_dim(v) { return -v.x; }
+            render_in_threejs_orthogonal_scene(xz_project_vertex, xz_towardscam_dim, xzScene, xzVertexMeshes, xzEdgeMeshes);
+            render_in_threejs_orthogonal_scene(yz_project_vertex, yz_towardscam_dim, yzScene, yzVertexMeshes, yzEdgeMeshes);
+            render_in_threejs_orthogonal_scene(wz_project_vertex, wz_towardscam_dim, wzScene, wzVertexMeshes, wzEdgeMeshes);
 
             if (EXTRA_VIEWS) {
-                function yw_project_vertex(v) {
-                    return new THREE.Vector3(0, v.w, -v.y);
-                }
-                function xw_project_vertex(v) {
-                    return new THREE.Vector3(0, v.w, -v.x);
-                }
-                function xy_project_vertex(v) {
-                    return new THREE.Vector3(0, -v.y, -v.x);
-                }
-                render_in_threejs_orthogonal_scene(yw_project_vertex, ywScene, ywVertexMeshes, ywEdgeMeshes);
-                render_in_threejs_orthogonal_scene(xw_project_vertex, xwScene, xwVertexMeshes, xwEdgeMeshes);
-                render_in_threejs_orthogonal_scene(xy_project_vertex, xyScene, xyVertexMeshes, xyEdgeMeshes);
+                function yw_project_vertex(v) { return new THREE.Vector3(0, v.w, -v.y); }
+                function yw_towardscam_dim(v) { return -v.x; }
+                function xw_project_vertex(v) { return new THREE.Vector3(0, v.w, -v.x); }
+                function xw_towardscam_dim(v) { return v.y; }
+                function xy_project_vertex(v) { return new THREE.Vector3(0, v.y, -v.x); }
+                function xy_towardscam_dim(v) { return v.z; }
+                render_in_threejs_orthogonal_scene(yw_project_vertex, yw_towardscam_dim, ywScene, ywVertexMeshes, ywEdgeMeshes);
+                render_in_threejs_orthogonal_scene(xw_project_vertex, xw_towardscam_dim, xwScene, xwVertexMeshes, xwEdgeMeshes);
+                render_in_threejs_orthogonal_scene(xy_project_vertex, xy_towardscam_dim, xyScene, xyVertexMeshes, xyEdgeMeshes);
             }
 
             // UVL Voxel Z Rasterization Mode
@@ -1895,11 +1890,11 @@
                     moved = true;
                 }
                 if (keys['a']) {
-                    hypercamera_T.translate_self_by_delta(0, -moveSpeed, 0, 0, RELATIVE_MOVEMENT);
+                    hypercamera_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['d']) {
-                    hypercamera_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
+                    hypercamera_T.translate_self_by_delta(0,-moveSpeed, 0, 0, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['q']) {
@@ -1934,19 +1929,19 @@
                     moved = true;
                 }
                 if (keys['j']) {
-                    hypercamera_T.rotate_self_by_delta('XY', -0.05, false);
-                    moved = true;
-                }
-                if (keys['l']) {
                     hypercamera_T.rotate_self_by_delta('XY', 0.05, false);
                     moved = true;
                 }
+                if (keys['l']) {
+                    hypercamera_T.rotate_self_by_delta('XY', -0.05, false);
+                    moved = true;
+                }
                 if (keys['u']) {
-                    hypercamera_T.rotate_self_by_delta('XW', -0.05, false);
+                    hypercamera_T.rotate_self_by_delta('XW', 0.05, false);
                     moved = true;
                 }
                 if (keys['o']) {
-                    hypercamera_T.rotate_self_by_delta('XW', 0.05, false);
+                    hypercamera_T.rotate_self_by_delta('XW', -0.05, false);
                     moved = true;
                 }
                 if (keys['y']) {
