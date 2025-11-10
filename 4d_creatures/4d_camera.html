@@ -406,7 +406,7 @@
         let DEBUG_PHYSICS = false;
         let STEP_PHYSICS_ONCE = false;
         let GIZMO_MODE = 1; // 0: none, 1: in world middle, 2: in sensor middle
-        let EXTRA_VIEWS = false; // slow
+        let EXTRA_VIEWS = 1; // 0: none, 1: some ortho views, 2: all ortho views (slow)
         let UVL_VOXEL_Z_RASTERIZATION_MODE = false;
 
         // track variables
@@ -1156,17 +1156,19 @@
                 });
             }
 
-            function xz_project_vertex(v) { return new THREE.Vector3(0, v.z, -v.x); }
-            function xz_towardscam_dim(v) { return -v.y; }
-            function yz_project_vertex(v) { return new THREE.Vector3(0, v.z, -v.y); }
-            function yz_towardscam_dim(v) { return v.x; }
-            function wz_project_vertex(v) { return new THREE.Vector3(0, v.z, -v.w); }
-            function wz_towardscam_dim(v) { return -v.x; }
-            render_in_threejs_orthogonal_scene(xz_project_vertex, xz_towardscam_dim, xzScene, xzVertexMeshes, xzEdgeMeshes);
-            render_in_threejs_orthogonal_scene(yz_project_vertex, yz_towardscam_dim, yzScene, yzVertexMeshes, yzEdgeMeshes);
-            render_in_threejs_orthogonal_scene(wz_project_vertex, wz_towardscam_dim, wzScene, wzVertexMeshes, wzEdgeMeshes);
+            if (EXTRA_VIEWS === 1 || EXTRA_VIEWS === 2) {
+                function xz_project_vertex(v) { return new THREE.Vector3(0, v.z, -v.x); }
+                function xz_towardscam_dim(v) { return -v.y; }
+                function yz_project_vertex(v) { return new THREE.Vector3(0, v.z, -v.y); }
+                function yz_towardscam_dim(v) { return v.x; }
+                function wz_project_vertex(v) { return new THREE.Vector3(0, v.z, -v.w); }
+                function wz_towardscam_dim(v) { return -v.x; }
+                render_in_threejs_orthogonal_scene(xz_project_vertex, xz_towardscam_dim, xzScene, xzVertexMeshes, xzEdgeMeshes);
+                render_in_threejs_orthogonal_scene(yz_project_vertex, yz_towardscam_dim, yzScene, yzVertexMeshes, yzEdgeMeshes);
+                render_in_threejs_orthogonal_scene(wz_project_vertex, wz_towardscam_dim, wzScene, wzVertexMeshes, wzEdgeMeshes);
+            }
 
-            if (EXTRA_VIEWS) {
+            if (EXTRA_VIEWS === 2) {
                 function yw_project_vertex(v) { return new THREE.Vector3(0, v.w, -v.y); }
                 function yw_towardscam_dim(v) { return -v.x; }
                 function xw_project_vertex(v) { return new THREE.Vector3(0, v.w, -v.x); }
@@ -1615,7 +1617,7 @@
                 GIZMO_MODE = (GIZMO_MODE + 1) % 3; // cycle through gizmo modes
             }
             if (e.key.toLowerCase() == 'v') {
-                EXTRA_VIEWS = !EXTRA_VIEWS; // toggle extra views
+                EXTRA_VIEWS = (EXTRA_VIEWS + 1) % 3; // toggle extra views
             }
             if (e.key.toLowerCase() == '.') {
                 SIMULATE_PHYSICS = true;
@@ -2206,10 +2208,15 @@
 
             controls.update();
             renderer.render(scene, camera);
-            xzRenderer.render(xzScene, xzCamera);
-            yzRenderer.render(yzScene, yzCamera);
-            wzRenderer.render(wzScene, wzCamera);
-            if (EXTRA_VIEWS) {
+            if (EXTRA_VIEWS === 1 || EXTRA_VIEWS === 2) {
+                document.getElementById('projection-container').style.display = 'flex';
+                xzRenderer.render(xzScene, xzCamera);
+                yzRenderer.render(yzScene, yzCamera);
+                wzRenderer.render(wzScene, wzCamera);
+            } else {
+                document.getElementById('projection-container').style.display = 'none';
+            }
+            if (EXTRA_VIEWS === 2) {
                 // make sure div is visible
                 document.getElementById('additional-projection-container').style.display = 'flex';
                 ywRenderer.render(ywScene, ywCamera);
