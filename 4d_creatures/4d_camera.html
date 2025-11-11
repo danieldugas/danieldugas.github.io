@@ -86,6 +86,7 @@
         Click: Select vertex<br>
         Selected: <span id="selected">None</span>
         </div>
+        <span id="mission-info"></span>
     </div>
     <!-- Add a floating element in the middle of the page, that is usally invisible but can contain warnings -->
     <div id="warning-div" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;"> <!-- color:rgb(0, 235, 235);font-size:48px;font-weight:bold;">  --> <!-- display:none;"> -->
@@ -94,6 +95,7 @@
         </span>
         <span id="warning-camera-inverted" style="color:rgb(79, 123, 136);font-size:24px;font-weight:bold;"></span>
         <span id="warning-physics-paused" style="color:rgb(79, 123, 136);font-size:24px;font-weight:bold;"></span>
+        <span id="warning-object-collected" style="color:rgb(75, 209, 71);font-size:24px;font-weight:bold;"></span>
     </div>
     <div id="main-canvas"></div>
     <div id="projection-container">
@@ -152,6 +154,9 @@
                 let mag = Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
                 if (mag === 0) return new Vector4D(0, 0, 0, 0);
                 return new Vector4D(this.x / mag, this.y / mag, this.z / mag, this.w / mag);
+            }
+            magnitude() {
+                return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
             }
             dot(v) {
                 return this.x * v.x + this.y * v.y + this.z * v.z + this.w * v.w;
@@ -412,6 +417,58 @@
         // track variables
         let user_has_interacted = false;
         let physics_time_s = 0;
+        // mission variables
+        let user_has_pushed_object = false;
+        let user_has_collected_hypercube = false;
+        let user_has_collected_hyperpyramid = false;
+        let hypercube_collection_time = 0;
+        let hyperpyramid_collection_time = 0;
+        let mission_complete_time = 0;
+        function update_mission() {
+            let mission_message = "Mission: push a hyperobject";
+            // Decide what to display in the top left helper
+            if (user_has_pushed_object) {
+                mission_message = "Mission: bring hyperobjects to the center (0/2)";
+                if (user_has_collected_hypercube || user_has_collected_hyperpyramid) {
+                    mission_message = "Mission: bring hyperobject to the center (1/2)";
+                }
+                if (user_has_collected_hypercube && user_has_collected_hyperpyramid) {
+                    mission_message = "Mission complete.";
+                    if (mission_complete_time === 0) {
+                        mission_complete_time = physics_time_s;
+                    }
+                }
+            }
+            // Udate mission-info span
+            document.getElementById('mission-info').innerHTML = `${mission_message}`;
+            // Display temporary popups
+            let now = physics_time_s;
+            const popup_duration = 5.0; // seconds
+            if (user_has_collected_hypercube) {
+                let hypercube_popup_opacity = Math.min(1.0, 1.0 - ((now - hypercube_collection_time) / popup_duration));
+                if (hypercube_popup_opacity > 0) {
+                    document.getElementById('warning-object-collected').innerHTML = `<span style="opacity:${hypercube_popup_opacity}">Collected hypercube!</span>`;
+                } else {
+                    document.getElementById('warning-object-collected').innerHTML = '';
+                }
+            } 
+            if (user_has_collected_hyperpyramid) {
+                let hyperpyramid_popup_opacity = Math.min(1.0, 1.0 - ((now - hyperpyramid_collection_time) / popup_duration));
+                if (hyperpyramid_popup_opacity > 0) {
+                    document.getElementById('warning-object-collected').innerHTML += `<br><span style="opacity:${hyperpyramid_popup_opacity}">Collected hyperpyramid!</span>`;
+                } else {
+                    document.getElementById('warning-object-collected').innerHTML = '';
+                }
+            }
+            if (mission_complete_time > 0) {
+                let mission_complete_popup_opacity = 1;
+                if (mission_complete_popup_opacity > 0) {
+                    document.getElementById('warning-object-collected').innerHTML += `<br><span style="opacity:${mission_complete_popup_opacity}">Mission complete!<br>Time: ${(mission_complete_time).toFixed(1)}s</span>`;
+                } else {
+                    document.getElementById('warning-object-collected').innerHTML = '';
+                }
+            }
+        }
 
         function on_first_user_interaction() {
             // HACK: remove spash at first interaction
@@ -435,11 +492,12 @@
         ];
         const gizmo_length_in_world = 1.0;
         let gizmo_z_in_world = floor_heightmap(0, 0, 0);
+        let gizmo_origin_in_world = new Vector4D(0, 0, gizmo_z_in_world, 0);
         let gizmo_axes_in_world = [
-            [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(gizmo_length_in_world, 0, gizmo_z_in_world, 0)], // X axis
-            [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(0, gizmo_length_in_world, gizmo_z_in_world, 0)], // Y axis
-            [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(0, 0, gizmo_length_in_world + gizmo_z_in_world, 0)], // Z axis
-            [new Vector4D(0, 0, gizmo_z_in_world, 0), new Vector4D(0, 0, gizmo_z_in_world, gizmo_length_in_world)]  // W axis
+            [gizmo_origin_in_world, new Vector4D(gizmo_length_in_world, 0, gizmo_z_in_world, 0)], // X axis
+            [gizmo_origin_in_world, new Vector4D(0, gizmo_length_in_world, gizmo_z_in_world, 0)], // Y axis
+            [gizmo_origin_in_world, new Vector4D(0, 0, gizmo_length_in_world + gizmo_z_in_world, 0)], // Z axis
+            [gizmo_origin_in_world, new Vector4D(0, 0, gizmo_z_in_world, gizmo_length_in_world)]  // W axis
         ];
         const hypercamera_height_above_ground = 1.0;
         let hypercamera_T = new Transform4D([
@@ -1728,6 +1786,8 @@
                                 let push_direction = to_camera.multiply_by_scalar(1.0 / distance_to_camera); // normalize
                                 let push_force = push_direction.multiply_by_scalar(push_strength);
                                 com_force = com_force.add(push_force);
+                                // update mission variables
+                                user_has_pushed_object = true;
                             }
 
                             // Add a general friction force
@@ -1878,6 +1938,24 @@
                     }
                 } // End of SIMULATE_PHYSICS
             } // end of substeps
+
+            // Check Collected Objects
+            if (!user_has_collected_hypercube) {
+                // if the hypercube is within 2 units of the world origin, consider it collected
+                if (hypercube.pose.origin().subtract(gizmo_origin_in_world).magnitude() < 2.0) {
+                    user_has_collected_hypercube = true;
+                    hypercube_collection_time = physics_time_s;
+                    hyperscene_visible_objects = hyperscene_visible_objects.filter(obj => obj.name !== hypercube.name);
+                }
+            }
+            if (!user_has_collected_hyperpyramid) {
+                // if the hyperpyramid is within 2 units of the world origin, consider it collected
+                if (hyperpyramid.pose.origin().subtract(gizmo_origin_in_world).magnitude() < 2.0) {
+                    user_has_collected_hyperpyramid = true;
+                    hyperpyramid_collection_time = physics_time_s;
+                    hyperscene_visible_objects = hyperscene_visible_objects.filter(obj => obj.name !== hyperpyramid.name);
+                }
+            }
             
             // Handle WASD movement for selected vertex
             if (true) {
@@ -2200,6 +2278,9 @@
             } else {
                 document.getElementById('warning-physics-paused').innerText = "";
             }
+
+            // display mission
+            update_mission();
             
             // update threejs scene since hyperscene has changed
             if (moved) {
@@ -2225,7 +2306,7 @@
             } else {
                 document.getElementById('additional-projection-container').style.display = 'none';
             }
-        }
+        } // end of animate()
 
         // Initialize
         updateGraph();
