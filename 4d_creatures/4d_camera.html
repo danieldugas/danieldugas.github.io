@@ -73,7 +73,7 @@
 <body>
     <div id="info">
         You are looking at the 3D sensor of a 4D <a href="../funderstanding/4d_camera.html" style="color:inherit;">hypercamera</a>.<br>
-        <div style="color:rgb(104, 113, 167);">
+        <div id="help-controls" style="color:rgb(104, 113, 167);">
         WASD: Move camera forwards, sideways<br>
         Q/E: Move camera in ana, kata directions<br>
         IJKL: Rotate camera up/down, left/right<br>
@@ -86,6 +86,9 @@
         Mouse wheel: Zoom<br>
         Click: Select vertex<br>
         Selected: <span id="selected">None</span>
+        </div>
+        <div id="help-key" style="color:rgb(104, 113, 167);">
+        h: show/hide controls
         </div>
         <span id="mission-info"></span>
     </div>
@@ -408,6 +411,7 @@
         }
 
         // params
+        let SHOW_CONTROLS_HELP = true;
         let SIMULATE_PHYSICS = true;
         let DEBUG_PHYSICS = false;
         let STEP_PHYSICS_ONCE = false;
@@ -428,12 +432,12 @@
         let hyperpyramid_collection_time = 0;
         let mission_complete_time = 0;
         function update_mission() {
-            let mission_message = "Mission: push a hyperobject";
+            let mission_message = "Mission: Push a hyperobject";
             // Decide what to display in the top left helper
             if (user_has_pushed_object) {
-                mission_message = "Mission: bring hyperobjects to the center (0/2)";
+                mission_message = "Mission: Bring hyperobjects to the center (0/2)";
                 if (user_has_collected_hypercube || user_has_collected_hyperpyramid) {
-                    mission_message = "Mission: bring hyperobject to the center (1/2)";
+                    mission_message = "Mission: Bring hyperobject to the center (1/2)";
                 }
                 if (user_has_collected_hypercube && user_has_collected_hyperpyramid) {
                     mission_message = "Mission complete.";
@@ -1697,6 +1701,14 @@
             }
             if (e.key.toLowerCase() == 'x') {
                 UVL_VOXEL_Z_RASTERIZATION_MODE = !UVL_VOXEL_Z_RASTERIZATION_MODE;
+            }
+            if (e.key.toLowerCase() == 'h') {
+                SHOW_CONTROLS_HELP = !SHOW_CONTROLS_HELP;
+                if (SHOW_CONTROLS_HELP) {
+                    document.getElementById('help-controls').style.display = 'block';
+                } else {
+                    document.getElementById('help-controls').style.display = 'none';
+                }
             }
         });
 
