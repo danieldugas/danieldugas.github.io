@@ -2039,11 +2039,12 @@
                     // camera z axis should now be on the plane composed by the new x axis and the world z axis
                     // 
                         // ---- Step 1: compute z ----
-                    let hyperobject_idx = keys['1'] ? 0 : 1;
                     let worldZ = new Vector4D(0, 0, 1, 0);
-                    let lookAt_in_world = hyperscene_visible_objects[hyperobject_idx].get_com();
+                    let lookAt_in_world = gizmo_axes_in_world[0][0]; // origin
                     if (keys['0']) {
-                        lookAt_in_world = gizmo_axes_in_world[0][0]; // origin
+                    } else {
+                        let hyperobject_idx = keys['1'] ? 0 : 1;
+                        lookAt_in_world = hyperscene_visible_objects[hyperobject_idx].get_com();
                     }
                     // new camera x axis
                     let x = lookAt_in_world.subtract(hypercamera_T.origin()).normalize();
