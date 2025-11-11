@@ -417,6 +417,8 @@
         // track variables
         let user_has_interacted = false;
         let physics_time_s = 0;
+        let accumulated_animation_time_s = 0;
+        let last_anim_end_time = performance.now();
         // mission variables
         let user_has_pushed_object = false;
         let user_has_collected_hypercube = false;
@@ -435,7 +437,7 @@
                 if (user_has_collected_hypercube && user_has_collected_hyperpyramid) {
                     mission_message = "Mission complete.";
                     if (mission_complete_time === 0) {
-                        mission_complete_time = physics_time_s;
+                        mission_complete_time = (physics_time_s + accumulated_animation_time_s) / 2.0;
                     }
                 }
             }
@@ -1755,6 +1757,7 @@
                     const dt = 0.016; // ~60fps
 
                     html_physics_log += '<b>Sim Time:</b> ' + physics_time_s.toFixed(2) + ' s<br>';
+                    html_physics_log += '<b>UI Time:</b> ' + accumulated_animation_time_s.toFixed(2) + ' s<br>';
 
                     for (let hyperobject of hyperscene_visible_objects) {
                         if (hyperobject.simulate_physics) {
@@ -2307,6 +2310,12 @@
             } else {
                 document.getElementById('additional-projection-container').style.display = 'none';
             }
+
+            // Update animation time
+            anim_dt = performance.now() - last_anim_end_time;
+            if (anim_dt > 0) { accumulated_animation_time_s += anim_dt / 1000.0; }
+            last_anim_end_time = performance.now();
+
         } // end of animate()
 
         // Initialize
