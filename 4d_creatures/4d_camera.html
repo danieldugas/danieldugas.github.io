@@ -1995,11 +1995,11 @@
                     moved = true;
                 }
                 if (keys['q']) {
-                    hypercamera_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
+                    hypercamera_T.translate_self_by_delta(0, 0, 0, moveSpeed, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['e']) {
-                    hypercamera_T.translate_self_by_delta(0, 0, 0, moveSpeed, RELATIVE_MOVEMENT);
+                    hypercamera_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
                     moved = true;
                 }
                 if (keys['r']) {
@@ -2042,11 +2042,11 @@
                     moved = true;
                 }
                 if (keys['y']) {
-                    hypercamera_T.rotate_self_by_delta('YW', -0.05, false);
+                    hypercamera_T.rotate_self_by_delta('YW', -0.05, true);
                     moved = true;
                 }
                 if (keys['p']) {
-                    hypercamera_T.rotate_self_by_delta('YW', 0.05, false);
+                    hypercamera_T.rotate_self_by_delta('YW', 0.05, true);
                     moved = true;
                 }
 
