@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDA Voxel Ray Tracer</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: monospace;
+            color: #fff;
+        }
+        #container {
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #444;
+            image-rendering: pixelated;
+        }
+        #info {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+        canvas {
+            cursor: grab;
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas" width="600" height="600"></canvas>
+        <div id="info">3×3×3 voxel grid • DDA ray traversal with alpha blending</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // Voxel grid setup
+        const gridSize = 3;
+        const voxels = [];
+        
+        // Initialize random colored voxels with low alpha
+        function fillVoxelsRandom() {
+            for (let x = 0; x < gridSize; x++) {
+                voxels[x] = [];
+                for (let y = 0; y < gridSize; y++) {
+                    voxels[x][y] = [];
+                    for (let z = 0; z < gridSize; z++) {
+                        voxels[x][y][z] = {
+                            r: Math.random() * 255,
+                            g: Math.random() * 255,
+                            b: Math.random() * 255,
+                            a: 0.2 + Math.random() * 0.015
+                        };
+                    }
+                }
+            }
+        }
+        
+        // Camera setup
+        const camera = {
+            distance: gridSize * 2., // Distance from center
+            theta: Math.PI / 4, // Azimuth angle
+            phi: Math.PI / 4, // Polar angle
+            lookAt: { x: gridSize / 2., y: gridSize / 2., z: gridSize / 2. },
+            fov: 60
+        };
+        
+        // Calculate camera position from spherical coordinates
+        function getCameraPos() {
+            return {
+                x: camera.lookAt.x + camera.distance * Math.sin(camera.phi) * Math.cos(camera.theta),
+                y: camera.lookAt.y + camera.distance * Math.cos(camera.phi),
+                z: camera.lookAt.z + camera.distance * Math.sin(camera.phi) * Math.sin(camera.theta)
+            };
+        }
+        
+        // Vector operations
+        function sub(a, b) {
+            return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+        }
+        
+        function add(a, b) {
+            return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+        }
+        
+        function scale(v, s) {
+            return { x: v.x * s, y: v.y * s, z: v.z * s };
+        }
+        
+        function length(v) {
+            return Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        }
+        
+        function normalize(v) {
+            const len = length(v);
+            return len > 0 ? { x: v.x / len, y: v.y / len, z: v.z / len } : v;
+        }
+        
+        function cross(a, b) {
+            return {
+                x: a.y * b.z - a.z * b.y,
+                y: a.z * b.x - a.x * b.z,
+                z: a.x * b.y - a.y * b.x
+            };
+        }
+        
+        // Calculate camera basis vectors
+        function setupCamera() {
+            const pos = getCameraPos();
+            const forward = normalize(sub(camera.lookAt, pos));
+            const right = normalize(cross({ x: 0, y: 1, z: 0 }, forward));
+            const up = cross(forward, right);
+            return { forward, right, up, pos };
+        }
+        
+        // Ray-box intersection to find entry point into grid
+        function rayBoxIntersection(origin, direction) {
+            const boxMin = { x: 0, y: 0, z: 0 };
+            const boxMax = { x: gridSize, y: gridSize, z: gridSize };
+            
+            let tMin = -Infinity;
+            let tMax = Infinity;
+            
+            for (const axis of ['x', 'y', 'z']) {
+                if (Math.abs(direction[axis]) < 1e-10) {
+                    if (origin[axis] < boxMin[axis] || origin[axis] > boxMax[axis]) {
+                        return null;
+                    }
+                } else {
+                    const t1 = (boxMin[axis] - origin[axis]) / direction[axis];
+                    const t2 = (boxMax[axis] - origin[axis]) / direction[axis];
+                    
+                    tMin = Math.max(tMin, Math.min(t1, t2));
+                    tMax = Math.min(tMax, Math.max(t1, t2));
+                }
+            }
+            
+            if (tMin > tMax || tMax < 0) return null;
+            
+            return tMin > 0 ? tMin : 0;
+        }
+        
+        // DDA ray traversal
+        function ddaRaycast(origin, direction) {
+            // First, find where ray enters the grid
+            const tEntry = rayBoxIntersection(origin, direction);
+            if (tEntry === null) return [];
+            
+            // Start position at grid entry
+            const startPos = {
+                x: origin.x + direction.x * tEntry,
+                y: origin.y + direction.y * tEntry,
+                z: origin.z + direction.z * tEntry
+            };
+            
+            // Clamp to grid bounds and get starting voxel
+            let x = Math.floor(Math.max(0, Math.min(gridSize - 0.001, startPos.x)));
+            let y = Math.floor(Math.max(0, Math.min(gridSize - 0.001, startPos.y)));
+            let z = Math.floor(Math.max(0, Math.min(gridSize - 0.001, startPos.z)));
+            
+            const stepX = direction.x >= 0 ? 1 : -1;
+            const stepY = direction.y >= 0 ? 1 : -1;
+            const stepZ = direction.z >= 0 ? 1 : -1;
+            
+            const tDeltaX = Math.abs(1 / direction.x);
+            const tDeltaY = Math.abs(1 / direction.y);
+            const tDeltaZ = Math.abs(1 / direction.z);
+            
+            let tMaxX = tDeltaX * (direction.x >= 0 ? (x + 1 - startPos.x) : (startPos.x - x));
+            let tMaxY = tDeltaY * (direction.y >= 0 ? (y + 1 - startPos.y) : (startPos.y - y));
+            let tMaxZ = tDeltaZ * (direction.z >= 0 ? (z + 1 - startPos.z) : (startPos.z - z));
+            
+            const hits = [];
+            let t = 0;
+            
+            for (let i = 0; i < gridSize * 3; i++) {
+                if (x < 0 || x >= gridSize || y < 0 || y >= gridSize || z < 0 || z >= gridSize) {
+                    break;
+                }
+
+                // if we have more than 10 hits, break - we're likely already at max alpha
+                if (hits.length > 10) {
+                    break;
+                }
+                
+                const tExit = Math.min(tMaxX, tMaxY, tMaxZ);
+                const rayLength = tExit - t;
+                
+                const voxel = voxels[x][y][z];
+                if (voxel.a > 0) {
+                    hits.push({
+                        voxel: voxel,
+                        rayLength: rayLength
+                    });
+                }
+                
+                // Step to next voxel
+                if (tMaxX < tMaxY) {
+                    if (tMaxX < tMaxZ) {
+                        t = tMaxX;
+                        tMaxX += tDeltaX;
+                        x += stepX;
+                    } else {
+                        t = tMaxZ;
+                        tMaxZ += tDeltaZ;
+                        z += stepZ;
+                    }
+                } else {
+                    if (tMaxY < tMaxZ) {
+                        t = tMaxY;
+                        tMaxY += tDeltaY;
+                        y += stepY;
+                    } else {
+                        t = tMaxZ;
+                        tMaxZ += tDeltaZ;
+                        z += stepZ;
+                    }
+                }
+            }
+            
+            return hits;
+        }
+        
+        // Composite colors with alpha blending based on ray length
+        function compositeColors(hits) {
+            let r = 0, g = 0, b = 0;
+            let alpha = 0;
+            
+            for (const hit of hits) {
+                const voxel = hit.voxel;
+                const effectiveAlpha = Math.min(1, voxel.a); // * hit.rayLength * 3);
+                const srcAlpha = effectiveAlpha * (1 - alpha);
+                
+                r += voxel.r * srcAlpha;
+                g += voxel.g * srcAlpha;
+                b += voxel.b * srcAlpha;
+                alpha += srcAlpha;
+                
+                if (alpha >= 0.99) break;
+            }
+            
+            // Background color
+            const bgR = 20, bgG = 20, bgB = 20;
+            r += bgR * (1 - alpha);
+            g += bgG * (1 - alpha);
+            b += bgB * (1 - alpha);
+            
+            return { r, g, b };
+        }
+        
+        // Render the scene
+        function render() {
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+            
+            const { forward, right, up, pos } = setupCamera();
+            const aspectRatio = width / height;
+            const fovScale = Math.tan(camera.fov * Math.PI / 360);
+            
+            for (let py = 0; py < height; py++) {
+                for (let px = 0; px < width; px++) {
+                    const ndcX = (2 * px / width - 1) * aspectRatio * fovScale;
+                    const ndcY = (1 - 2 * py / height) * fovScale;
+                    
+                    const rayDir = normalize(add(
+                        add(forward, scale(right, ndcX)),
+                        scale(up, ndcY)
+                    ));
+                    
+                    const hits = ddaRaycast(pos, rayDir);
+                    const color = compositeColors(hits);
+                    
+                    const idx = (py * width + px) * 4;
+                    data[idx] = Math.min(255, color.r);
+                    data[idx + 1] = Math.min(255, color.g);
+                    data[idx + 2] = Math.min(255, color.b);
+                    data[idx + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+        
+        // Mouse interaction
+        let isDragging = false;
+        let lastX = 0;
+        let lastY = 0;
+        
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const deltaX = e.clientX - lastX;
+            const deltaY = e.clientY - lastY;
+            
+            camera.theta += -deltaX * 0.01;
+            camera.phi = Math.max(0.1, Math.min(Math.PI - 0.1, camera.phi - deltaY * 0.01));
+            
+            lastX = e.clientX;
+            lastY = e.clientY;
+            
+            render();
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+
+        // Scrolling changes camera distance
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            camera.distance += e.deltaY * 0.05;
+            camera.distance = Math.max(5, Math.min(gridSize * 4.0, camera.distance));
+            render();
+        });
+
+
+        
+        fillVoxelsRandom();
+        // Initial render
+        // console.time('render');
+        render();
+        // console.timeEnd('render');
+
+
+    </script>
+</body>
+</html>
