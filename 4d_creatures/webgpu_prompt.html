@@ -1,0 +1,931 @@
+<!--
+I want to understand WebGPU. To do so, create a single html file that implements 3 simple stages of a 4D graphics pipeline:
+- per vertex: convert vertices from 4D world / object to 4D camera space (XYZW -> SUVL) where S is the x axis of the camera, and the sensor is at S=1
+- (not on GPU) per tetra: for now just exclude tetras that have any vertex behind camera (S<=0), but leave a stub to do near-plane clipping / splitting tetras into more, later
+- per tetra: rasterize, meaning compute tetra bounding box, do a ray-tetra test for each pixel inside box, pass resulting fragments
+- per fragment: figure out z-buffer (3D grid, let's call it s-buffer) final color
+- per ray in 2D image: do DDA ray intersect in the S-buffer grid, render to 2D canvas
+
+The following code executes the above pipeline on CPU,
+make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fragment stages (all with compute shaders).
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDA Voxel Ray Tracer</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: monospace;
+            color: #fff;
+        }
+        #container {
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #444;
+            image-rendering: pixelated;
+        }
+        #info {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+        canvas {
+            cursor: grab;
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas" width="600" height="600"></canvas>
+        <div id="info">64×64×64 voxel grid • DDA ray traversal with alpha blending</div>
+    </div>
+    <script>
+            // 4D transform class prototype (just implement init, and origin() for now)
+        class Vector4D {
+            constructor(x, y, z, w) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.w = w;
+            }
+            add(v) {
+                return new Vector4D(this.x + v.x, this.y + v.y, this.z + v.z, this.w + v.w);
+            }
+            subtract(v) {
+                return new Vector4D(this.x - v.x, this.y - v.y, this.z - v.z, this.w - v.w);
+            }
+            normalize() {
+                let mag = Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
+                if (mag === 0) return new Vector4D(0, 0, 0, 0);
+                return new Vector4D(this.x / mag, this.y / mag, this.z / mag, this.w / mag);
+            }
+            magnitude() {
+                return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
+            }
+            dot(v) {
+                return this.x * v.x + this.y * v.y + this.z * v.z + this.w * v.w;
+            }
+            multiply_by_scalar(s) {
+                return new Vector4D(this.x * s, this.y * s, this.z * s, this.w * s);
+            }
+        }
+        class Transform4D {
+            // constructor() {
+            //     this.matrix = [
+            //         [1, 0, 0, 0, 0],
+            //         [0, 1, 0, 0, 0],
+            //         [0, 0, 1, 0, 0],
+            //         [0, 0, 0, 1, 0],
+            //         [0, 0, 0, 0, 1]
+            //     ];
+            // }
+            constructor(matrix) {
+                this.matrix = matrix;
+            }
+
+            origin() {
+                return new Vector4D(this.matrix[0][4], this.matrix[1][4], this.matrix[2][4], this.matrix[3][4]);
+            }
+
+            // transform_point(v: Vector4D): Vector4D
+            transform_point(v) {
+                let x = this.matrix[0][0] * v.x + this.matrix[0][1] * v.y + this.matrix[0][2] * v.z + this.matrix[0][3] * v.w + this.matrix[0][4];
+                let y = this.matrix[1][0] * v.x + this.matrix[1][1] * v.y + this.matrix[1][2] * v.z + this.matrix[1][3] * v.w + this.matrix[1][4];
+                let z = this.matrix[2][0] * v.x + this.matrix[2][1] * v.y + this.matrix[2][2] * v.z + this.matrix[2][3] * v.w + this.matrix[2][4];
+                let w = this.matrix[3][0] * v.x + this.matrix[3][1] * v.y + this.matrix[3][2] * v.z + this.matrix[3][3] * v.w + this.matrix[3][4];
+                return new Vector4D(x, y, z, w);
+            }
+
+            transform_vector(v) {
+                let x = this.matrix[0][0] * v.x + this.matrix[0][1] * v.y + this.matrix[0][2] * v.z + this.matrix[0][3] * v.w;
+                let y = this.matrix[1][0] * v.x + this.matrix[1][1] * v.y + this.matrix[1][2] * v.z + this.matrix[1][3] * v.w;
+                let z = this.matrix[2][0] * v.x + this.matrix[2][1] * v.y + this.matrix[2][2] * v.z + this.matrix[2][3] * v.w;
+                let w = this.matrix[3][0] * v.x + this.matrix[3][1] * v.y + this.matrix[3][2] * v.z + this.matrix[3][3] * v.w;
+                return new Vector4D(x, y, z, w);
+            }
+
+            transform_transform(T) {
+                // matrix multiplication: this.matrix * T.matrix
+                // inC_T_B * inB_T_A  -> inC_T_A
+                // inC_T_B.transform_transform(inB_T_A) -> inC_T_A
+                let Tl = this.matrix;
+                let Tr = T.matrix;
+                let Tn = [
+                    [
+                        Tl[0][0] * Tr[0][0] + Tl[0][1] * Tr[1][0] + Tl[0][2] * Tr[2][0] + Tl[0][3] * Tr[3][0],
+                        Tl[0][0] * Tr[0][1] + Tl[0][1] * Tr[1][1] + Tl[0][2] * Tr[2][1] + Tl[0][3] * Tr[3][1],
+                        Tl[0][0] * Tr[0][2] + Tl[0][1] * Tr[1][2] + Tl[0][2] * Tr[2][2] + Tl[0][3] * Tr[3][2],
+                        Tl[0][0] * Tr[0][3] + Tl[0][1] * Tr[1][3] + Tl[0][2] * Tr[2][3] + Tl[0][3] * Tr[3][3],
+                        Tl[0][0] * Tr[0][4] + Tl[0][1] * Tr[1][4] + Tl[0][2] * Tr[2][4] + Tl[0][3] * Tr[3][4] + Tl[0][4]
+                    ],
+                    [
+                        Tl[1][0] * Tr[0][0] + Tl[1][1] * Tr[1][0] + Tl[1][2] * Tr[2][0] + Tl[1][3] * Tr[3][0],
+                        Tl[1][0] * Tr[0][1] + Tl[1][1] * Tr[1][1] + Tl[1][2] * Tr[2][1] + Tl[1][3] * Tr[3][1],
+                        Tl[1][0] * Tr[0][2] + Tl[1][1] * Tr[1][2] + Tl[1][2] * Tr[2][2] + Tl[1][3] * Tr[3][2],
+                        Tl[1][0] * Tr[0][3] + Tl[1][1] * Tr[1][3] + Tl[1][2] * Tr[2][3] + Tl[1][3] * Tr[3][3],
+                        Tl[1][0] * Tr[0][4] + Tl[1][1] * Tr[1][4] + Tl[1][2] * Tr[2][4] + Tl[1][3] * Tr[3][4] + Tl[1][4]
+                    ],
+                    [
+                        Tl[2][0] * Tr[0][0] + Tl[2][1] * Tr[1][0] + Tl[2][2] * Tr[2][0] + Tl[2][3] * Tr[3][0],
+                        Tl[2][0] * Tr[0][1] + Tl[2][1] * Tr[1][1] + Tl[2][2] * Tr[2][1] + Tl[2][3] * Tr[3][1],
+                        Tl[2][0] * Tr[0][2] + Tl[2][1] * Tr[1][2] + Tl[2][2] * Tr[2][2] + Tl[2][3] * Tr[3][2],
+                        Tl[2][0] * Tr[0][3] + Tl[2][1] * Tr[1][3] + Tl[2][2] * Tr[2][3] + Tl[2][3] * Tr[3][3],
+                        Tl[2][0] * Tr[0][4] + Tl[2][1] * Tr[1][4] + Tl[2][2] * Tr[2][4] + Tl[2][3] * Tr[3][4] + Tl[2][4]
+                    ],
+                    [
+                        Tl[3][0] * Tr[0][0] + Tl[3][1] * Tr[1][0] + Tl[3][2] * Tr[2][0] + Tl[3][3] * Tr[3][0],
+                        Tl[3][0] * Tr[0][1] + Tl[3][1] * Tr[1][1] + Tl[3][2] * Tr[2][1] + Tl[3][3] * Tr[3][1],
+                        Tl[3][0] * Tr[0][2] + Tl[3][1] * Tr[1][2] + Tl[3][2] * Tr[2][2] + Tl[3][3] * Tr[3][2],
+                        Tl[3][0] * Tr[0][3] + Tl[3][1] * Tr[1][3] + Tl[3][2] * Tr[2][3] + Tl[3][3] * Tr[3][3],
+                        Tl[3][0] * Tr[0][4] + Tl[3][1] * Tr[1][4] + Tl[3][2] * Tr[2][4] + Tl[3][3] * Tr[3][4] + Tl[3][4]
+                    ],
+                    [0, 0, 0, 0, 1]
+                ];
+                return new Transform4D(Tn);
+            }
+
+
+            translate_self_by_delta(dx, dy, dz, dw, is_in_own_frame) {
+                if (is_in_own_frame) {
+                    // translation in own frame
+                    let delta_in_parent = this.transform_vector(new Vector4D(dx, dy, dz, dw));
+                    this.matrix[0][4] += delta_in_parent.x;
+                    this.matrix[1][4] += delta_in_parent.y;
+                    this.matrix[2][4] += delta_in_parent.z;
+                    this.matrix[3][4] += delta_in_parent.w;
+                } else {
+                    // translation in parent frame
+                    this.matrix[0][4] += dx;
+                    this.matrix[1][4] += dy;
+                    this.matrix[2][4] += dz;
+                    this.matrix[3][4] += dw;
+                }
+            }
+
+            rotate_self_by_delta(plane_string, angle_rad, is_in_own_frame) {
+                // plane string: 'XY', 'XZ', 'XW', 'YZ', 'YW', 'ZW'
+                let c = Math.cos(angle_rad);
+                let s = Math.sin(angle_rad);
+                let R = [
+                    [1, 0, 0, 0,  0],
+                    [0, 1, 0, 0,  0],
+                    [0, 0, 1, 0,  0],
+                    [0, 0, 0, 1,  0],
+
+                    [0, 0, 0, 0,  1]
+                ];
+                switch (plane_string) {
+                    case 'XY':
+                        R[0][0] = c; R[0][1] = -s;
+                        R[1][0] = s; R[1][1] = c;
+                        break;
+                    case 'XZ':
+                        R[0][0] = c; R[0][2] = -s;
+                        R[2][0] = s; R[2][2] = c;
+                        break;
+                    case 'XW':
+                        R[0][0] = c; R[0][3] = -s;
+                        R[3][0] = s; R[3][3] = c;
+                        break;
+                    case 'YZ':
+                        R[1][1] = c; R[1][2] = -s;
+                        R[2][1] = s; R[2][2] = c;
+                        break;
+                    case 'YW':
+                        R[1][1] = c; R[1][3] = -s;
+                        R[3][1] = s; R[3][3] = c;
+                        break;
+                    case 'ZW':
+                        R[2][2] = c; R[2][3] = -s;
+                        R[3][2] = s; R[3][3] = c;
+                        break;
+                    default:
+                        console.error('Invalid plane string for rotation');
+                        return;
+                }
+                // let newT = this.transform_transform(new Transform4D(R));
+                // this.matrix = newT.matrix;
+                let Rdelta = new Transform4D(R);
+                if (is_in_own_frame) {
+                    // Apply rotation in own frame
+                    let newT = this.transform_transform(Rdelta);
+                    this.matrix = newT.matrix;
+                } else {
+                    // Apply rotation in parent frame
+                    let newT = Rdelta.transform_transform(this);
+                    // this.matrix = newT.matrix;
+                    // only copy the rotation part, keep the translation part
+                    // without rotation_only, we rotate around the parent origin instead of our own origin
+                    this.matrix = [
+                        [newT.matrix[0][0], newT.matrix[0][1], newT.matrix[0][2], newT.matrix[0][3], this.matrix[0][4]],
+                        [newT.matrix[1][0], newT.matrix[1][1], newT.matrix[1][2], newT.matrix[1][3], this.matrix[1][4]],
+                        [newT.matrix[2][0], newT.matrix[2][1], newT.matrix[2][2], newT.matrix[2][3], this.matrix[2][4]],
+                        [newT.matrix[3][0], newT.matrix[3][1], newT.matrix[3][2], newT.matrix[3][3], this.matrix[3][4]],
+                        [0, 0, 0, 0, 1]
+                    ];
+                }
+            }
+                    
+
+            
+
+            rotation_only() {
+                let R = [
+                    [this.matrix[0][0], this.matrix[0][1], this.matrix[0][2], this.matrix[0][3], 0],
+                    [this.matrix[1][0], this.matrix[1][1], this.matrix[1][2], this.matrix[1][3], 0],
+                    [this.matrix[2][0], this.matrix[2][1], this.matrix[2][2], this.matrix[2][3], 0],
+                    [this.matrix[3][0], this.matrix[3][1], this.matrix[3][2], this.matrix[3][3], 0],
+                    [0, 0, 0, 0, 1]
+                ];
+                return new Transform4D(R);
+            }
+
+            inverse() {
+                // separate rotation and translation
+                let R = [
+                    [this.matrix[0][0], this.matrix[0][1], this.matrix[0][2], this.matrix[0][3]],
+                    [this.matrix[1][0], this.matrix[1][1], this.matrix[1][2], this.matrix[1][3]],
+                    [this.matrix[2][0], this.matrix[2][1], this.matrix[2][2], this.matrix[2][3]],
+                    [this.matrix[3][0], this.matrix[3][1], this.matrix[3][2], this.matrix[3][3]]
+                ];
+                let t = [
+                    this.matrix[0][4],
+                    this.matrix[1][4],
+                    this.matrix[2][4],
+                    this.matrix[3][4]
+                ];
+                // transpose rotation
+                let R_inv = [
+                    [R[0][0], R[1][0], R[2][0], R[3][0]],
+                    [R[0][1], R[1][1], R[2][1], R[3][1]],
+                    [R[0][2], R[1][2], R[2][2], R[3][2]],
+                    [R[0][3], R[1][3], R[2][3], R[3][3]]
+                ];
+                // new translation
+                let t_inv = [
+                    -(R_inv[0][0] * t[0] + R_inv[0][1] * t[1] + R_inv[0][2] * t[2] + R_inv[0][3] * t[3]),
+                    -(R_inv[1][0] * t[0] + R_inv[1][1] * t[1] + R_inv[1][2] * t[2] + R_inv[1][3] * t[3]),
+                    -(R_inv[2][0] * t[0] + R_inv[2][1] * t[1] + R_inv[2][2] * t[2] + R_inv[2][3] * t[3]),
+                    -(R_inv[3][0] * t[0] + R_inv[3][1] * t[1] + R_inv[3][2] * t[2] + R_inv[3][3] * t[3])
+                ];
+                // combine into new matrix
+                let invMatrix = [
+                    [R_inv[0][0], R_inv[0][1], R_inv[0][2], R_inv[0][3], t_inv[0]],
+                    [R_inv[1][0], R_inv[1][1], R_inv[1][2], R_inv[1][3], t_inv[1]],
+                    [R_inv[2][0], R_inv[2][1], R_inv[2][2], R_inv[2][3], t_inv[2]],
+                    [R_inv[3][0], R_inv[3][1], R_inv[3][2], R_inv[3][3], t_inv[3]],
+                    [0, 0, 0, 0, 1]
+                ];
+                return new Transform4D(invMatrix);
+            }
+        }
+
+        // Helper: vector subtraction
+        function vecsub(u, v) {
+            // console.log("Subtraction u, v:", u, v);
+            return [u[0] - v[0], u[1] - v[1], u[2] - v[2]];
+        }
+        // Helper: cross product
+        function veccross(u, v) {
+            return [
+                u[1]*v[2] - u[2]*v[1],
+                u[2]*v[0] - u[0]*v[2],
+                u[0]*v[1] - u[1]*v[0]
+            ];
+        }
+        // Helper: dot product
+        function vecdot(u, v) {
+            return u[0]*v[0] + u[1]*v[1] + u[2]*v[2];
+        }
+        // Signed volume of tetrahedron (A,B,C,D)
+        function signedVolume(a, b, c, d) {
+            const ab = vecsub(b, a);
+            const ac = vecsub(c, a);
+            const ad = vecsub(d, a);
+            // console.log("Vectors ab, ac, ad:", ab, ac, ad);
+            return vecdot(veccross(ab, ac), ad) / 6;
+        }
+        // Compute barycentric coordinates of P in tetrahedron ABCD
+        function barycentricCoordinates(P, A, B, C, D) {
+            const V = signedVolume(A, B, C, D);
+            // console.log("Total volume V:", V);
+
+            const alpha = signedVolume(P, B, C, D) / V;
+            const beta  = signedVolume(A, P, C, D) / V;
+            const gamma = signedVolume(A, B, P, D) / V;
+            const delta = signedVolume(A, B, C, P) / V;
+
+            return { alpha, beta, gamma, delta };
+        }
+        function testBarycentric3D() {
+            // Example usage
+            const A = [0,0,0];
+            const B = [1,0,0];
+            const C = [0,1,0];
+            const D = [0,0,1];
+            let bary = null;
+            let P = [0.2, 0.2, 0.2];
+            bary = barycentricCoordinates(P, A, B, C, D);
+            console.log(bary);
+            console.log("Inside tetrahedron?", Object.values(bary).every(v => v >= 0 && v <= 1));
+
+            P = [2.0, 2.0, 2.0];
+            bary = barycentricCoordinates(P, A, B, C, D);
+            console.log(bary);
+            console.log("Inside tetrahedron?", Object.values(bary).every(v => v >= 0 && v <= 1));
+
+            P = A;
+            bary = barycentricCoordinates(P, A, B, C, D);
+            console.log(bary);
+            console.log("Inside tetrahedron?", Object.values(bary).every(v => v >= 0 && v <= 1));
+
+            P = B;
+            bary = barycentricCoordinates(P, A, B, C, D);
+            console.log(bary);
+            console.log("Inside tetrahedron?", Object.values(bary).every(v => v >= 0 && v <= 1));
+
+            P = C;
+            bary = barycentricCoordinates(P, A, B, C, D);
+            console.log(bary);
+            console.log("Inside tetrahedron?", Object.values(bary).every(v => v >= 0 && v <= 1));
+
+            P = D;
+            bary = barycentricCoordinates(P, A, B, C, D);
+            console.log(bary);
+            console.log("Inside tetrahedron?", Object.values(bary).every(v => v >= 0 && v <= 1));
+        }
+
+        class Hyperobject {
+            constructor(vertices_in_object, edges, tetras, color, simulate_physics, show_vertices, mass, pose, name) {
+                this.vertices_in_object = vertices_in_object; // in object frame
+                this.edges = edges;
+                this.tetras = tetras;
+                this.color = color;
+                this.simulate_physics = simulate_physics; // if true, object gets affected by physics
+                this.show_vertices = show_vertices;
+                this.mass = mass;
+                this.pose = pose; // Transform4D from object frame to world frame
+                this.name = name;
+                // variables
+                this.velocity_in_world = new Vector4D(0, 0, 0, 0);
+                this.rotational_velocity = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
+                // computed properties
+                this.update_vertices_in_world();
+            }
+
+            update_vertices_in_world() {
+                this.vertices_in_world = [];
+                for (let v of this.vertices_in_object) {
+                    let v_world = this.pose.transform_point(v);
+                    this.vertices_in_world.push(v_world);
+                }
+            }
+
+            get_com() {
+                return this.pose.origin();
+            }
+        }
+
+        // Hyperscene and Hypercam definition
+        // 4D Scene Bodies
+        let scene_bound = 10.0; // +10 means the scene goes from -10 to +10 in all dimensions
+        const hypercamera_height_above_ground = 1.0;
+        let hypercamera_T = new Transform4D([
+            [1, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0],
+            [0, 0, 1, 0, 0],
+            [0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 1]
+        ]); // hypercam in world
+        // let hf = 1.0; // hyper focal length
+        // let hypercamera_intrinsics = [
+            // [hf, 0, 0, 0],
+            // [0, hf, 0, 0],
+            // [0, 0, hf, 0],
+            // [0, 0, 0, 1]
+        // ]; // see TODO s , for now assume identity intrinsics
+        let hypercamera_sensor_size = 1
+        let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
+        let hypercamera_is_unit_sensor = true;
+        let hypercamera_sensor_resolution = 64;
+        // Initialize random colored voxels with low alpha
+        let voxels = []; // s-buffer
+        function fillVoxelsRandom() {
+            const gridSize = hypercamera_sensor_resolution;
+            for (let x = 0; x < gridSize; x++) {
+                voxels[x] = [];
+                for (let y = 0; y < gridSize; y++) {
+                    voxels[x][y] = [];
+                    for (let z = 0; z < gridSize; z++) {
+                        if ((x === 0) || (y === 0) || (z === 0) || (x === gridSize - 1) || (y === gridSize - 1) || (z === gridSize - 1)) {
+                            // make border voxels transparent
+                            voxels[x][y][z] = {
+                                r: 200,
+                                g: 200,
+                                b: 200,
+                                a: 0.1,
+                                s: Infinity
+                            };
+                            continue;
+                        }
+                        voxels[x][y][z] = {
+                            r: Math.floor(Math.random() * 256),
+                            g: Math.floor(Math.random() * 256),
+                            b: Math.floor(Math.random() * 256),
+                            a: 0.0,
+                            s: Infinity
+                        };
+                    }
+                }
+            }
+        }
+        fillVoxelsRandom();
+
+        // define a hyperpyramid object
+        let hyperpyramid = new Hyperobject(
+            // vertices in object frame
+            [
+                new Vector4D(0, 0, 1, 0),
+                new Vector4D(1, 1, -1, 1),
+                new Vector4D(1, -1, -1, -1),
+                new Vector4D(-1, 1, -1, -1),
+                new Vector4D(-1, -1, -1, 1)
+            ],
+            // edges
+            [
+                [0,1],[0,2],[0,3],[0,4],
+                [1,2],[1,3],[1,4],
+                [2,3],[2,4],
+                [3,4]
+            ],
+            // tetras
+            [
+                [0,1,2,3],
+                [0,1,2,4],
+                [0,1,3,4],
+                [0,2,3,4],
+                [1,2,3,4]
+            ],
+            // color
+            0x00ff00,
+            // simulate_physics
+            true,
+            // show_vertices
+            true,
+            // mass
+            1.0,
+            // pose (Transform4D)
+            new Transform4D([
+                [1, 0, 0, 0, 4],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 1],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1]
+            ]),
+            // name
+            "Hyperpyramid"
+        );
+
+        // ---------------------------------------------------------------------------------
+        // Stage 1: Per-vertex - Transform vertices from world to camera space
+        let vertices_in_world = hyperpyramid.vertices_in_world;
+        let vertices_in_suvl = new Array(vertices_in_world.length);
+        let vertices_in_1uvl = new Array(vertices_in_world.length);
+        const camera_inverse = hypercamera_T.inverse();
+        function perVertex(vertex_index, vertices_in_world, vertices_in_suvl, vertices_in_1uvl) {
+            const vert_suvl = camera_inverse.transform_point(vertices_in_world[vertex_index]);
+            vertices_in_suvl[vertex_index] = vert_suvl;
+            vertices_in_1uvl[vertex_index] = new Vector4D(1.0, vert_suvl.y / vert_suvl.x, vert_suvl.z / vert_suvl.x, vert_suvl.w / vert_suvl.x);
+        }
+        for (let vi = 0; vi < vertices_in_world.length; vi++) { perVertex(vi, vertices_in_world, vertices_in_suvl, vertices_in_1uvl); } // run the "shader"
+        console.log("Stage 1: # of vertices transformed to camera space:", vertices_in_world.length);
+
+        // ---------------------------------------------------------------------------------
+        // Stage 2: (CPU) Per-tetra - Exclude tetras with any vertex behind camera
+        let tetras = hyperpyramid.tetras.map(tetra => ({ indices: tetra, color: hyperpyramid.color }));
+        let valid_tetras = [];
+        function perTetra(tetra_index, tetras, vertices_in_suvl, valid_tetras) {
+            let tetra = tetras[tetra_index];
+            let behind_camera = false;
+            for (let vi of tetra.indices) {
+                if (vertices_in_suvl[vi].x <= 0) { // S coordinate
+                    behind_camera = true;
+                    break;
+                }
+            }
+            if (!behind_camera) {
+                valid_tetras.push(tetra);
+            }
+        }
+        for (let ti = 0; ti < tetras.length; ti++) { perTetra(ti, tetras, vertices_in_suvl, valid_tetras); } // run the "shader"
+        console.log("Stage 2: # of valid tetras:", valid_tetras.length);
+
+        // ---------------------------------------------------------------------------------
+        // Stage 3: Per-tetra - Rasterize tetras to 1UVL fragments
+        let fragments = [];
+        fillVoxelsRandom(); // reset s-buffer
+        const RES = hypercamera_sensor_resolution; // also assert is_unit_sensor
+        const S_U_START = hypercamera_sensor_uvl_range[0];
+        const S_U_RANGE = hypercamera_sensor_uvl_range[1] - hypercamera_sensor_uvl_range[0];
+        const S_V_START = hypercamera_sensor_uvl_range[2];
+        const S_V_RANGE = hypercamera_sensor_uvl_range[3] - hypercamera_sensor_uvl_range[2];
+        const S_L_START = hypercamera_sensor_uvl_range[4];
+        const S_L_RANGE = hypercamera_sensor_uvl_range[5] - hypercamera_sensor_uvl_range[4];
+        function perTetraRasterize(tetra_index, valid_tetras, vertices_in_suvl, vertices_in_1uvl, fragments, s_buffer) {
+            // project vertices to 1UVL, keep track of original s for "depth"
+            let tetra = valid_tetras[tetra_index];
+            let v0_1uvl = vertices_in_1uvl[tetra.indices[0]];
+            let v1_1uvl = vertices_in_1uvl[tetra.indices[1]];
+            let v2_1uvl = vertices_in_1uvl[tetra.indices[2]];
+            let v3_1uvl = vertices_in_1uvl[tetra.indices[3]];
+            let v0_s = vertices_in_suvl[tetra.indices[0]].x;
+            let v1_s = vertices_in_suvl[tetra.indices[1]].x;
+            let v2_s = vertices_in_suvl[tetra.indices[2]].x;
+            let v3_s = vertices_in_suvl[tetra.indices[3]].x;
+            
+            // get bounding box in 1UVL
+            let u_min = Math.min(v0_1uvl.y, v1_1uvl.y, v2_1uvl.y, v3_1uvl.y);
+            let u_max = Math.max(v0_1uvl.y, v1_1uvl.y, v2_1uvl.y, v3_1uvl.y);
+            let v_min = Math.min(v0_1uvl.z, v1_1uvl.z, v2_1uvl.z, v3_1uvl.z);
+            let v_max = Math.max(v0_1uvl.z, v1_1uvl.z, v2_1uvl.z, v3_1uvl.z);
+            let l_min = Math.min(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
+            let l_max = Math.max(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
+            // convert from -1..1 to 0..RES
+            let U_min = Math.max(0, Math.min(RES - 1, Math.floor((u_min - S_U_START) / S_U_RANGE * RES)));
+            let U_max = Math.max(0, Math.min(RES - 1, Math.ceil((u_max - S_U_START) / S_U_RANGE * RES)));
+            let V_min = Math.max(0, Math.min(RES - 1, Math.floor((v_min - S_V_START) / S_V_RANGE * RES)));
+            let V_max = Math.max(0, Math.min(RES - 1, Math.ceil((v_max - S_V_START) / S_V_RANGE * RES)));
+            let L_min = Math.max(0, Math.min(RES - 1, Math.floor((l_min - S_L_START) / S_L_RANGE * RES)));
+            let L_max = Math.max(0, Math.min(RES - 1, Math.ceil((l_max - S_L_START) / S_L_RANGE * RES)));
+            if (true) {
+                console.log(`Tetra ${tetra_index} bounding box in 1UVL: U[${U_min},${U_max}] V[${V_min},${V_max}] L[${L_min},${L_max}]`);
+            }
+            
+            // create a fragment for each pixel in the box
+            let A = [v0_1uvl.y, v0_1uvl.z, v0_1uvl.w];
+            let B = [v1_1uvl.y, v1_1uvl.z, v1_1uvl.w];
+            let C = [v2_1uvl.y, v2_1uvl.z, v2_1uvl.w];
+            let D = [v3_1uvl.y, v3_1uvl.z, v3_1uvl.w];
+            console.log(`Rasterizing tetra ${tetra_index} with vertices in 1UVL: A${A}, B${B}, C${C}, D${D}`);
+            for (let U = U_min; U <= U_max; U++) {
+                for (let V = V_min; V <= V_max; V++) {
+                    for (let L = L_min; L <= L_max; L++) {
+                        // let fragment = {
+                            // tetra_index: tetra_index,
+                            // color: tetra.color,
+                            // s: s
+                        // };
+
+                        // check if inside tetra for each fragment
+                        let u = S_U_START + (U + 0.5) / RES * S_U_RANGE;
+                        let v = S_V_START + (V + 0.5) / RES * S_V_RANGE;
+                        let l = S_L_START + (L + 0.5) / RES * S_L_RANGE;
+                        
+                        let P = [u, v, l];
+
+                        // console.log(`Testing fragment at U:${U} V:${V} L:${L}, which maps to (u,v,l)=(${u},${v},${l}) and point P:${P}, A:${A}, B:${B}, C:${C}, D:${D}`);
+                        let bary = barycentricCoordinates(P, A, B, C, D);
+                        // console.log(`Fragment at U:${U} V:${V} L:${L}, u:${u} v:${v} l:${l}, P:${P}, barycentric coords:`, bary);
+
+                        if (Object.values(bary).every(coord => coord >= 0 && coord <= 1)) {
+                            let s = bary.alpha * v0_s + bary.beta * v1_s + bary.gamma * v2_s + bary.delta * v3_s;
+                            // console.log(`Fragment at U:${U} V:${V} L:${L} is inside tetra ${tetra_index} with barycentric coords`, bary, `and interpolated s=${s}`);
+                            if (s >= s_buffer[U][V][L].s) {
+                                continue; // occluded
+                            }
+                            s_buffer[U][V][L] = {
+                                r: (tetra.color >> 16) & 0xff,
+                                g: (tetra.color >> 8) & 0xff,
+                                b: tetra.color & 0xff,
+                                a: 0.1,
+                                s: s
+                            };
+                            // fragments.push({
+                            //     tetra_index: tetra_index,
+                            //     color: tetra.color,
+                            //     s: s,
+                            //     u: u,
+                            //     v: v,
+                            //     l: l
+                            // });
+                        }
+                    }
+                }
+            }
+        }
+        for (let ti = 0; ti < valid_tetras.length; ti++) { perTetraRasterize(ti, valid_tetras, vertices_in_suvl, vertices_in_1uvl, fragments, voxels); } // run the "shader"
+        console.log("Stage 3: # of fragments rasterized:", fragments.length);
+
+
+        // ---------------------------------------------------------------------------------
+        // Stage 4: Per-Pixel - DDA traversal through S-buffer to composite screen color
+        
+        let simTime = 0;
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Camera setup
+        const camera = {
+            distance: hypercamera_sensor_resolution * 2., // Distance from center
+            theta: Math.PI / 4, // Azimuth angle
+            phi: Math.PI / 4, // Polar angle
+            lookAt: { x: hypercamera_sensor_resolution / 2., y: hypercamera_sensor_resolution / 2., z: hypercamera_sensor_resolution / 2. },
+            fov: 60
+        };
+        
+        // Calculate camera position from spherical coordinates
+        function getCameraPos() {
+            return {
+                x: camera.lookAt.x + camera.distance * Math.sin(camera.phi) * Math.cos(camera.theta),
+                y: camera.lookAt.y + camera.distance * Math.cos(camera.phi),
+                z: camera.lookAt.z + camera.distance * Math.sin(camera.phi) * Math.sin(camera.theta)
+            };
+        }
+        
+        // Vector operations
+        function sub(a, b) {
+            return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+        }
+        
+        function add(a, b) {
+            return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+        }
+        
+        function scale(v, s) {
+            return { x: v.x * s, y: v.y * s, z: v.z * s };
+        }
+        
+        function length(v) {
+            return Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        }
+        
+        function normalize(v) {
+            const len = length(v);
+            return len > 0 ? { x: v.x / len, y: v.y / len, z: v.z / len } : v;
+        }
+        
+        function cross(a, b) {
+            return {
+                x: a.y * b.z - a.z * b.y,
+                y: a.z * b.x - a.x * b.z,
+                z: a.x * b.y - a.y * b.x
+            };
+        }
+        
+        // Calculate camera basis vectors
+        function setupCamera() {
+            const pos = getCameraPos();
+            const forward = normalize(sub(camera.lookAt, pos));
+            const right = normalize(cross({ x: 0, y: 1, z: 0 }, forward));
+            const up = cross(forward, right);
+            return { forward, right, up, pos };
+        }
+        
+        // Ray-box intersection to find entry point into grid
+        function rayBoxIntersection(origin, direction) {
+            const boxMin = { x: 0, y: 0, z: 0 };
+            const boxMax = { x: hypercamera_sensor_resolution, y: hypercamera_sensor_resolution, z: hypercamera_sensor_resolution };
+            
+            let tMin = -Infinity;
+            let tMax = Infinity;
+            
+            for (const axis of ['x', 'y', 'z']) {
+                if (Math.abs(direction[axis]) < 1e-10) {
+                    if (origin[axis] < boxMin[axis] || origin[axis] > boxMax[axis]) {
+                        return null;
+                    }
+                } else {
+                    const t1 = (boxMin[axis] - origin[axis]) / direction[axis];
+                    const t2 = (boxMax[axis] - origin[axis]) / direction[axis];
+                    
+                    tMin = Math.max(tMin, Math.min(t1, t2));
+                    tMax = Math.min(tMax, Math.max(t1, t2));
+                }
+            }
+            
+            if (tMin > tMax || tMax < 0) return null;
+            
+            return tMin > 0 ? tMin : 0;
+        }
+        
+        // DDA ray traversal
+        function ddaRaycast(origin, direction) {
+            // First, find where ray enters the grid
+            const tEntry = rayBoxIntersection(origin, direction);
+            if (tEntry === null) return [];
+            
+            // Start position at grid entry
+            const startPos = {
+                x: origin.x + direction.x * tEntry,
+                y: origin.y + direction.y * tEntry,
+                z: origin.z + direction.z * tEntry
+            };
+            
+            // Clamp to grid bounds and get starting voxel
+            let x = Math.floor(Math.max(0, Math.min(hypercamera_sensor_resolution - 0.001, startPos.x)));
+            let y = Math.floor(Math.max(0, Math.min(hypercamera_sensor_resolution - 0.001, startPos.y)));
+            let z = Math.floor(Math.max(0, Math.min(hypercamera_sensor_resolution - 0.001, startPos.z)));
+            
+            const stepX = direction.x >= 0 ? 1 : -1;
+            const stepY = direction.y >= 0 ? 1 : -1;
+            const stepZ = direction.z >= 0 ? 1 : -1;
+            
+            const tDeltaX = Math.abs(1 / direction.x);
+            const tDeltaY = Math.abs(1 / direction.y);
+            const tDeltaZ = Math.abs(1 / direction.z);
+            
+            let tMaxX = tDeltaX * (direction.x >= 0 ? (x + 1 - startPos.x) : (startPos.x - x));
+            let tMaxY = tDeltaY * (direction.y >= 0 ? (y + 1 - startPos.y) : (startPos.y - y));
+            let tMaxZ = tDeltaZ * (direction.z >= 0 ? (z + 1 - startPos.z) : (startPos.z - z));
+            
+            const hits = [];
+            let t = 0;
+            
+            for (let i = 0; i < hypercamera_sensor_resolution * 3; i++) {
+                if (x < 0 || x >= hypercamera_sensor_resolution || y < 0 || y >= hypercamera_sensor_resolution || z < 0 || z >= hypercamera_sensor_resolution) {
+                    break;
+                }
+
+                // if we have more than 10 hits, break - we're likely already at max alpha
+                if (hits.length > 10) {
+                    break;
+                }
+                
+                const tExit = Math.min(tMaxX, tMaxY, tMaxZ);
+                const rayLength = tExit - t;
+                
+                const voxel = voxels[x][y][z];
+                if (voxel.a > 0) {
+                    hits.push({
+                        voxel: voxel,
+                        rayLength: rayLength
+                    });
+                }
+                
+                // Step to next voxel
+                if (tMaxX < tMaxY) {
+                    if (tMaxX < tMaxZ) {
+                        t = tMaxX;
+                        tMaxX += tDeltaX;
+                        x += stepX;
+                    } else {
+                        t = tMaxZ;
+                        tMaxZ += tDeltaZ;
+                        z += stepZ;
+                    }
+                } else {
+                    if (tMaxY < tMaxZ) {
+                        t = tMaxY;
+                        tMaxY += tDeltaY;
+                        y += stepY;
+                    } else {
+                        t = tMaxZ;
+                        tMaxZ += tDeltaZ;
+                        z += stepZ;
+                    }
+                }
+            }
+            
+            return hits;
+        }
+        
+        // Composite colors with alpha blending based on ray length
+        function compositeColors(hits) {
+            let r = 0, g = 0, b = 0;
+            let alpha = 0;
+            
+            for (const hit of hits) {
+                const voxel = hit.voxel;
+                const effectiveAlpha = Math.min(1, voxel.a); // * hit.rayLength * 3);
+                const srcAlpha = effectiveAlpha * (1 - alpha);
+                
+                r += voxel.r * srcAlpha;
+                g += voxel.g * srcAlpha;
+                b += voxel.b * srcAlpha;
+                alpha += srcAlpha;
+                
+                if (alpha >= 0.99) break;
+            }
+            
+            // Background color
+            const bgR = 20, bgG = 20, bgB = 20;
+            r += bgR * (1 - alpha);
+            g += bgG * (1 - alpha);
+            b += bgB * (1 - alpha);
+            
+            return { r, g, b };
+        }
+        
+        // Render the scene
+        function render() {
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+            
+            const { forward, right, up, pos } = setupCamera();
+            const aspectRatio = width / height;
+            const fovScale = Math.tan(camera.fov * Math.PI / 360);
+            
+            for (let py = 0; py < height; py++) {
+                for (let px = 0; px < width; px++) {
+                    const ndcX = (2 * px / width - 1) * aspectRatio * fovScale;
+                    const ndcY = (1 - 2 * py / height) * fovScale;
+                    
+                    const rayDir = normalize(add(
+                        add(forward, scale(right, ndcX)),
+                        scale(up, ndcY)
+                    ));
+                    
+                    const hits = ddaRaycast(pos, rayDir);
+                    const color = compositeColors(hits);
+                    
+                    const idx = (py * width + px) * 4;
+                    data[idx] = Math.min(255, color.r);
+                    data[idx + 1] = Math.min(255, color.g);
+                    data[idx + 2] = Math.min(255, color.b);
+                    data[idx + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+        
+        // Mouse interaction
+        let isDragging = false;
+        let lastX = 0;
+        let lastY = 0;
+        
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const deltaX = e.clientX - lastX;
+            const deltaY = e.clientY - lastY;
+            
+            camera.theta += -deltaX * 0.01;
+            camera.phi = Math.max(0.1, Math.min(Math.PI - 0.1, camera.phi - deltaY * 0.01));
+            
+            lastX = e.clientX;
+            lastY = e.clientY;
+            
+            render();
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+
+        // Scrolling changes camera distance
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            camera.distance += e.deltaY * 0.05;
+            camera.distance = Math.max(5, Math.min(hypercamera_sensor_resolution * 4.0, camera.distance));
+            render();
+        });
+
+
+        
+        // fillVoxelsRandom();
+        // Initial render
+        // console.time('render');
+        render();
+        // console.timeEnd('render');
+
+        // render every 5 seconds to see changes
+        setInterval(() => {
+            simTime += 0.1;
+            // fillVoxelsAnimated();
+            render();
+        }, 100);
+
+
+
+        // testBarycentric3D();
+
+    </script>
+</body>
+</html>
