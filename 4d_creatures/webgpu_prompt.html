@@ -454,6 +454,158 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
         }
         fillVoxelsRandom();
 
+        // define a hypercube object
+        // const OSZ = floor_heightmap(0, 0, 0) + 3.0; // object spawn z
+        const OSZ = 1.0;
+        const const_hypercube_vertices = [ 
+                new Vector4D(-1, -1, -1, -1),
+                new Vector4D( 1, -1, -1, -1),
+                new Vector4D( 1,  1, -1, -1),
+                new Vector4D(-1,  1, -1, -1),
+                new Vector4D(-1, -1,  1, -1),
+                new Vector4D( 1, -1,  1, -1),
+                new Vector4D( 1,  1,  1, -1),
+                new Vector4D(-1,  1,  1, -1),
+                new Vector4D(-1, -1, -1,  1),
+                new Vector4D( 1, -1, -1,  1),
+                new Vector4D( 1,  1, -1,  1),
+                new Vector4D(-1,  1, -1,  1),
+                new Vector4D(-1, -1,  1,  1),
+                new Vector4D( 1, -1,  1,  1),
+                new Vector4D( 1,  1,  1,  1),
+                new Vector4D(-1,  1,  1,  1)
+            ];
+        // Tetrahedras
+        function create_40_tetrahedra_tiling_of_hypercube(cube_vertices) {
+            // cube_vertices need to all be -1 or 1 values (i.e. in unit cube coord system) for this to work!
+            const p = 1.0;
+            const n = -1.0;
+            // for the 3D cube, these are the tetrahedra vertices
+            // [[p, n, n], [n, n, n], [p, p, n], [p, n, p]], // tet at corner p n n
+            // [[n, p, n], [p, p, n], [n, n, n], [n, p, p]], // tet at corner n p n
+            // [[n, n, p], [p, n, p], [n, p, p], [n, n, n]], // tet at corner n n p
+            // [[p, p, p], [n, p, p], [p, n, p], [p, p, n]], // tet at corner p p p
+            // [[n, n, n], [p, p, n], [n, p, p], [p, n, p]]  // tet at center
+
+            // to create 5 tet at each of the 8 cubes in the hypercube, we set one of the 4dims to either p or n and fill the remaining 3 with the above
+            // for example if we tetrahedralize the cube at z = n, we set z = n and fill x=0, y=1, w=2 with the above
+            // [[p, n, z, n], [n, n, z, n], [p, p, z, n], [p, n, z, p]]
+            const xn = -1.0; // fixed x for this cube
+            const xp = 1.0;  // fixed x for this cube
+            const yn = -1.0; // fixed y for this cube
+            const yp = 1.0;  // fixed y for this cube
+            const zn = -1.0; // fixed z for this cube
+            const zp = 1.0;  // fixed z for this cube
+            const wn = -1.0; // fixed w for this cube
+            const wp = 1.0;  // fixed w for this cube
+            const tetrahedron_40_tiling_of_hypercube = [
+                // cube at x = n
+                [[xn, p, n, n], [xn, n, n, n], [xn, p, p, n], [xn, p, n, p]], // tet at corner p n n
+                [[xn, n, p, n], [xn, p, p, n], [xn, n, n, n], [xn, n, p, p]], // tet at corner n p n
+                [[xn, n, n, p], [xn, p, n, p], [xn, n, p, p], [xn, n, n, n]], // tet at corner n n p
+                [[xn, p, p, p], [xn, n, p, p], [xn, p, n, p], [xn, p, p, n]], // tet at corner p p p
+                [[xn, n, n, n], [xn, p, p, n], [xn, n, p, p], [xn, p, n, p]], // tet at center
+                // cube at x = p
+                [[xp, p, n, n], [xp, n, n, n], [xp, p, p, n], [xp, p, n, p]], // tet at corner p n n
+                [[xp, n, p, n], [xp, p, p, n], [xp, n, n, n], [xp, n, p, p]], // tet at corner n p n
+                [[xp, n, n, p], [xp, p, n, p], [xp, n, p, p], [xp, n, n, n]], // tet at corner n n p
+                [[xp, p, p, p], [xp, n, p, p], [xp, p, n, p], [xp, p, p, n]], // tet at corner p p p
+                [[xp, n, n, n], [xp, p, p, n], [xp, n, p, p], [xp, p, n, p]], // tet at center
+                // cube at y = n
+                [[p, yn, n, n], [n, yn, n, n], [p, yn, p, n], [p, yn, n, p]], // tet at corner p n n
+                [[n, yn, p, n], [p, yn, p, n], [n, yn, n, n], [n, yn, p, p]], // tet at corner n p n
+                [[n, yn, n, p], [p, yn, n, p], [n, yn, p, p], [n, yn, n, n]], // tet at corner n n p
+                [[p, yn, p, p], [n, yn, p, p], [p, yn, n, p], [p, yn, p, n]], // tet at corner p p p
+                [[n, yn, n, n], [p, yn, p, n], [n, yn, p, p], [p, yn, n, p]], // tet at center
+                // cube at y = p
+                [[p, yp, n, n], [n, yp, n, n], [p, yp, p, n], [p, yp, n, p]], // tet at corner p n n
+                [[n, yp, p, n], [p, yp, p, n], [n, yp, n, n], [n, yp, p, p]], // tet at corner n p n
+                [[n, yp, n, p], [p, yp, n, p], [n, yp, p, p], [n, yp, n, n]], // tet at corner n n p
+                [[p, yp, p, p], [n, yp, p, p], [p, yp, n, p], [p, yp, p, n]], // tet at corner p p p
+                [[n, yp, n, n], [p, yp, p, n], [n, yp, p, p], [p, yp, n, p]], // tet at center
+                // cube at z = n
+                [[p, n, zn, n], [n, n, zn, n], [p, p, zn, n], [p, n, zn, p]], // tet at corner p n n
+                [[n, p, zn, n], [p, p, zn, n], [n, n, zn, n], [n, p, zn, p]], // tet at corner n p n
+                [[n, n, zn, p], [p, n, zn, p], [n, p, zn, p], [n, n, zn, n]], // tet at corner n n p
+                [[p, p, zn, p], [n, p, zn, p], [p, n, zn, p], [p, p, zn, n]], // tet at corner p p p
+                [[n, n, zn, n], [p, p, zn, n], [n, p, zn, p], [p, n, zn, p]], // tet at center
+                // cube at z = p 
+                [[p, n, zp, n], [n, n, zp, n], [p, p, zp, n], [p, n, zp, p]], // tet at corner p n n
+                [[n, p, zp, n], [p, p, zp, n], [n, n, zp, n], [n, p, zp, p]], // tet at corner n p n
+                [[n, n, zp, p], [p, n, zp, p], [n, p, zp, p], [n, n, zp, n]], // tet at corner n n p
+                [[p, p, zp, p], [n, p, zp, p], [p, n, zp, p], [p, p, zp, n]], // tet at corner p p p
+                [[n, n, zp, n], [p, p, zp, n], [n, p, zp, p], [p, n, zp, p]], // tet at center
+                // cube at w = n
+                [[p, n, n, wn], [n, n, n, wn], [p, p, n, wn], [p, n, p, wn]], // tet at corner p n n
+                [[n, p, n, wn], [p, p, n, wn], [n, n, n, wn], [n, p, p, wn]], // tet at corner n p n
+                [[n, n, p, wn], [p, n, p, wn], [n, p, p, wn], [n, n, n, wn]], // tet at corner n n p
+                [[p, p, p, wn], [n, p, p, wn], [p, n, p, wn], [p, p, n, wn]], // tet at corner p p p
+                [[n, n, n, wn], [p, p, n, wn], [n, p, p, wn], [p, n, p, wn]], // tet at center
+                // cube at w = p
+                [[p, n, n, wp], [n, n, n, wp], [p, p, n, wp], [p, n, p, wp]], // tet at corner p n n
+                [[n, p, n, wp], [p, p, n, wp], [n, n, n, wp], [n, p, p, wp]], // tet at corner n p n
+                [[n, n, p, wp], [p, n, p, wp], [n, p, p, wp], [n, n, n, wp]], // tet at corner n n p
+                [[p, p, p, wp], [n, p, p, wp], [p, n, p, wp], [p, p, n, wp]], // tet at corner p p p
+                [[n, n, n, wp], [p, p, n, wp], [n, p, p, wp], [p, n, p, wp]]  // tet at center
+            ];
+
+            // convert to index
+            let tetrahedra_indices = [];
+            for (let tet of tetrahedron_40_tiling_of_hypercube) {
+                let tet_indices = [];
+                for (let v of tet) {
+                    // find index in cube_vertices
+                    for (let i = 0; i < cube_vertices.length; i++) {
+                        let cv = cube_vertices[i];
+                        if (cv.x === v[0] && cv.y === v[1] && cv.z === v[2] && cv.w === v[3]) {
+                            tet_indices.push(i);
+                            break;
+                        }
+                    }
+                }
+                if (tet_indices.length !== 4) {
+                    console.error("Error creating tetrahedra indices");
+                }
+                tetrahedra_indices.push(tet_indices);
+            }
+            return tetrahedra_indices;
+        }
+        let hypercube = new Hyperobject(
+            // vertices in object frame
+            const_hypercube_vertices,
+            // edges:
+            [
+                [0,1],[1,2],[2,3],[3,0],
+                [4,5],[5,6],[6,7],[7,4],
+                [0,4],[1,5],[2,6],[3,7],
+                [8,9],[9,10],[10,11],[11,8],
+                [12,13],[13,14],[14,15],[15,12],
+                [8,12],[9,13],[10,14],[11,15],
+                [0,8],[1,9],[2,10],[3,11],
+                [4,12],[5,13],[6,14],[7,15]
+            ],
+            // tetras
+            create_40_tetrahedra_tiling_of_hypercube(const_hypercube_vertices),
+            // color
+            0xff0000,
+            // simulate_physics
+            true,
+            // show_vertices
+            true,
+            // mass
+            1.0,
+            // pose (Transform4D)
+            new Transform4D([
+                [1, 0, 0, 0, 4],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, OSZ],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1]
+            ]),
+            // name
+            "Hypercube"
+        );
+
         // define a hyperpyramid object
         let hyperpyramid = new Hyperobject(
             // vertices in object frame
@@ -490,8 +642,8 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             // pose (Transform4D)
             new Transform4D([
                 [1, 0, 0, 0, 4],
-                [0, 1, 0, 0, 0],
-                [0, 0, 1, 0, 1],
+                [0, 1, 0, 0, 2],
+                [0, 0, 1, 0, -1],
                 [0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 1]
             ]),
@@ -499,9 +651,26 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             "Hyperpyramid"
         );
 
+        // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
+        let visibleHyperobjects = [hypercube, hyperpyramid];
+        // let vertices_in_world = hypercube.vertices_in_world;
+        // let tetras = hypercube.tetras.map(tetra => ({ indices: tetra, color: hypercube.color }));
+        let vertices_in_world = [];
+        let tetras = [];
+        for (let obj of visibleHyperobjects) {
+            const base_index = vertices_in_world.length;
+            // add vertices
+            for (let v of obj.vertices_in_world) {
+                vertices_in_world.push(v);
+            }
+            // add tetras with adjusted indices
+            for (let tet of obj.tetras) {
+                tetras.push({ indices: tet.map(vi => vi + base_index), color: obj.color });
+            }
+        }
+
         // ---------------------------------------------------------------------------------
         // Stage 1: Per-vertex - Transform vertices from world to camera space
-        let vertices_in_world = hyperpyramid.vertices_in_world;
         let vertices_in_suvl = new Array(vertices_in_world.length);
         let vertices_in_1uvl = new Array(vertices_in_world.length);
         const camera_inverse = hypercamera_T.inverse();
@@ -515,7 +684,6 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
 
         // ---------------------------------------------------------------------------------
         // Stage 2: (CPU) Per-tetra - Exclude tetras with any vertex behind camera
-        let tetras = hyperpyramid.tetras.map(tetra => ({ indices: tetra, color: hyperpyramid.color }));
         let valid_tetras = [];
         function perTetra(tetra_index, tetras, vertices_in_suvl, valid_tetras) {
             let tetra = tetras[tetra_index];
@@ -606,10 +774,19 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
                             if (s >= s_buffer[U][V][L].s) {
                                 continue; // occluded
                             }
+                            // Use object colors
+                            // s_buffer[U][V][L] = {
+                            //     r: (tetra.color >> 16) & 0xff,
+                            //     g: (tetra.color >> 8) & 0xff,
+                            //     b: tetra.color & 0xff,
+                            //     a: 0.1,
+                            //     s: s
+                            // };
+                            // Use random color per tetra for debugging
                             s_buffer[U][V][L] = {
-                                r: (tetra.color >> 16) & 0xff,
-                                g: (tetra.color >> 8) & 0xff,
-                                b: tetra.color & 0xff,
+                                r: ((tetra_index+1) * 53) % 256,
+                                g: ((tetra_index+1) * 97) % 256,
+                                b: ((tetra_index+1) * 193) % 256,
                                 a: 0.1,
                                 s: s
                             };
