@@ -52,6 +52,10 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
         <canvas id="canvas" width="600" height="600"></canvas>
         <div id="info">64×64×64 voxel grid • DDA ray traversal with alpha blending</div>
     </div>
+    <!-- Floating div with timing infos -->
+    <div id="timingsinfo" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.5); padding: 5px; font-size: 10px; color: #0f0;">
+        Timing info will appear here.
+    </div>
     <script>
             // 4D transform class prototype (just implement init, and origin() for now)
         class Vector4D {
@@ -651,7 +655,10 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             "Hyperpyramid"
         );
 
+        let timingsInfosHtml = "";
+
         // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
+        const s0_start = performance.now();
         let visibleHyperobjects = [hypercube, hyperpyramid];
         // let vertices_in_world = hypercube.vertices_in_world;
         // let tetras = hypercube.tetras.map(tetra => ({ indices: tetra, color: hypercube.color }));
@@ -668,9 +675,13 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
                 tetras.push({ indices: tet.map(vi => vi + base_index), color: obj.color });
             }
         }
+        const s0_end = performance.now();
+        console.log(`Stage 0: Gathered vertices and tetras from visible hyperobjects in ${(s0_end - s0_start).toFixed(2)} ms`);
+        timingsInfosHtml += `<p>Stage 0: Gathered vertices and tetras from visible hyperobjects in ${(s0_end - s0_start).toFixed(2)} ms</p>`;
 
         // ---------------------------------------------------------------------------------
         // Stage 1: Per-vertex - Transform vertices from world to camera space
+        const s1_start = performance.now();
         let vertices_in_suvl = new Array(vertices_in_world.length);
         let vertices_in_1uvl = new Array(vertices_in_world.length);
         const camera_inverse = hypercamera_T.inverse();
@@ -680,10 +691,13 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             vertices_in_1uvl[vertex_index] = new Vector4D(1.0, vert_suvl.y / vert_suvl.x, vert_suvl.z / vert_suvl.x, vert_suvl.w / vert_suvl.x);
         }
         for (let vi = 0; vi < vertices_in_world.length; vi++) { perVertex(vi, vertices_in_world, vertices_in_suvl, vertices_in_1uvl); } // run the "shader"
-        console.log("Stage 1: # of vertices transformed to camera space:", vertices_in_world.length);
+        const s1_end = performance.now();
+        console.log("Stage 1: # of vertices transformed to camera space:", vertices_in_world.length, `in ${(s1_end - s1_start).toFixed(2)} ms`);
+        timingsInfosHtml += `<p>Stage 1: # of vertices transformed to camera space: ${vertices_in_world.length} in ${(s1_end - s1_start).toFixed(2)} ms</p>`;
 
         // ---------------------------------------------------------------------------------
         // Stage 2: (CPU) Per-tetra - Exclude tetras with any vertex behind camera
+        const s2_start = performance.now();
         let valid_tetras = [];
         function perTetra(tetra_index, tetras, vertices_in_suvl, valid_tetras) {
             let tetra = tetras[tetra_index];
@@ -699,11 +713,16 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             }
         }
         for (let ti = 0; ti < tetras.length; ti++) { perTetra(ti, tetras, vertices_in_suvl, valid_tetras); } // run the "shader"
-        console.log("Stage 2: # of valid tetras:", valid_tetras.length);
+        const s2_end = performance.now();
+        console.log("Stage 2: # of valid tetras:", valid_tetras.length, `from ${tetras.length} in ${(s2_end - s2_start).toFixed(2)} ms`);
+        timingsInfosHtml += `<p>Stage 2: # of valid tetras: ${valid_tetras.length} from ${tetras.length} in ${(s2_end - s2_start).toFixed(2)} ms</p>`;
 
         // ---------------------------------------------------------------------------------
         // Stage 3: Per-tetra - Rasterize tetras to 1UVL fragments
+        const s3_start = performance.now();
         let fragments = [];
+        let fragCount = 0;
+        let testCount = 0;
         fillVoxelsRandom(); // reset s-buffer
         const RES = hypercamera_sensor_resolution; // also assert is_unit_sensor
         const S_U_START = hypercamera_sensor_uvl_range[0];
@@ -739,7 +758,7 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             let L_min = Math.max(0, Math.min(RES - 1, Math.floor((l_min - S_L_START) / S_L_RANGE * RES)));
             let L_max = Math.max(0, Math.min(RES - 1, Math.ceil((l_max - S_L_START) / S_L_RANGE * RES)));
             if (true) {
-                console.log(`Tetra ${tetra_index} bounding box in 1UVL: U[${U_min},${U_max}] V[${V_min},${V_max}] L[${L_min},${L_max}]`);
+                // console.log(`Tetra ${tetra_index} bounding box in 1UVL: U[${U_min},${U_max}] V[${V_min},${V_max}] L[${L_min},${L_max}]`);
             }
             
             // create a fragment for each pixel in the box
@@ -747,7 +766,7 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             let B = [v1_1uvl.y, v1_1uvl.z, v1_1uvl.w];
             let C = [v2_1uvl.y, v2_1uvl.z, v2_1uvl.w];
             let D = [v3_1uvl.y, v3_1uvl.z, v3_1uvl.w];
-            console.log(`Rasterizing tetra ${tetra_index} with vertices in 1UVL: A${A}, B${B}, C${C}, D${D}`);
+            // console.log(`Rasterizing tetra ${tetra_index} with vertices in 1UVL: A${A}, B${B}, C${C}, D${D}`);
             for (let U = U_min; U <= U_max; U++) {
                 for (let V = V_min; V <= V_max; V++) {
                     for (let L = L_min; L <= L_max; L++) {
@@ -766,6 +785,8 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
 
                         // console.log(`Testing fragment at U:${U} V:${V} L:${L}, which maps to (u,v,l)=(${u},${v},${l}) and point P:${P}, A:${A}, B:${B}, C:${C}, D:${D}`);
                         let bary = barycentricCoordinates(P, A, B, C, D);
+
+                        testCount++;
                         // console.log(`Fragment at U:${U} V:${V} L:${L}, u:${u} v:${v} l:${l}, P:${P}, barycentric coords:`, bary);
 
                         if (Object.values(bary).every(coord => coord >= 0 && coord <= 1)) {
@@ -790,6 +811,7 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
                                 a: 0.1,
                                 s: s
                             };
+                            // Fragments (not needed currently)
                             // fragments.push({
                             //     tetra_index: tetra_index,
                             //     color: tetra.color,
@@ -798,13 +820,16 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
                             //     v: v,
                             //     l: l
                             // });
+                            fragCount++;
                         }
                     }
                 }
             }
         }
         for (let ti = 0; ti < valid_tetras.length; ti++) { perTetraRasterize(ti, valid_tetras, vertices_in_suvl, vertices_in_1uvl, fragments, voxels); } // run the "shader"
-        console.log("Stage 3: # of fragments rasterized:", fragments.length);
+        const s3_end = performance.now();
+        console.log(`Stage 3: Rasterized ${valid_tetras.length} tetras to S-buffer with ${fragCount} fragments (tested ${testCount}) in ${(s3_end - s3_start).toFixed(2)} ms`);
+        timingsInfosHtml += `<p>Stage 3: Rasterized ${valid_tetras.length} tetras to S-buffer with ${fragCount} fragments (tested ${testCount}) in ${(s3_end - s3_start).toFixed(2)} ms</p>`;
 
 
         // ---------------------------------------------------------------------------------
@@ -1089,10 +1114,16 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
         // fillVoxelsRandom();
         // Initial render
         // console.time('render');
+        const s4_start = performance.now();
         render();
+        const s4_end = performance.now();
+        console.log(`Stage 4: Rendered initial frame in ${(s4_end - s4_start).toFixed(2)} ms`);
+        timingsInfosHtml += `<p>Stage 4: Rendered initial frame in ${(s4_end - s4_start).toFixed(2)} ms</p>`;
         // console.timeEnd('render');
 
-        // render every 5 seconds to see changes
+        document.getElementById('timingsinfo').innerHTML = timingsInfosHtml;
+
+        // render at fixed rate
         setInterval(() => {
             simTime += 0.1;
             // fillVoxelsAnimated();
