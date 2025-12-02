@@ -857,7 +857,7 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
         const TILE_SZ = 1; // tiling size to dispatch to threads - more tiles means more memory but less work per voxel
         const TILE_RES = RES / TILE_SZ;
         let work_items = [];
-        let poor_man_bvh = {
+        let poor_man_bvh = { // not even a BVH, just a grid keeping track of tetras to check per tile
             cell_counts: new Array(TILE_RES * TILE_RES * TILE_RES).fill(0),
             cell_offsets: new Array(TILE_RES * TILE_RES * TILE_RES).fill(0),
             total_entries: 0,
@@ -923,7 +923,9 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
                 }
             }
         }
+        // first pass to count entries
         for (let ti = 0; ti < valid_tetras.length; ti++) { perTetraBuildAccelStructure(ti, valid_tetras, vertices_in_suvl, vertices_in_1uvl, poor_man_bvh, 0); } // run the "shader"
+        // compute offsets
         let running_offset = 0;
         for (let i = 0; i < TILE_RES * TILE_RES * TILE_RES; i++) {
             poor_man_bvh.cell_offsets[i] = running_offset;
@@ -932,6 +934,7 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             poor_man_bvh.cell_counts[i] = 0; // reset to use as counter in next pass
         }
         poor_man_bvh.cell_tetra_indices = new Array(poor_man_bvh.total_entries).fill(0);
+        // second pass to fill indices
         for (let ti = 0; ti < valid_tetras.length; ti++) { perTetraBuildAccelStructure(ti, valid_tetras, vertices_in_suvl, vertices_in_1uvl, poor_man_bvh, 1); } // run the "shader"
         const s3_end = performance.now();
         // timingsInfosHtml += `<p>Stage 3: Rasterized ${valid_tetras.length} tetras to S-buffer with ${fragCount} fragments (tested ${testCount}) in ${(s3_end - s3_start).toFixed(2)} ms</p>`;
@@ -980,6 +983,11 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
                 let v_max = Math.max(v0_1uvl.z, v1_1uvl.z, v2_1uvl.z, v3_1uvl.z);
                 let l_min = Math.min(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
                 let l_max = Math.max(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
+
+                // AABBox test
+                if (u < u_min || u > u_max || v < v_min || v > v_max || l < l_min || l > l_max) {
+                    continue; // outside bbox
+                }
 
                 let P = [u, v, l];
 
