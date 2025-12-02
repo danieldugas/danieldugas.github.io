@@ -410,7 +410,7 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
         let hypercamera_T = new Transform4D([
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
-            [0, 0, 1, 0, 0],
+            [0, 0, 1, 0, 1],
             [0, 0, 0, 1, 0],
             [0, 0, 0, 0, 1]
         ]); // hypercam in world
@@ -458,9 +458,124 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
         }
         fillVoxelsRandom();
 
+        // build a hyperfloor surface (triangle mesh)
+        // 1. assign a z for each (x,y,w) grid point
+        // 2. build triangles between grid points
+        const GRID_LIMS = {
+            x_min: -scene_bound,
+            x_max: scene_bound,
+            y_min: -scene_bound,
+            y_max: scene_bound,
+            z_min: -scene_bound,
+            z_max: scene_bound,
+            w_min: -scene_bound,
+            w_max: scene_bound
+        };
+        const N_TILES = 20;
+        const GRID_RES = 2 * scene_bound / N_TILES; // grid resolution
+        const n_i = Math.floor((GRID_LIMS.x_max - GRID_LIMS.x_min) / GRID_RES) + 1;
+        const n_j = Math.floor((GRID_LIMS.y_max - GRID_LIMS.y_min) / GRID_RES) + 1;
+        const n_k = Math.floor((GRID_LIMS.w_max - GRID_LIMS.w_min) / GRID_RES) + 1;
+        function floor_heightmap(x, y, w) {
+            return 0 + x * 0.1;
+        }
+        let grid_vertices = [];
+        let grid_edges = [];
+        let grid_tetras = [];
+        for (let i = 0; i < n_i; i++) {
+            for (let j = 0; j < n_j; j++) {
+                for (let k = 0; k < n_k; k++) {
+                    let x = GRID_LIMS.x_min + i * GRID_RES;
+                    let y = GRID_LIMS.y_min + j * GRID_RES;
+                    let w = GRID_LIMS.w_min + k * GRID_RES;
+                    // let z = Math.sin(0.2 * x) * Math.cos(0.2 * y) * 5; // example height function
+                    let z = floor_heightmap(x, y, w);
+                    grid_vertices.push(new Vector4D(x, y, z, w));
+                    // add an edge to the next vertex in x
+                    if (i < n_i - 1) {
+                        let next_index = grid_vertices.length + (n_j * n_k) - 1;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge to the next vertex in y
+                    if (j < n_j - 1) {
+                        let next_index = grid_vertices.length + n_k - 1;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge to the next vertex in w
+                    if (k < n_k - 1) {
+                        let next_index = grid_vertices.length;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge between next x and next y
+                    if (i < n_i - 1 && j < n_j - 1) {
+                        let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                        let next_y_index = grid_vertices.length + n_k - 1;
+                        grid_edges.push([next_x_index, next_y_index]);
+                    }
+                    // add an edge between next x and next w
+                    if (i < n_i - 1 && k < n_k - 1) {
+                        let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                        let next_w_index = grid_vertices.length;
+                        grid_edges.push([next_x_index, next_w_index]);
+                    }
+                    // add an edge between next y and next w
+                    if (j < n_j - 1 && k < n_k - 1) {
+                        let next_y_index = grid_vertices.length + n_k - 1;
+                        let next_w_index = grid_vertices.length;
+                        grid_edges.push([next_y_index, next_w_index]);
+                    }
+                    // add 5 tetras between this grid point and the next in x,y,w
+                    if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                        let nnn = i * n_j * n_k + j * n_k + k;
+                        let pnn = (i + 1) * n_j * n_k + j * n_k + k;
+                        let npn = i * n_j * n_k + (j + 1) * n_k + k;
+                        let ppn = (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                        let nnp = i * n_j * n_k + j * n_k + (k + 1);
+                        let pnp = (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                        let npp = i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let ppp = (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let cell_tetras = [
+                            [pnn, nnn, ppn, pnp], // tet at corner p n n
+                            [npn, ppn, nnn, npp], // tet at corner n p n
+                            [nnp, pnp, npp, nnn], // tet at corner n n p
+                            [ppp, npp, pnp, ppn], // tet at corner p p p
+                            [nnn, ppn, npp, pnp]  // tet at center
+                        ];
+                        for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                    }
+                }
+            }
+        }
+        // create the class
+        let hyperfloor = new Hyperobject(
+            // vertices in object frame
+            grid_vertices,
+            // edges
+            grid_edges,
+            // tetras
+            grid_tetras,
+            // color
+            0x000088,
+            // simulate_physics
+            false,
+            // show_vertices
+            false,
+            // mass
+            1.0,
+            // pose (Transform4D)
+            new Transform4D([
+                [1, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 0],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1]
+            ]),
+            // name
+            "Hyperfloor"
+        );
+
         // define a hypercube object
-        // const OSZ = floor_heightmap(0, 0, 0) + 3.0; // object spawn z
-        const OSZ = 1.0;
+        const OSZ = floor_heightmap(0, 0, 0) + 3.0; // object spawn z
         const const_hypercube_vertices = [ 
                 new Vector4D(-1, -1, -1, -1),
                 new Vector4D( 1, -1, -1, -1),
@@ -647,8 +762,8 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             new Transform4D([
                 [1, 0, 0, 0, 4],
                 [0, 1, 0, 0, 2],
-                [0, 0, 1, 0, -1],
-                [0, 0, 0, 1, 0],
+                [0, 0, 1, 0, OSZ],
+                [0, 0, 0, 1, 2],
                 [0, 0, 0, 0, 1]
             ]),
             // name
@@ -659,7 +774,7 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
 
         // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
         const s0_start = performance.now();
-        let visibleHyperobjects = [hypercube, hyperpyramid];
+        let visibleHyperobjects = [hypercube, hyperpyramid, hyperfloor];
         // let vertices_in_world = hypercube.vertices_in_world;
         // let tetras = hypercube.tetras.map(tetra => ({ indices: tetra, color: hypercube.color }));
         let vertices_in_world = [];
@@ -719,6 +834,14 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
 
         // ---------------------------------------------------------------------------------
         // Stage 3: Per-tetra - Rasterize tetras to 1UVL fragments
+        // The simple way is to loop over all voxels and all tetras and do a test (is voxel inside tetra)
+        // but for 200k voxels and 10k tetras this is 2 billion tests, which is too slow.
+        // Several optimizations are possible:
+        //   per tetra:
+        // - compute bounding box of tetra in 1UVL to only test voxels inside that box
+        // - store tetra assignment to tiles in 1UVL space to only test voxels in those tiles
+        //   per voxel:
+        // - only test tetras that are assigned to that voxel / tile
         const s3_start = performance.now();
         let fragments = [];
         let fragCount = 0;
@@ -731,17 +854,30 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
         const S_V_RANGE = hypercamera_sensor_uvl_range[3] - hypercamera_sensor_uvl_range[2];
         const S_L_START = hypercamera_sensor_uvl_range[4];
         const S_L_RANGE = hypercamera_sensor_uvl_range[5] - hypercamera_sensor_uvl_range[4];
-        function perTetraRasterize(tetra_index, valid_tetras, vertices_in_suvl, vertices_in_1uvl, fragments, s_buffer) {
+        const TILE_SZ = 1; // tiling size to dispatch to threads - more tiles means more memory but less work per voxel
+        const TILE_RES = RES / TILE_SZ;
+        let work_items = [];
+        let poor_man_bvh = {
+            cell_counts: new Array(TILE_RES * TILE_RES * TILE_RES).fill(0),
+            cell_offsets: new Array(TILE_RES * TILE_RES * TILE_RES).fill(0),
+            total_entries: 0,
+            cell_tetra_indices: null,
+        };
+        function perTetraBuildAccelStructure(tetra_index, valid_tetras, vertices_in_suvl, vertices_in_1uvl, poor_man_bvh, pass) {
             // project vertices to 1UVL, keep track of original s for "depth"
             let tetra = valid_tetras[tetra_index];
-            let v0_1uvl = vertices_in_1uvl[tetra.indices[0]];
-            let v1_1uvl = vertices_in_1uvl[tetra.indices[1]];
-            let v2_1uvl = vertices_in_1uvl[tetra.indices[2]];
-            let v3_1uvl = vertices_in_1uvl[tetra.indices[3]];
-            let v0_s = vertices_in_suvl[tetra.indices[0]].x;
-            let v1_s = vertices_in_suvl[tetra.indices[1]].x;
-            let v2_s = vertices_in_suvl[tetra.indices[2]].x;
-            let v3_s = vertices_in_suvl[tetra.indices[3]].x;
+            let v0_idx = tetra.indices[0];
+            let v1_idx = tetra.indices[1];
+            let v2_idx = tetra.indices[2];
+            let v3_idx = tetra.indices[3];
+            let v0_1uvl = vertices_in_1uvl[v0_idx];
+            let v1_1uvl = vertices_in_1uvl[v1_idx];
+            let v2_1uvl = vertices_in_1uvl[v2_idx];
+            let v3_1uvl = vertices_in_1uvl[v3_idx];
+            let v0_s = vertices_in_suvl[v0_idx].x;
+            let v1_s = vertices_in_suvl[v1_idx].x;
+            let v2_s = vertices_in_suvl[v2_idx].x;
+            let v3_s = vertices_in_suvl[v3_idx].x;
             
             // get bounding box in 1UVL
             let u_min = Math.min(v0_1uvl.y, v1_1uvl.y, v2_1uvl.y, v3_1uvl.y);
@@ -757,80 +893,135 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
             let V_max = Math.max(0, Math.min(RES - 1, Math.ceil((v_max - S_V_START) / S_V_RANGE * RES)));
             let L_min = Math.max(0, Math.min(RES - 1, Math.floor((l_min - S_L_START) / S_L_RANGE * RES)));
             let L_max = Math.max(0, Math.min(RES - 1, Math.ceil((l_max - S_L_START) / S_L_RANGE * RES)));
-            if (true) {
-                // console.log(`Tetra ${tetra_index} bounding box in 1UVL: U[${U_min},${U_max}] V[${V_min},${V_max}] L[${L_min},${L_max}]`);
-            }
+
+            // Convert from -1..1 in 1uvl to 0..N_TILES in tile space
+            let TU_min = Math.max(0, Math.min(TILE_RES - 1, Math.floor((u_min - S_U_START) / S_U_RANGE * TILE_RES)));
+            let TU_max = Math.max(0, Math.min(TILE_RES - 1, Math.ceil((u_max - S_U_START) / S_U_RANGE * TILE_RES)));
+            let TV_min = Math.max(0, Math.min(TILE_RES - 1, Math.floor((v_min - S_V_START) / S_V_RANGE * TILE_RES)));
+            let TV_max = Math.max(0, Math.min(TILE_RES - 1, Math.ceil((v_max - S_V_START) / S_V_RANGE * TILE_RES)));
+            let TL_min = Math.max(0, Math.min(TILE_RES - 1, Math.floor((l_min - S_L_START) / S_L_RANGE * TILE_RES)));
+            let TL_max = Math.max(0, Math.min(TILE_RES - 1, Math.ceil((l_max - S_L_START) / S_L_RANGE * TILE_RES)));
             
             // create a fragment for each pixel in the box
             let A = [v0_1uvl.y, v0_1uvl.z, v0_1uvl.w];
             let B = [v1_1uvl.y, v1_1uvl.z, v1_1uvl.w];
             let C = [v2_1uvl.y, v2_1uvl.z, v2_1uvl.w];
             let D = [v3_1uvl.y, v3_1uvl.z, v3_1uvl.w];
-            // console.log(`Rasterizing tetra ${tetra_index} with vertices in 1UVL: A${A}, B${B}, C${C}, D${D}`);
-            for (let U = U_min; U <= U_max; U++) {
-                for (let V = V_min; V <= V_max; V++) {
-                    for (let L = L_min; L <= L_max; L++) {
-                        // let fragment = {
-                            // tetra_index: tetra_index,
-                            // color: tetra.color,
-                            // s: s
-                        // };
 
-                        // check if inside tetra for each fragment
-                        let u = S_U_START + (U + 0.5) / RES * S_U_RANGE;
-                        let v = S_V_START + (V + 0.5) / RES * S_V_RANGE;
-                        let l = S_L_START + (L + 0.5) / RES * S_L_RANGE;
-                        
-                        let P = [u, v, l];
-
-                        // console.log(`Testing fragment at U:${U} V:${V} L:${L}, which maps to (u,v,l)=(${u},${v},${l}) and point P:${P}, A:${A}, B:${B}, C:${C}, D:${D}`);
-                        let bary = barycentricCoordinates(P, A, B, C, D);
-
-                        testCount++;
-                        // console.log(`Fragment at U:${U} V:${V} L:${L}, u:${u} v:${v} l:${l}, P:${P}, barycentric coords:`, bary);
-
-                        if (Object.values(bary).every(coord => coord >= 0 && coord <= 1)) {
-                            let s = bary.alpha * v0_s + bary.beta * v1_s + bary.gamma * v2_s + bary.delta * v3_s;
-                            // console.log(`Fragment at U:${U} V:${V} L:${L} is inside tetra ${tetra_index} with barycentric coords`, bary, `and interpolated s=${s}`);
-                            if (s >= s_buffer[U][V][L].s) {
-                                continue; // occluded
-                            }
-                            // Use object colors
-                            // s_buffer[U][V][L] = {
-                            //     r: (tetra.color >> 16) & 0xff,
-                            //     g: (tetra.color >> 8) & 0xff,
-                            //     b: tetra.color & 0xff,
-                            //     a: 0.1,
-                            //     s: s
-                            // };
-                            // Use random color per tetra for debugging
-                            s_buffer[U][V][L] = {
-                                r: ((tetra_index+1) * 53) % 256,
-                                g: ((tetra_index+1) * 97) % 256,
-                                b: ((tetra_index+1) * 193) % 256,
-                                a: 0.1,
-                                s: s
-                            };
-                            // Fragments (not needed currently)
-                            // fragments.push({
-                            //     tetra_index: tetra_index,
-                            //     color: tetra.color,
-                            //     s: s,
-                            //     u: u,
-                            //     v: v,
-                            //     l: l
-                            // });
-                            fragCount++;
+            for (let TU = TU_min; TU <= TU_max; TU++) {
+                for (let TV = TV_min; TV <= TV_max; TV++) {
+                    for (let TL = TL_min; TL <= TL_max; TL++) {
+                        const CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
+                        if (pass === 0) {
+                            poor_man_bvh.cell_counts[CELL_ID]++;
+                        } else {
+                            const writeIndex = poor_man_bvh.cell_offsets[CELL_ID] + poor_man_bvh.cell_counts[CELL_ID];
+                            poor_man_bvh.cell_tetra_indices[writeIndex] = tetra_index;
+                            poor_man_bvh.cell_counts[CELL_ID]++;
                         }
                     }
                 }
             }
         }
-        for (let ti = 0; ti < valid_tetras.length; ti++) { perTetraRasterize(ti, valid_tetras, vertices_in_suvl, vertices_in_1uvl, fragments, voxels); } // run the "shader"
+        for (let ti = 0; ti < valid_tetras.length; ti++) { perTetraBuildAccelStructure(ti, valid_tetras, vertices_in_suvl, vertices_in_1uvl, poor_man_bvh, 0); } // run the "shader"
+        let running_offset = 0;
+        for (let i = 0; i < TILE_RES * TILE_RES * TILE_RES; i++) {
+            poor_man_bvh.cell_offsets[i] = running_offset;
+            running_offset += poor_man_bvh.cell_counts[i];
+            poor_man_bvh.total_entries = running_offset;
+            poor_man_bvh.cell_counts[i] = 0; // reset to use as counter in next pass
+        }
+        poor_man_bvh.cell_tetra_indices = new Array(poor_man_bvh.total_entries).fill(0);
+        for (let ti = 0; ti < valid_tetras.length; ti++) { perTetraBuildAccelStructure(ti, valid_tetras, vertices_in_suvl, vertices_in_1uvl, poor_man_bvh, 1); } // run the "shader"
         const s3_end = performance.now();
-        console.log(`Stage 3: Rasterized ${valid_tetras.length} tetras to S-buffer with ${fragCount} fragments (tested ${testCount}) in ${(s3_end - s3_start).toFixed(2)} ms`);
-        timingsInfosHtml += `<p>Stage 3: Rasterized ${valid_tetras.length} tetras to S-buffer with ${fragCount} fragments (tested ${testCount}) in ${(s3_end - s3_start).toFixed(2)} ms</p>`;
+        // timingsInfosHtml += `<p>Stage 3: Rasterized ${valid_tetras.length} tetras to S-buffer with ${fragCount} fragments (tested ${testCount}) in ${(s3_end - s3_start).toFixed(2)} ms</p>`;
+        timingsInfosHtml += `<p>Stage 3 Part 1: ${valid_tetras.length} tetras mapped to ${poor_man_bvh.total_entries} entries in accel structure with ${TILE_RES * TILE_RES * TILE_RES} tiles in ${(s3_end - s3_start).toFixed(2)} ms</p>`;
 
+        function perVoxelRasterize(voxel_index, poor_man_bvh, s_buffer) {
+            const U = voxel_index % RES;
+            const V = Math.floor((voxel_index / RES)) % RES;
+            const L = Math.floor((voxel_index / (RES * RES))) % RES;
+            const TU = Math.floor(U / TILE_SZ);
+            const TV = Math.floor(V / TILE_SZ);
+            const TL = Math.floor(L / TILE_SZ);
+            const u = S_U_START + (U + 0.5) / RES * S_U_RANGE;
+            const v = S_V_START + (V + 0.5) / RES * S_V_RANGE;
+            const l = S_L_START + (L + 0.5) / RES * S_L_RANGE;
+
+            // Find which tetras to test from accel structure
+            const CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
+            const cell_offset = poor_man_bvh.cell_offsets[CELL_ID];
+            const cell_counts = poor_man_bvh.cell_counts[CELL_ID];
+            for (let i = 0; i < cell_counts; i++) {
+                const tetra_index = poor_man_bvh.cell_tetra_indices[cell_offset + i];
+                // inefficient to compute this here, ideally compute it in per-tetra stage above and store in memory
+                let tetra = valid_tetras[tetra_index];
+                let v0_idx = tetra.indices[0];
+                let v1_idx = tetra.indices[1];
+                let v2_idx = tetra.indices[2];
+                let v3_idx = tetra.indices[3];
+                let v0_1uvl = vertices_in_1uvl[v0_idx];
+                let v1_1uvl = vertices_in_1uvl[v1_idx];
+                let v2_1uvl = vertices_in_1uvl[v2_idx];
+                let v3_1uvl = vertices_in_1uvl[v3_idx];
+                let v0_s = vertices_in_suvl[v0_idx].x;
+                let v1_s = vertices_in_suvl[v1_idx].x;
+                let v2_s = vertices_in_suvl[v2_idx].x;
+                let v3_s = vertices_in_suvl[v3_idx].x;
+                // create a fragment for each pixel in the box
+                let A = [v0_1uvl.y, v0_1uvl.z, v0_1uvl.w];
+                let B = [v1_1uvl.y, v1_1uvl.z, v1_1uvl.w];
+                let C = [v2_1uvl.y, v2_1uvl.z, v2_1uvl.w];
+                let D = [v3_1uvl.y, v3_1uvl.z, v3_1uvl.w];
+                // get bounding box in 1UVL
+                let u_min = Math.min(v0_1uvl.y, v1_1uvl.y, v2_1uvl.y, v3_1uvl.y);
+                let u_max = Math.max(v0_1uvl.y, v1_1uvl.y, v2_1uvl.y, v3_1uvl.y);
+                let v_min = Math.min(v0_1uvl.z, v1_1uvl.z, v2_1uvl.z, v3_1uvl.z);
+                let v_max = Math.max(v0_1uvl.z, v1_1uvl.z, v2_1uvl.z, v3_1uvl.z);
+                let l_min = Math.min(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
+                let l_max = Math.max(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
+
+                let P = [u, v, l];
+
+                // console.log(`Testing fragment at U:${U} V:${V} L:${L}, which maps to (u,v,l)=(${u},${v},${l}) and point P:${P}, A:${A}, B:${B}, C:${C}, D:${D}`);
+                let bary = barycentricCoordinates(P, A, B, C, D);
+
+                testCount++;
+                // console.log(`Fragment at U:${U} V:${V} L:${L}, u:${u} v:${v} l:${l}, P:${P}, barycentric coords:`, bary);
+
+                if (Object.values(bary).every(coord => coord >= 0 && coord <= 1)) {
+                    let s = bary.alpha * v0_s + bary.beta * v1_s + bary.gamma * v2_s + bary.delta * v3_s;
+                    // console.log(`Fragment at U:${U} V:${V} L:${L} is inside tetra ${tetra_index} with barycentric coords`, bary, `and interpolated s=${s}`);
+                    if (s >= s_buffer[U][V][L].s) {
+                        continue; // occluded
+                    }
+                    if (false) {
+                        // Use object colors
+                        s_buffer[U][V][L] = {
+                            r: (tetra.color >> 16) & 0xff,
+                            g: (tetra.color >> 8) & 0xff,
+                            b: tetra.color & 0xff,
+                            a: 0.1,
+                            s: s
+                        };
+                    } else {
+                        // Use random color per tetra for debugging
+                        s_buffer[U][V][L] = {
+                            r: ((tetra_index+1) * 53) % 256,
+                            g: ((tetra_index+1) * 97) % 256,
+                            b: ((tetra_index+1) * 193) % 256,
+                            a: 0.1,
+                            s: s
+                        };
+                    }
+                    fragCount++;
+                }
+            }
+        }
+        const s3p2_start = performance.now();
+        for (let vi = 0; vi < RES * RES * RES; vi++) { perVoxelRasterize(vi, poor_man_bvh, voxels); } // run the "shader" to fill s-buf
+        const s3p2_end = performance.now();
+        timingsInfosHtml += `<p>Stage 3 Part 2: Processed ${RES * RES * RES} voxels (tested ${testCount}) to fill S-buffer with ${fragCount} fragments in ${(s3p2_end - s3p2_start).toFixed(2)} ms</p>`;
 
         // ---------------------------------------------------------------------------------
         // Stage 4: Per-Pixel - DDA traversal through S-buffer to composite screen color
