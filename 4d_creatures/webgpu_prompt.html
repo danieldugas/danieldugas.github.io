@@ -10,6 +10,24 @@ The following code executes the above pipeline on CPU,
 make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fragment stages (all with compute shaders).
 -->
 
+<!--
+I made this rendering pipeline as a first step towards executing the heavy loads on WebGPU. Before modifying any code, could you reason about:
+- the pipeline stages, and whether it is already efficient and correct
+- How each stage should be parallelized on a modern GPU, e.g. 4050 laptop
+
+Timings:
+Stage 0: Gathered vertices and tetras from visible hyperobjects in 10.00 ms
+Stage 1: # of vertices transformed to camera space: 9282 in 2.00 ms
+Stage 2: # of valid tetras: 18045 from 40045 in 5.00 ms
+Stage 3 Part 1: 18045 tetras mapped to 2767946 entries in accel structure with 262144 tiles in 180.00 ms
+Stage 3 Part 2: Processed 262144 voxels (tested 1187418) to fill S-buffer with 135801 fragments in 644.00 ms
+Stage 4: Rendered initial frame in 213.00 ms
+
+Begin code:
+-->
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -990,6 +1008,13 @@ make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fra
                 }
 
                 let P = [u, v, l];
+
+                // // Add this before full barycentric calculation:
+                // const V = signedVolume(A, B, C, D);
+                // if (Math.abs(V) < 1e-10) continue; // degenerate tetra
+                // // Quick reject test using first coordinate only:
+                // const alpha_approx = signedVolume(P, B, C, D) / V;
+                // if (alpha_approx < -0.1 || alpha_approx > 1.1) continue;
 
                 // console.log(`Testing fragment at U:${U} V:${V} L:${L}, which maps to (u,v,l)=(${u},${v},${l}) and point P:${P}, A:${A}, B:${B}, C:${C}, D:${D}`);
                 let bary = barycentricCoordinates(P, A, B, C, D);
