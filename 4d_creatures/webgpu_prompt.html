@@ -2,8 +2,8 @@
 I want to understand WebGPU. To do so, create a single html file that implements 3 simple stages of a 4D graphics pipeline:
 - per vertex: convert vertices from 4D world / object to 4D camera space (XYZW -> SUVL) where S is the x axis of the camera, and the sensor is at S=1
 - (not on GPU) per tetra: for now just exclude tetras that have any vertex behind camera (S<=0), but leave a stub to do near-plane clipping / splitting tetras into more, later
-- per tetra: rasterize, meaning compute tetra bounding box, do a ray-tetra test for each pixel inside box, pass resulting fragments
-- per fragment: figure out z-buffer (3D grid, let's call it s-buffer) final color
+- per tetra: pre-rasterize, clip and accel structure building
+- per voxel: intersection tests, and fill z-buffer (3D grid, let's call it s-buffer) with final color
 - per ray in 2D image: do DDA ray intersect in the S-buffer grid, render to 2D canvas
 
 The following code executes the above pipeline on CPU,

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU DDA Voxel Ray Tracer</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: monospace;
+            color: #fff;
+        }
+        #container {
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #444;
+            cursor: grab;
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+        #info {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+        #fps {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #4a4;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas" width="600" height="600"></canvas>
+        <div id="info">50×50×50 voxel grid • GPU-accelerated DDA ray traversal</div>
+        <div id="fps">FPS: --</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const gl = canvas.getContext('webgl2');
+        const fpsDisplay = document.getElementById('fps');
+        
+        if (!gl) {
+            alert('WebGL2 not supported');
+            throw new Error('WebGL2 not supported');
+        }
+
+        const gridSize = 50;
+        let simTime = 0;
+
+        // Camera setup
+        const camera = {
+            distance: gridSize * 2.0,
+            theta: Math.PI / 4,
+            phi: Math.PI / 4,
+            lookAt: { x: gridSize / 2.0, y: gridSize / 2.0, z: gridSize / 2.0 },
+            fov: 60
+        };
+
+        // Vertex shader (simple quad)
+        const vertexShaderSource = `#version 300 es
+        in vec2 a_position;
+        out vec2 v_uv;
+        
+        void main() {
+            v_uv = a_position * 0.5 + 0.5;
+            gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+        `;
+
+        // Fragment shader (ray tracer)
+        const fragmentShaderSource = `#version 300 es
+        precision highp float;
+        precision highp sampler3D;
+        
+        in vec2 v_uv;
+        out vec4 fragColor;
+        
+        uniform sampler3D u_voxels;
+        uniform vec3 u_cameraPos;
+        uniform vec3 u_cameraForward;
+        uniform vec3 u_cameraRight;
+        uniform vec3 u_cameraUp;
+        uniform float u_fovScale;
+        uniform float u_aspectRatio;
+        uniform int u_gridSize;
+        
+        vec3 normalize_safe(vec3 v) {
+            float len = length(v);
+            return len > 0.0 ? v / len : v;
+        }
+        
+        float rayBoxIntersection(vec3 origin, vec3 direction) {
+            vec3 boxMin = vec3(0.0);
+            vec3 boxMax = vec3(float(u_gridSize));
+            
+            vec3 invDir = 1.0 / direction;
+            vec3 t1 = (boxMin - origin) * invDir;
+            vec3 t2 = (boxMax - origin) * invDir;
+            
+            vec3 tMin3 = min(t1, t2);
+            vec3 tMax3 = max(t1, t2);
+            
+            float tMin = max(max(tMin3.x, tMin3.y), tMin3.z);
+            float tMax = min(min(tMax3.x, tMax3.y), tMax3.z);
+            
+            if (tMin > tMax || tMax < 0.0) return -1.0;
+            return tMin > 0.0 ? tMin : 0.0;
+        }
+        
+        vec4 ddaRaycast(vec3 origin, vec3 direction) {
+            float tEntry = rayBoxIntersection(origin, direction);
+            if (tEntry < 0.0) return vec4(0.0);
+            
+            vec3 startPos = origin + direction * tEntry;
+            
+            // Clamp to grid bounds
+            startPos = clamp(startPos, vec3(0.0), vec3(float(u_gridSize) - 0.001));
+            
+            ivec3 voxelPos = ivec3(floor(startPos));
+            ivec3 step = ivec3(sign(direction));
+            
+            vec3 tDelta = abs(1.0 / direction);
+            vec3 tMax = tDelta * (step.x >= 0 ? (vec3(voxelPos + 1) - startPos) : (startPos - vec3(voxelPos)));
+            
+            vec3 accumulatedColor = vec3(0.0);
+            float accumulatedAlpha = 0.0;
+            
+            int maxSteps = u_gridSize * 3;
+            
+            for (int i = 0; i < 200; i++) {
+                if (i >= maxSteps) break;
+                
+                if (voxelPos.x < 0 || voxelPos.x >= u_gridSize ||
+                    voxelPos.y < 0 || voxelPos.y >= u_gridSize ||
+                    voxelPos.z < 0 || voxelPos.z >= u_gridSize) {
+                    break;
+                }
+                
+                if (accumulatedAlpha >= 0.99) break;
+                
+                // Sample voxel from 3D texture
+                vec3 texCoord = (vec3(voxelPos) + 0.5) / float(u_gridSize);
+                vec4 voxelData = texture(u_voxels, texCoord);
+                
+                if (voxelData.a > 0.0) {
+                    float effectiveAlpha = voxelData.a;
+                    float srcAlpha = effectiveAlpha * (1.0 - accumulatedAlpha);
+                    
+                    accumulatedColor += voxelData.rgb * srcAlpha;
+                    accumulatedAlpha += srcAlpha;
+                }
+                
+                // Step to next voxel
+                if (tMax.x < tMax.y) {
+                    if (tMax.x < tMax.z) {
+                        tMax.x += tDelta.x;
+                        voxelPos.x += step.x;
+                    } else {
+                        tMax.z += tDelta.z;
+                        voxelPos.z += step.z;
+                    }
+                } else {
+                    if (tMax.y < tMax.z) {
+                        tMax.y += tDelta.y;
+                        voxelPos.y += step.y;
+                    } else {
+                        tMax.z += tDelta.z;
+                        voxelPos.z += step.z;
+                    }
+                }
+            }
+            
+            // Background color
+            vec3 bgColor = vec3(0.078);
+            accumulatedColor += bgColor * (1.0 - accumulatedAlpha);
+            
+            return vec4(accumulatedColor, 1.0);
+        }
+        
+        void main() {
+            float ndcX = (2.0 * v_uv.x - 1.0) * u_aspectRatio * u_fovScale;
+            float ndcY = (1.0 - 2.0 * v_uv.y) * u_fovScale;
+            
+            vec3 rayDir = normalize_safe(u_cameraForward + u_cameraRight * ndcX + u_cameraUp * ndcY);
+            
+            fragColor = ddaRaycast(u_cameraPos, rayDir);
+        }
+        `;
+
+        // Compile shader
+        function compileShader(source, type) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        // Create program
+        const vertexShader = compileShader(vertexShaderSource, gl.VERTEX_SHADER);
+        const fragmentShader = compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
+        
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            console.error('Program link error:', gl.getProgramInfoLog(program));
+        }
+
+        // Get uniform locations
+        const uniforms = {
+            voxels: gl.getUniformLocation(program, 'u_voxels'),
+            cameraPos: gl.getUniformLocation(program, 'u_cameraPos'),
+            cameraForward: gl.getUniformLocation(program, 'u_cameraForward'),
+            cameraRight: gl.getUniformLocation(program, 'u_cameraRight'),
+            cameraUp: gl.getUniformLocation(program, 'u_cameraUp'),
+            fovScale: gl.getUniformLocation(program, 'u_fovScale'),
+            aspectRatio: gl.getUniformLocation(program, 'u_aspectRatio'),
+            gridSize: gl.getUniformLocation(program, 'u_gridSize')
+        };
+
+        // Create fullscreen quad
+        const positions = new Float32Array([
+            -1, -1,
+             1, -1,
+            -1,  1,
+             1,  1
+        ]);
+        
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+        
+        const vao = gl.createVertexArray();
+        gl.bindVertexArray(vao);
+        
+        const positionLoc = gl.getAttribLocation(program, 'a_position');
+        gl.enableVertexAttribArray(positionLoc);
+        gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+        // Create 3D texture for voxels
+        const voxelTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_3D, voxelTexture);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+
+        // Generate voxel data
+        function generateVoxelData() {
+            const data = new Uint8Array(gridSize * gridSize * gridSize * 4);
+            
+            const t = simTime;
+            const centerX = gridSize / 2 + Math.sin(t * 0.5) * (gridSize / 4);
+            const centerY = gridSize / 2 + Math.cos(t * 0.5) * (gridSize / 4);
+            const centerZ = gridSize / 2 + Math.sin(t * 0.3) * (gridSize / 4);
+            const radius = gridSize / 6 + Math.sin(t) * (gridSize / 12);
+            
+            for (let z = 0; z < gridSize; z++) {
+                for (let y = 0; y < gridSize; y++) {
+                    for (let x = 0; x < gridSize; x++) {
+                        const idx = (z * gridSize * gridSize + y * gridSize + x) * 4;
+                        
+                        if (x === 0 || y === 0 || z === 0 || 
+                            x === gridSize - 1 || y === gridSize - 1 || z === gridSize - 1) {
+                            data[idx] = 200;
+                            data[idx + 1] = 200;
+                            data[idx + 2] = 200;
+                            data[idx + 3] = 25;
+                            continue;
+                        }
+                        
+                        const dx = x - centerX;
+                        const dy = y - centerY;
+                        const dz = z - centerZ;
+                        const distSq = dx * dx + dy * dy + dz * dz;
+                        
+                        if (distSq < radius * radius) {
+                            data[idx] = 200 + 55 * Math.sin(t + distSq * 0.1);
+                            data[idx + 1] = 100 + 155 * Math.cos(t + distSq * 0.1);
+                            data[idx + 2] = 100 + 105 * Math.sin(t + distSq * 0.1 + Math.PI / 2);
+                            data[idx + 3] = 102;
+                        } else {
+                            data[idx] = 20;
+                            data[idx + 1] = 20;
+                            data[idx + 2] = 20;
+                            data[idx + 3] = 0;
+                        }
+                    }
+                }
+            }
+            
+            return data;
+        }
+
+        // Upload voxel data to GPU
+        function updateVoxelTexture() {
+            const data = generateVoxelData();
+            gl.bindTexture(gl.TEXTURE_3D, voxelTexture);
+            gl.texImage3D(
+                gl.TEXTURE_3D,
+                0,
+                gl.RGBA,
+                gridSize,
+                gridSize,
+                gridSize,
+                0,
+                gl.RGBA,
+                gl.UNSIGNED_BYTE,
+                data
+            );
+        }
+
+        // Vector operations
+        function sub(a, b) {
+            return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+        }
+        
+        function cross(a, b) {
+            return {
+                x: a.y * b.z - a.z * b.y,
+                y: a.z * b.x - a.x * b.z,
+                z: a.x * b.y - a.y * b.x
+            };
+        }
+        
+        function normalize(v) {
+            const len = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+            return len > 0 ? { x: v.x / len, y: v.y / len, z: v.z / len } : v;
+        }
+
+        function getCameraPos() {
+            return {
+                x: camera.lookAt.x + camera.distance * Math.sin(camera.phi) * Math.cos(camera.theta),
+                y: camera.lookAt.y + camera.distance * Math.cos(camera.phi),
+                z: camera.lookAt.z + camera.distance * Math.sin(camera.phi) * Math.sin(camera.theta)
+            };
+        }
+
+        function setupCamera() {
+            const pos = getCameraPos();
+            const forward = normalize(sub(camera.lookAt, pos));
+            const right = normalize(cross({ x: 0, y: 1, z: 0 }, forward));
+            const up = cross(forward, right);
+            return { forward, right, up, pos };
+        }
+
+        // Render
+        function render() {
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            
+            gl.useProgram(program);
+            gl.bindVertexArray(vao);
+            
+            const { forward, right, up, pos } = setupCamera();
+            const aspectRatio = canvas.width / canvas.height;
+            const fovScale = Math.tan(camera.fov * Math.PI / 360);
+            
+            gl.uniform3f(uniforms.cameraPos, pos.x, pos.y, pos.z);
+            gl.uniform3f(uniforms.cameraForward, forward.x, forward.y, forward.z);
+            gl.uniform3f(uniforms.cameraRight, right.x, right.y, right.z);
+            gl.uniform3f(uniforms.cameraUp, up.x, up.y, up.z);
+            gl.uniform1f(uniforms.fovScale, fovScale);
+            gl.uniform1f(uniforms.aspectRatio, aspectRatio);
+            gl.uniform1i(uniforms.gridSize, gridSize);
+            
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_3D, voxelTexture);
+            gl.uniform1i(uniforms.voxels, 0);
+            
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        }
+
+        // Mouse interaction
+        let isDragging = false;
+        let lastX = 0;
+        let lastY = 0;
+        
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const deltaX = e.clientX - lastX;
+            const deltaY = e.clientY - lastY;
+            
+            camera.theta += -deltaX * 0.01;
+            camera.phi = Math.max(0.1, Math.min(Math.PI - 0.1, camera.phi + deltaY * 0.01));
+            
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+        
+        canvas.addEventListener('mouseup', () => isDragging = false);
+        canvas.addEventListener('mouseleave', () => isDragging = false);
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            camera.distance += e.deltaY * 0.05;
+            camera.distance = Math.max(5, Math.min(gridSize * 4.0, camera.distance));
+        });
+
+        // Animation loop with FPS counter
+        let lastTime = performance.now();
+        let frames = 0;
+        let fps = 0;
+
+        function animate() {
+            simTime += 0.016;
+            updateVoxelTexture();
+            render();
+            
+            frames++;
+            const currentTime = performance.now();
+            if (currentTime - lastTime >= 1000) {
+                fps = frames;
+                fpsDisplay.textContent = `FPS: ${fps}`;
+                frames = 0;
+                lastTime = currentTime;
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        // Start
+        updateVoxelTexture();
+        animate();
+    </script>
+</body>
+</html>
