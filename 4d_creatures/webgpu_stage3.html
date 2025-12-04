@@ -1,36 +1,3 @@
-<!--
-I want to understand WebGPU. To do so, create a single html file that implements 3 simple stages of a 4D graphics pipeline:
-- per vertex: convert vertices from 4D world / object to 4D camera space (XYZW -> SUVL) where S is the x axis of the camera, and the sensor is at S=1
-- (not on GPU) per tetra: for now just exclude tetras that have any vertex behind camera (S<=0), but leave a stub to do near-plane clipping / splitting tetras into more, later
-- per tetra: pre-rasterize, clip and accel structure building
-- per voxel: intersection tests, and fill z-buffer (3D grid, let's call it s-buffer) with final color
-- per ray in 2D image: do DDA ray intersect in the S-buffer grid, render to 2D canvas
-
-The following code executes the above pipeline on CPU,
-make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fragment stages (all with compute shaders).
--->
-
-<!--
-I made this rendering pipeline as a first step towards executing the heavy loads on WebGPU. Before modifying any code, could you reason about:
-- the pipeline stages, and whether it is already efficient and correct
-- How each stage should be parallelized on a modern GPU, e.g. 4050 laptop
-
-Timings:
-Stage 0: Gathered vertices and tetras from visible hyperobjects in 10.00 ms
-Stage 1: # of vertices transformed to camera space: 9282 in 2.00 ms
-Stage 2: # of valid tetras: 18045 from 40045 in 5.00 ms
-Stage 3 Part 1: 18045 tetras mapped to 2767946 entries in accel structure with 262144 tiles in 180.00 ms
-Stage 3 Part 2: Processed 262144 voxels (tested 1187418) to fill S-buffer with 135801 fragments in 644.00 ms
-Stage 4: Rendered initial frame in 213.00 ms
-
-Begin code:
--->
-
-<!-- 
-Convert just stage 3 (part 1 and 2) to WebGPU compute shaders, keeping the rest on CPU for now.
--->
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -793,6 +760,7 @@ Convert just stage 3 (part 1 and 2) to WebGPU compute shaders, keeping the rest 
 
         let timingsInfosHtml = "";
 
+    (async function main() {
         // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
         const s0_start = performance.now();
         let visibleHyperobjects = [hypercube, hyperpyramid, hyperfloor];
@@ -864,200 +832,675 @@ Convert just stage 3 (part 1 and 2) to WebGPU compute shaders, keeping the rest 
         //   per voxel:
         // - only test tetras that are assigned to that voxel / tile
         const s3_start = performance.now();
-        let fragments = [];
-        let fragCount = 0;
-        let testCount = 0;
-        fillVoxelsRandom(); // reset s-buffer
-        const RES = hypercamera_sensor_resolution; // also assert is_unit_sensor
-        const S_U_START = hypercamera_sensor_uvl_range[0];
-        const S_U_RANGE = hypercamera_sensor_uvl_range[1] - hypercamera_sensor_uvl_range[0];
-        const S_V_START = hypercamera_sensor_uvl_range[2];
-        const S_V_RANGE = hypercamera_sensor_uvl_range[3] - hypercamera_sensor_uvl_range[2];
-        const S_L_START = hypercamera_sensor_uvl_range[4];
-        const S_L_RANGE = hypercamera_sensor_uvl_range[5] - hypercamera_sensor_uvl_range[4];
-        const TILE_SZ = 1; // tiling size to dispatch to threads - more tiles means more memory but less work per voxel
-        const TILE_RES = RES / TILE_SZ;
-        let work_items = [];
-        let poor_man_bvh = { // not even a BVH, just a grid keeping track of tetras to check per tile
-            cell_counts: new Array(TILE_RES * TILE_RES * TILE_RES).fill(0),
-            cell_offsets: new Array(TILE_RES * TILE_RES * TILE_RES).fill(0),
-            total_entries: 0,
-            cell_tetra_indices: null,
-        };
-        function perTetraBuildAccelStructure(tetra_index, valid_tetras, vertices_in_suvl, vertices_in_1uvl, poor_man_bvh, pass) {
-            // project vertices to 1UVL, keep track of original s for "depth"
-            let tetra = valid_tetras[tetra_index];
-            let v0_idx = tetra.indices[0];
-            let v1_idx = tetra.indices[1];
-            let v2_idx = tetra.indices[2];
-            let v3_idx = tetra.indices[3];
-            let v0_1uvl = vertices_in_1uvl[v0_idx];
-            let v1_1uvl = vertices_in_1uvl[v1_idx];
-            let v2_1uvl = vertices_in_1uvl[v2_idx];
-            let v3_1uvl = vertices_in_1uvl[v3_idx];
-            let v0_s = vertices_in_suvl[v0_idx].x;
-            let v1_s = vertices_in_suvl[v1_idx].x;
-            let v2_s = vertices_in_suvl[v2_idx].x;
-            let v3_s = vertices_in_suvl[v3_idx].x;
-            
-            // get bounding box in 1UVL
-            let u_min = Math.min(v0_1uvl.y, v1_1uvl.y, v2_1uvl.y, v3_1uvl.y);
-            let u_max = Math.max(v0_1uvl.y, v1_1uvl.y, v2_1uvl.y, v3_1uvl.y);
-            let v_min = Math.min(v0_1uvl.z, v1_1uvl.z, v2_1uvl.z, v3_1uvl.z);
-            let v_max = Math.max(v0_1uvl.z, v1_1uvl.z, v2_1uvl.z, v3_1uvl.z);
-            let l_min = Math.min(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
-            let l_max = Math.max(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
-            // convert from -1..1 to 0..RES
-            let U_min = Math.max(0, Math.min(RES - 1, Math.floor((u_min - S_U_START) / S_U_RANGE * RES)));
-            let U_max = Math.max(0, Math.min(RES - 1, Math.ceil((u_max - S_U_START) / S_U_RANGE * RES)));
-            let V_min = Math.max(0, Math.min(RES - 1, Math.floor((v_min - S_V_START) / S_V_RANGE * RES)));
-            let V_max = Math.max(0, Math.min(RES - 1, Math.ceil((v_max - S_V_START) / S_V_RANGE * RES)));
-            let L_min = Math.max(0, Math.min(RES - 1, Math.floor((l_min - S_L_START) / S_L_RANGE * RES)));
-            let L_max = Math.max(0, Math.min(RES - 1, Math.ceil((l_max - S_L_START) / S_L_RANGE * RES)));
+ // Add WebGPU initialization at the top of the script, after the document structure
+let device, gpuContext;
 
-            // Convert from -1..1 in 1uvl to 0..N_TILES in tile space
-            let TU_min = Math.max(0, Math.min(TILE_RES - 1, Math.floor((u_min - S_U_START) / S_U_RANGE * TILE_RES)));
-            let TU_max = Math.max(0, Math.min(TILE_RES - 1, Math.ceil((u_max - S_U_START) / S_U_RANGE * TILE_RES)));
-            let TV_min = Math.max(0, Math.min(TILE_RES - 1, Math.floor((v_min - S_V_START) / S_V_RANGE * TILE_RES)));
-            let TV_max = Math.max(0, Math.min(TILE_RES - 1, Math.ceil((v_max - S_V_START) / S_V_RANGE * TILE_RES)));
-            let TL_min = Math.max(0, Math.min(TILE_RES - 1, Math.floor((l_min - S_L_START) / S_L_RANGE * TILE_RES)));
-            let TL_max = Math.max(0, Math.min(TILE_RES - 1, Math.ceil((l_max - S_L_START) / S_L_RANGE * TILE_RES)));
-            
-            // create a fragment for each pixel in the box
-            let A = [v0_1uvl.y, v0_1uvl.z, v0_1uvl.w];
-            let B = [v1_1uvl.y, v1_1uvl.z, v1_1uvl.w];
-            let C = [v2_1uvl.y, v2_1uvl.z, v2_1uvl.w];
-            let D = [v3_1uvl.y, v3_1uvl.z, v3_1uvl.w];
+async function initWebGPU() {
+    if (!navigator.gpu) {
+        throw new Error("WebGPU not supported");
+    }
+    
+    const adapter = await navigator.gpu.requestAdapter();
+    device = await adapter.requestDevice();
+    
+    return device;
+}
 
-            for (let TU = TU_min; TU <= TU_max; TU++) {
-                for (let TV = TV_min; TV <= TV_max; TV++) {
-                    for (let TL = TL_min; TL <= TL_max; TL++) {
-                        const CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
-                        if (pass === 0) {
-                            poor_man_bvh.cell_counts[CELL_ID]++;
-                        } else {
-                            const writeIndex = poor_man_bvh.cell_offsets[CELL_ID] + poor_man_bvh.cell_counts[CELL_ID];
-                            poor_man_bvh.cell_tetra_indices[writeIndex] = tetra_index;
-                            poor_man_bvh.cell_counts[CELL_ID]++;
-                        }
-                    }
-                }
+// Replace the entire Stage 3 section with this:
+async function stage3WebGPU(valid_tetras, vertices_in_suvl, vertices_in_1uvl, voxels) {
+    if (!device) {
+        await initWebGPU();
+    }
+    
+    const s3_start = performance.now();
+    
+    const RES = hypercamera_sensor_resolution;
+    const TILE_SZ = 1;
+    const TILE_RES = RES / TILE_SZ;
+    
+    // ===== PART 1: Build Acceleration Structure =====
+    
+    // Create shader module for building accel structure
+    const buildAccelStructureShader = device.createShaderModule({
+        code: `
+struct TetraData {
+    i0: u32,
+    i1: u32,
+    i2: u32,
+    i3: u32,
+    color: u32,
+}
+
+struct Vector4D {
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+}
+
+@group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
+@group(0) @binding(1) var<storage, read> vertices_1uvl: array<Vector4D>;
+@group(0) @binding(2) var<storage, read_write> cell_counts: array<atomic<u32>>;
+
+@group(1) @binding(0) var<uniform> params: vec4<u32>; // num_tetras, TILE_RES, RES, unused
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let tetra_index = global_id.x;
+    let num_tetras = params.x;
+    let TILE_RES = params.y;
+    
+    if (tetra_index >= num_tetras) {
+        return;
+    }
+    
+    let tetra = tetras[tetra_index];
+    let v0_1uvl = vertices_1uvl[tetra.i0];
+    let v1_1uvl = vertices_1uvl[tetra.i1];
+    let v2_1uvl = vertices_1uvl[tetra.i2];
+    let v3_1uvl = vertices_1uvl[tetra.i3];
+    
+    let u_min = min(min(v0_1uvl.y, v1_1uvl.y), min(v2_1uvl.y, v3_1uvl.y));
+    let u_max = max(max(v0_1uvl.y, v1_1uvl.y), max(v2_1uvl.y, v3_1uvl.y));
+    let v_min = min(min(v0_1uvl.z, v1_1uvl.z), min(v2_1uvl.z, v3_1uvl.z));
+    let v_max = max(max(v0_1uvl.z, v1_1uvl.z), max(v2_1uvl.z, v3_1uvl.z));
+    let l_min = min(min(v0_1uvl.w, v1_1uvl.w), min(v2_1uvl.w, v3_1uvl.w));
+    let l_max = max(max(v0_1uvl.w, v1_1uvl.w), max(v2_1uvl.w, v3_1uvl.w));
+    
+    let S_U_START = -1.0;
+    let S_U_RANGE = 2.0;
+    let S_V_START = -1.0;
+    let S_V_RANGE = 2.0;
+    let S_L_START = -1.0;
+    let S_L_RANGE = 2.0;
+    
+    let TU_min = u32(clamp(floor((u_min - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TU_max = u32(clamp(ceil((u_max - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TV_min = u32(clamp(floor((v_min - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TV_max = u32(clamp(ceil((v_max - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TL_min = u32(clamp(floor((l_min - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TL_max = u32(clamp(ceil((l_max - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    
+    for (var TU = TU_min; TU <= TU_max; TU++) {
+        for (var TV = TV_min; TV <= TV_max; TV++) {
+            for (var TL = TL_min; TL <= TL_max; TL++) {
+                let CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
+                atomicAdd(&cell_counts[CELL_ID], 1u);
             }
         }
-        // first pass to count entries
-        for (let ti = 0; ti < valid_tetras.length; ti++) { perTetraBuildAccelStructure(ti, valid_tetras, vertices_in_suvl, vertices_in_1uvl, poor_man_bvh, 0); } // run the "shader"
-        // compute offsets
-        let running_offset = 0;
-        for (let i = 0; i < TILE_RES * TILE_RES * TILE_RES; i++) {
-            poor_man_bvh.cell_offsets[i] = running_offset;
-            running_offset += poor_man_bvh.cell_counts[i];
-            poor_man_bvh.total_entries = running_offset;
-            poor_man_bvh.cell_counts[i] = 0; // reset to use as counter in next pass
-        }
-        poor_man_bvh.cell_tetra_indices = new Array(poor_man_bvh.total_entries).fill(0);
-        // second pass to fill indices
-        for (let ti = 0; ti < valid_tetras.length; ti++) { perTetraBuildAccelStructure(ti, valid_tetras, vertices_in_suvl, vertices_in_1uvl, poor_man_bvh, 1); } // run the "shader"
-        const s3_end = performance.now();
-        // timingsInfosHtml += `<p>Stage 3: Rasterized ${valid_tetras.length} tetras to S-buffer with ${fragCount} fragments (tested ${testCount}) in ${(s3_end - s3_start).toFixed(2)} ms</p>`;
-        timingsInfosHtml += `<p>Stage 3 Part 1: ${valid_tetras.length} tetras mapped to ${poor_man_bvh.total_entries} entries in accel structure with ${TILE_RES * TILE_RES * TILE_RES} tiles in ${(s3_end - s3_start).toFixed(2)} ms</p>`;
+    }
+}
+`
+    });
+    
+    // Create shader module for filling tetra indices
+    const fillIndicesShader = device.createShaderModule({
+        code: `
+struct TetraData {
+    i0: u32,
+    i1: u32,
+    i2: u32,
+    i3: u32,
+    color: u32,
+}
 
-        function perVoxelRasterize(voxel_index, poor_man_bvh, s_buffer) {
-            const U = voxel_index % RES;
-            const V = Math.floor((voxel_index / RES)) % RES;
-            const L = Math.floor((voxel_index / (RES * RES))) % RES;
-            const TU = Math.floor(U / TILE_SZ);
-            const TV = Math.floor(V / TILE_SZ);
-            const TL = Math.floor(L / TILE_SZ);
-            const u = S_U_START + (U + 0.5) / RES * S_U_RANGE;
-            const v = S_V_START + (V + 0.5) / RES * S_V_RANGE;
-            const l = S_L_START + (L + 0.5) / RES * S_L_RANGE;
+struct Vector4D {
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+}
 
-            // Find which tetras to test from accel structure
-            const CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
-            const cell_offset = poor_man_bvh.cell_offsets[CELL_ID];
-            const cell_counts = poor_man_bvh.cell_counts[CELL_ID];
-            for (let i = 0; i < cell_counts; i++) {
-                const tetra_index = poor_man_bvh.cell_tetra_indices[cell_offset + i];
-                // inefficient to compute this here, ideally compute it in per-tetra stage above and store in memory
-                let tetra = valid_tetras[tetra_index];
-                let v0_idx = tetra.indices[0];
-                let v1_idx = tetra.indices[1];
-                let v2_idx = tetra.indices[2];
-                let v3_idx = tetra.indices[3];
-                let v0_1uvl = vertices_in_1uvl[v0_idx];
-                let v1_1uvl = vertices_in_1uvl[v1_idx];
-                let v2_1uvl = vertices_in_1uvl[v2_idx];
-                let v3_1uvl = vertices_in_1uvl[v3_idx];
-                let v0_s = vertices_in_suvl[v0_idx].x;
-                let v1_s = vertices_in_suvl[v1_idx].x;
-                let v2_s = vertices_in_suvl[v2_idx].x;
-                let v3_s = vertices_in_suvl[v3_idx].x;
-                // create a fragment for each pixel in the box
-                let A = [v0_1uvl.y, v0_1uvl.z, v0_1uvl.w];
-                let B = [v1_1uvl.y, v1_1uvl.z, v1_1uvl.w];
-                let C = [v2_1uvl.y, v2_1uvl.z, v2_1uvl.w];
-                let D = [v3_1uvl.y, v3_1uvl.z, v3_1uvl.w];
-                // get bounding box in 1UVL
-                let u_min = Math.min(v0_1uvl.y, v1_1uvl.y, v2_1uvl.y, v3_1uvl.y);
-                let u_max = Math.max(v0_1uvl.y, v1_1uvl.y, v2_1uvl.y, v3_1uvl.y);
-                let v_min = Math.min(v0_1uvl.z, v1_1uvl.z, v2_1uvl.z, v3_1uvl.z);
-                let v_max = Math.max(v0_1uvl.z, v1_1uvl.z, v2_1uvl.z, v3_1uvl.z);
-                let l_min = Math.min(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
-                let l_max = Math.max(v0_1uvl.w, v1_1uvl.w, v2_1uvl.w, v3_1uvl.w);
+@group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
+@group(0) @binding(1) var<storage, read> vertices_1uvl: array<Vector4D>;
+@group(0) @binding(2) var<storage, read> cell_offsets: array<u32>;
+@group(0) @binding(3) var<storage, read_write> cell_counters: array<atomic<u32>>;
+@group(0) @binding(4) var<storage, read_write> cell_tetra_indices: array<u32>;
 
-                // AABBox test
-                if (u < u_min || u > u_max || v < v_min || v > v_max || l < l_min || l > l_max) {
-                    continue; // outside bbox
-                }
+@group(1) @binding(0) var<uniform> params: vec4<u32>; // num_tetras, TILE_RES, RES, unused
 
-                let P = [u, v, l];
-
-                // // Add this before full barycentric calculation:
-                // const V = signedVolume(A, B, C, D);
-                // if (Math.abs(V) < 1e-10) continue; // degenerate tetra
-                // // Quick reject test using first coordinate only:
-                // const alpha_approx = signedVolume(P, B, C, D) / V;
-                // if (alpha_approx < -0.1 || alpha_approx > 1.1) continue;
-
-                // console.log(`Testing fragment at U:${U} V:${V} L:${L}, which maps to (u,v,l)=(${u},${v},${l}) and point P:${P}, A:${A}, B:${B}, C:${C}, D:${D}`);
-                let bary = barycentricCoordinates(P, A, B, C, D);
-
-                testCount++;
-                // console.log(`Fragment at U:${U} V:${V} L:${L}, u:${u} v:${v} l:${l}, P:${P}, barycentric coords:`, bary);
-
-                if (Object.values(bary).every(coord => coord >= 0 && coord <= 1)) {
-                    let s = bary.alpha * v0_s + bary.beta * v1_s + bary.gamma * v2_s + bary.delta * v3_s;
-                    // console.log(`Fragment at U:${U} V:${V} L:${L} is inside tetra ${tetra_index} with barycentric coords`, bary, `and interpolated s=${s}`);
-                    if (s >= s_buffer[U][V][L].s) {
-                        continue; // occluded
-                    }
-                    if (false) {
-                        // Use object colors
-                        s_buffer[U][V][L] = {
-                            r: (tetra.color >> 16) & 0xff,
-                            g: (tetra.color >> 8) & 0xff,
-                            b: tetra.color & 0xff,
-                            a: 0.1,
-                            s: s
-                        };
-                    } else {
-                        // Use random color per tetra for debugging
-                        s_buffer[U][V][L] = {
-                            r: ((tetra_index+1) * 53) % 256,
-                            g: ((tetra_index+1) * 97) % 256,
-                            b: ((tetra_index+1) * 193) % 256,
-                            a: 0.1,
-                            s: s
-                        };
-                    }
-                    fragCount++;
-                }
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let tetra_index = global_id.x;
+    let num_tetras = params.x;
+    let TILE_RES = params.y;
+    
+    if (tetra_index >= num_tetras) {
+        return;
+    }
+    
+    let tetra = tetras[tetra_index];
+    let v0_1uvl = vertices_1uvl[tetra.i0];
+    let v1_1uvl = vertices_1uvl[tetra.i1];
+    let v2_1uvl = vertices_1uvl[tetra.i2];
+    let v3_1uvl = vertices_1uvl[tetra.i3];
+    
+    let u_min = min(min(v0_1uvl.y, v1_1uvl.y), min(v2_1uvl.y, v3_1uvl.y));
+    let u_max = max(max(v0_1uvl.y, v1_1uvl.y), max(v2_1uvl.y, v3_1uvl.y));
+    let v_min = min(min(v0_1uvl.z, v1_1uvl.z), min(v2_1uvl.z, v3_1uvl.z));
+    let v_max = max(max(v0_1uvl.z, v1_1uvl.z), max(v2_1uvl.z, v3_1uvl.z));
+    let l_min = min(min(v0_1uvl.w, v1_1uvl.w), min(v2_1uvl.w, v3_1uvl.w));
+    let l_max = max(max(v0_1uvl.w, v1_1uvl.w), max(v2_1uvl.w, v3_1uvl.w));
+    
+    let S_U_START = -1.0;
+    let S_U_RANGE = 2.0;
+    let S_V_START = -1.0;
+    let S_V_RANGE = 2.0;
+    let S_L_START = -1.0;
+    let S_L_RANGE = 2.0;
+    
+    let TU_min = u32(clamp(floor((u_min - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TU_max = u32(clamp(ceil((u_max - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TV_min = u32(clamp(floor((v_min - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TV_max = u32(clamp(ceil((v_max - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TL_min = u32(clamp(floor((l_min - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TL_max = u32(clamp(ceil((l_max - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    
+    for (var TU = TU_min; TU <= TU_max; TU++) {
+        for (var TV = TV_min; TV <= TV_max; TV++) {
+            for (var TL = TL_min; TL <= TL_max; TL++) {
+                let CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
+                let offset = cell_offsets[CELL_ID];
+                let local_index = atomicAdd(&cell_counters[CELL_ID], 1u);
+                cell_tetra_indices[offset + local_index] = tetra_index;
             }
         }
-        const s3p2_start = performance.now();
-        for (let vi = 0; vi < RES * RES * RES; vi++) { perVoxelRasterize(vi, poor_man_bvh, voxels); } // run the "shader" to fill s-buf
-        const s3p2_end = performance.now();
-        timingsInfosHtml += `<p>Stage 3 Part 2: Processed ${RES * RES * RES} voxels (tested ${testCount}) to fill S-buffer with ${fragCount} fragments in ${(s3p2_end - s3p2_start).toFixed(2)} ms</p>`;
+    }
+}
+`
+    });
+    
+    // Prepare tetra data
+    const tetraData = new Uint32Array(valid_tetras.length * 5);
+    for (let i = 0; i < valid_tetras.length; i++) {
+        const tetra = valid_tetras[i];
+        tetraData[i * 5 + 0] = tetra.indices[0];
+        tetraData[i * 5 + 1] = tetra.indices[1];
+        tetraData[i * 5 + 2] = tetra.indices[2];
+        tetraData[i * 5 + 3] = tetra.indices[3];
+        tetraData[i * 5 + 4] = tetra.color;
+    }
+    
+    // Prepare vertex data
+    const vertices1UVLData = new Float32Array(vertices_in_1uvl.length * 4);
+    for (let i = 0; i < vertices_in_1uvl.length; i++) {
+        const v = vertices_in_1uvl[i];
+        vertices1UVLData[i * 4 + 0] = v.x;
+        vertices1UVLData[i * 4 + 1] = v.y;
+        vertices1UVLData[i * 4 + 2] = v.z;
+        vertices1UVLData[i * 4 + 3] = v.w;
+    }
+    
+    // Create buffers
+    const tetraBuffer = device.createBuffer({
+        size: tetraData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(tetraBuffer, 0, tetraData);
+    
+    const vertices1UVLBuffer = device.createBuffer({
+        size: vertices1UVLData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(vertices1UVLBuffer, 0, vertices1UVLData);
+    
+    const cellCountsBuffer = device.createBuffer({
+        size: TILE_RES * TILE_RES * TILE_RES * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+    
+    const paramsData = new Uint32Array([valid_tetras.length, TILE_RES, RES, 0]);
+    const paramsBuffer = device.createBuffer({
+        size: 16,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(paramsBuffer, 0, paramsData);
+    
+    // Create bind group layout and pipeline for counting
+    const countBindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        ]
+    });
+    
+    const paramsBindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+        ]
+    });
+    
+    const countPipelineLayout = device.createPipelineLayout({
+        bindGroupLayouts: [countBindGroupLayout, paramsBindGroupLayout]
+    });
+    
+    const countPipeline = device.createComputePipeline({
+        layout: countPipelineLayout,
+        compute: {
+            module: buildAccelStructureShader,
+            entryPoint: 'main'
+        }
+    });
+    
+    const countBindGroup = device.createBindGroup({
+        layout: countBindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: tetraBuffer } },
+            { binding: 1, resource: { buffer: vertices1UVLBuffer } },
+            { binding: 2, resource: { buffer: cellCountsBuffer } }
+        ]
+    });
+    
+    const paramsBindGroup = device.createBindGroup({
+        layout: paramsBindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: paramsBuffer } }
+        ]
+    });
+    
+    // Execute counting pass
+    const countEncoder = device.createCommandEncoder();
+    const countPass = countEncoder.beginComputePass();
+    countPass.setPipeline(countPipeline);
+    countPass.setBindGroup(0, countBindGroup);
+    countPass.setBindGroup(1, paramsBindGroup);
+    const workgroupsCount = Math.ceil(valid_tetras.length / 64);
+    countPass.dispatchWorkgroups(workgroupsCount);
+    countPass.end();
+    device.queue.submit([countEncoder.finish()]);
+    
+    // Read back cell counts to compute offsets
+    const cellCountsReadBuffer = device.createBuffer({
+        size: TILE_RES * TILE_RES * TILE_RES * 4,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    });
+    
+    const copyEncoder = device.createCommandEncoder();
+    copyEncoder.copyBufferToBuffer(cellCountsBuffer, 0, cellCountsReadBuffer, 0, TILE_RES * TILE_RES * TILE_RES * 4);
+    device.queue.submit([copyEncoder.finish()]);
+    
+    await cellCountsReadBuffer.mapAsync(GPUMapMode.READ);
+    const cellCountsArray = new Uint32Array(cellCountsReadBuffer.getMappedRange());
+    const cellCountsCopy = new Uint32Array(cellCountsArray);
+    cellCountsReadBuffer.unmap();
+    
+    // Compute offsets on CPU
+    const cellOffsets = new Uint32Array(TILE_RES * TILE_RES * TILE_RES);
+    let runningOffset = 0;
+    for (let i = 0; i < cellOffsets.length; i++) {
+        cellOffsets[i] = runningOffset;
+        runningOffset += cellCountsCopy[i];
+    }
+    const totalEntries = runningOffset;
+    
+    const s3p1_end = performance.now();
+    console.log(`Stage 3 Part 1 (WebGPU): ${valid_tetras.length} tetras mapped to ${totalEntries} entries in ${(s3p1_end - s3_start).toFixed(2)} ms`);
+    
+    // ===== PART 2: Fill tetra indices =====
+    
+    const cellOffsetsBuffer = device.createBuffer({
+        size: cellOffsets.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(cellOffsetsBuffer, 0, cellOffsets);
+    
+    const cellCountersBuffer = device.createBuffer({
+        size: TILE_RES * TILE_RES * TILE_RES * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(cellCountersBuffer, 0, new Uint32Array(TILE_RES * TILE_RES * TILE_RES));
+    
+    const cellTetraIndicesBuffer = device.createBuffer({
+        size: totalEntries * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+    });
+    
+    const fillBindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        ]
+    });
+    
+    const fillPipelineLayout = device.createPipelineLayout({
+        bindGroupLayouts: [fillBindGroupLayout, paramsBindGroupLayout]
+    });
+    
+    const fillPipeline = device.createComputePipeline({
+        layout: fillPipelineLayout,
+        compute: {
+            module: fillIndicesShader,
+            entryPoint: 'main'
+        }
+    });
+    
+    const fillBindGroup = device.createBindGroup({
+        layout: fillBindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: tetraBuffer } },
+            { binding: 1, resource: { buffer: vertices1UVLBuffer } },
+            { binding: 2, resource: { buffer: cellOffsetsBuffer } },
+            { binding: 3, resource: { buffer: cellCountersBuffer } },
+            { binding: 4, resource: { buffer: cellTetraIndicesBuffer } }
+        ]
+    });
+    
+    const fillEncoder = device.createCommandEncoder();
+    const fillPass = fillEncoder.beginComputePass();
+    fillPass.setPipeline(fillPipeline);
+    fillPass.setBindGroup(0, fillBindGroup);
+    fillPass.setBindGroup(1, paramsBindGroup);
+    fillPass.dispatchWorkgroups(workgroupsCount);
+    fillPass.end();
+    device.queue.submit([fillEncoder.finish()]);
+    
+    // ===== PART 3: Rasterize voxels =====
+    
+    const rasterizeShader = device.createShaderModule({
+        code: `
+struct TetraData {
+    i0: u32,
+    i1: u32,
+    i2: u32,
+    i3: u32,
+    color: u32,
+}
+
+struct Vector4D {
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+}
+
+struct Voxel {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+    s: f32,
+    _pad: u32,
+    _pad2: u32,
+    _pad3: u32,
+}
+
+@group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
+@group(0) @binding(1) var<storage, read> vertices_suvl: array<Vector4D>;
+@group(0) @binding(2) var<storage, read> vertices_1uvl: array<Vector4D>;
+@group(0) @binding(3) var<storage, read> cell_offsets: array<u32>;
+@group(0) @binding(4) var<storage, read> cell_counts: array<u32>;
+@group(0) @binding(5) var<storage, read> cell_tetra_indices: array<u32>;
+@group(0) @binding(6) var<storage, read_write> voxels: array<Voxel>;
+
+@group(1) @binding(0) var<uniform> params: vec4<u32>; // RES, TILE_RES, TILE_SZ, unused
+
+fn signedVolume(a: vec3<f32>, b: vec3<f32>, c: vec3<f32>, d: vec3<f32>) -> f32 {
+    let ab = b - a;
+    let ac = c - a;
+    let ad = d - a;
+    return dot(cross(ab, ac), ad) / 6.0;
+}
+
+fn barycentricCoordinates(P: vec3<f32>, A: vec3<f32>, B: vec3<f32>, C: vec3<f32>, D: vec3<f32>) -> vec4<f32> {
+    let V = signedVolume(A, B, C, D);
+    if (abs(V) < 1e-10) {
+        return vec4<f32>(-1.0);
+    }
+    let alpha = signedVolume(P, B, C, D) / V;
+    let beta = signedVolume(A, P, C, D) / V;
+    let gamma = signedVolume(A, B, P, D) / V;
+    let delta = signedVolume(A, B, C, P) / V;
+    return vec4<f32>(alpha, beta, gamma, delta);
+}
+
+@compute @workgroup_size(4, 4, 4)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let RES = params.x;
+    let TILE_RES = params.y;
+    let TILE_SZ = params.z;
+    
+    let U = global_id.x;
+    let V = global_id.y;
+    let L = global_id.z;
+    
+    if (U >= RES || V >= RES || L >= RES) {
+        return;
+    }
+    
+    let TU = U / TILE_SZ;
+    let TV = V / TILE_SZ;
+    let TL = L / TILE_SZ;
+    
+    let S_U_START = -1.0;
+    let S_U_RANGE = 2.0;
+    let S_V_START = -1.0;
+    let S_V_RANGE = 2.0;
+    let S_L_START = -1.0;
+    let S_L_RANGE = 2.0;
+    
+    let u = S_U_START + (f32(U) + 0.5) / f32(RES) * S_U_RANGE;
+    let v = S_V_START + (f32(V) + 0.5) / f32(RES) * S_V_RANGE;
+    let l = S_L_START + (f32(L) + 0.5) / f32(RES) * S_L_RANGE;
+    
+    let CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
+    let cell_offset = cell_offsets[CELL_ID];
+    let cell_count = cell_counts[CELL_ID];
+    
+    let voxel_index = U + V * RES + L * RES * RES;
+    var best_voxel = voxels[voxel_index];
+    
+    for (var i = 0u; i < cell_count; i++) {
+        let tetra_index = cell_tetra_indices[cell_offset + i];
+        let tetra = tetras[tetra_index];
+        
+        let v0_1uvl = vertices_1uvl[tetra.i0];
+        let v1_1uvl = vertices_1uvl[tetra.i1];
+        let v2_1uvl = vertices_1uvl[tetra.i2];
+        let v3_1uvl = vertices_1uvl[tetra.i3];
+        
+        let v0_s = vertices_suvl[tetra.i0].x;
+        let v1_s = vertices_suvl[tetra.i1].x;
+        let v2_s = vertices_suvl[tetra.i2].x;
+        let v3_s = vertices_suvl[tetra.i3].x;
+        
+        let A = vec3<f32>(v0_1uvl.y, v0_1uvl.z, v0_1uvl.w);
+        let B = vec3<f32>(v1_1uvl.y, v1_1uvl.z, v1_1uvl.w);
+        let C = vec3<f32>(v2_1uvl.y, v2_1uvl.z, v2_1uvl.w);
+        let D = vec3<f32>(v3_1uvl.y, v3_1uvl.z, v3_1uvl.w);
+        let P = vec3<f32>(u, v, l);
+        
+        let u_min = min(min(v0_1uvl.y, v1_1uvl.y), min(v2_1uvl.y, v3_1uvl.y));
+        let u_max = max(max(v0_1uvl.y, v1_1uvl.y), max(v2_1uvl.y, v3_1uvl.y));
+        let v_min = min(min(v0_1uvl.z, v1_1uvl.z), min(v2_1uvl.z, v3_1uvl.z));
+        let v_max = max(max(v0_1uvl.z, v1_1uvl.z), max(v2_1uvl.z, v3_1uvl.z));
+        let l_min = min(min(v0_1uvl.w, v1_1uvl.w), min(v2_1uvl.w, v3_1uvl.w));
+        let l_max = max(max(v0_1uvl.w, v1_1uvl.w), max(v2_1uvl.w, v3_1uvl.w));
+        
+        if (u < u_min || u > u_max || v < v_min || v > v_max || l < l_min || l > l_max) {
+            continue;
+        }
+        
+        let bary = barycentricCoordinates(P, A, B, C, D);
+        
+        if (all(bary >= vec4<f32>(0.0)) && all(bary <= vec4<f32>(1.0))) {
+            let s = bary.x * v0_s + bary.y * v1_s + bary.z * v2_s + bary.w * v3_s;
+            
+            if (s < best_voxel.s) {
+                best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u);
+                best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u);
+                best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u);
+                best_voxel.a = 0.1;
+                best_voxel.s = s;
+            }
+        }
+    }
+    
+    voxels[voxel_index] = best_voxel;
+}
+`
+    });
+    
+    // Prepare SUVL vertex data
+    const verticesSUVLData = new Float32Array(vertices_in_suvl.length * 4);
+    for (let i = 0; i < vertices_in_suvl.length; i++) {
+        const v = vertices_in_suvl[i];
+        verticesSUVLData[i * 4 + 0] = v.x;
+        verticesSUVLData[i * 4 + 1] = v.y;
+        verticesSUVLData[i * 4 + 2] = v.z;
+        verticesSUVLData[i * 4 + 3] = v.w;
+    }
+    
+    const verticesSUVLBuffer = device.createBuffer({
+        size: verticesSUVLData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(verticesSUVLBuffer, 0, verticesSUVLData);
+    
+    // Prepare voxel data
+    const voxelData = new Float32Array(RES * RES * RES * 8); // 8 floats per voxel (with padding)
+    for (let x = 0; x < RES; x++) {
+        for (let y = 0; y < RES; y++) {
+            for (let z = 0; z < RES; z++) {
+                const idx = (x + y * RES + z * RES * RES) * 8;
+                const voxel = voxels[x][y][z];
+                voxelData[idx + 0] = voxel.r;
+                voxelData[idx + 1] = voxel.g;
+                voxelData[idx + 2] = voxel.b;
+                voxelData[idx + 3] = voxel.a;
+                voxelData[idx + 4] = voxel.s;
+                voxelData[idx + 5] = 0; // padding
+                voxelData[idx + 6] = 0;
+                voxelData[idx + 7] = 0;
+            }
+        }
+    }
+
+const voxelsBuffer = device.createBuffer({
+    size: voxelData.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+});
+device.queue.writeBuffer(voxelsBuffer, 0, voxelData);
+
+// Update params for rasterization
+const rasterParamsData = new Uint32Array([RES, TILE_RES, TILE_SZ, 0]);
+const rasterParamsBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+});
+device.queue.writeBuffer(rasterParamsBuffer, 0, rasterParamsData);
+
+const rasterBindGroupLayout = device.createBindGroupLayout({
+    entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+    ]
+});
+
+const rasterParamsBindGroupLayout = device.createBindGroupLayout({
+    entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+    ]
+});
+
+const rasterPipelineLayout = device.createPipelineLayout({
+    bindGroupLayouts: [rasterBindGroupLayout, rasterParamsBindGroupLayout]
+});
+
+const rasterPipeline = device.createComputePipeline({
+    layout: rasterPipelineLayout,
+    compute: {
+        module: rasterizeShader,
+        entryPoint: 'main'
+    }
+});
+
+const rasterBindGroup = device.createBindGroup({
+    layout: rasterBindGroupLayout,
+    entries: [
+        { binding: 0, resource: { buffer: tetraBuffer } },
+        { binding: 1, resource: { buffer: verticesSUVLBuffer } },
+        { binding: 2, resource: { buffer: vertices1UVLBuffer } },
+        { binding: 3, resource: { buffer: cellOffsetsBuffer } },
+        { binding: 4, resource: { buffer: cellCountsBuffer } },
+        { binding: 5, resource: { buffer: cellTetraIndicesBuffer } },
+        { binding: 6, resource: { buffer: voxelsBuffer } }
+    ]
+});
+
+const rasterParamsBindGroup = device.createBindGroup({
+    layout: rasterParamsBindGroupLayout,
+    entries: [
+        { binding: 0, resource: { buffer: rasterParamsBuffer } }
+    ]
+});
+
+const rasterEncoder = device.createCommandEncoder();
+const rasterPass = rasterEncoder.beginComputePass();
+rasterPass.setPipeline(rasterPipeline);
+rasterPass.setBindGroup(0, rasterBindGroup);
+rasterPass.setBindGroup(1, rasterParamsBindGroup);
+const workgroupsX = Math.ceil(RES / 4);
+const workgroupsY = Math.ceil(RES / 4);
+const workgroupsZ = Math.ceil(RES / 4);
+rasterPass.dispatchWorkgroups(workgroupsX, workgroupsY, workgroupsZ);
+rasterPass.end();
+device.queue.submit([rasterEncoder.finish()]);
+
+// Read back voxel data
+const voxelsReadBuffer = device.createBuffer({
+    size: voxelData.byteLength,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+});
+
+const readEncoder = device.createCommandEncoder();
+readEncoder.copyBufferToBuffer(voxelsBuffer, 0, voxelsReadBuffer, 0, voxelData.byteLength);
+device.queue.submit([readEncoder.finish()]);
+
+await voxelsReadBuffer.mapAsync(GPUMapMode.READ);
+const voxelsArray = new Float32Array(voxelsReadBuffer.getMappedRange());
+
+// Copy back to CPU voxels array
+let fragCount = 0;
+for (let x = 0; x < RES; x++) {
+    for (let y = 0; y < RES; y++) {
+        for (let z = 0; z < RES; z++) {
+            const idx = (x + y * RES + z * RES * RES) * 8;
+            voxels[x][y][z] = {
+                r: voxelsArray[idx + 0],
+                g: voxelsArray[idx + 1],
+                b: voxelsArray[idx + 2],
+                a: voxelsArray[idx + 3],
+                s: voxelsArray[idx + 4]
+            };
+            if (voxels[x][y][z].a > 0) fragCount++;
+        }
+    }
+}
+
+voxelsReadBuffer.unmap();
+
+const s3_end = performance.now();
+
+return {
+    timingInfo: `Stage 3 (WebGPU): Processed ${RES * RES * RES} voxels with ${fragCount} fragments in ${(s3_end - s3_start).toFixed(2)} ms`,
+    fragCount: fragCount,
+    testCount: 0 // GPU doesn't report this
+};
+}
+
+const s3Result = await stage3WebGPU(valid_tetras, vertices_in_suvl, vertices_in_1uvl, voxels);
+timingsInfosHtml += `<p>${s3Result.timingInfo}</p>`;
+fragCount = s3Result.fragCount;
+testCount = s3Result.testCount;
 
         // ---------------------------------------------------------------------------------
         // Stage 4: Per-Pixel - DDA traversal through S-buffer to composite screen color
@@ -1349,13 +1792,15 @@ Convert just stage 3 (part 1 and 2) to WebGPU compute shaders, keeping the rest 
         // console.timeEnd('render');
 
         document.getElementById('timingsinfo').innerHTML = timingsInfosHtml;
+    })();
+
 
         // render at fixed rate
-        setInterval(() => {
-            simTime += 0.1;
-            // fillVoxelsAnimated();
-            render();
-        }, 100);
+        // setInterval(() => {
+        //     simTime += 0.1;
+        //     // fillVoxelsAnimated();
+        //     render();
+        // }, 100);
 
 
 
