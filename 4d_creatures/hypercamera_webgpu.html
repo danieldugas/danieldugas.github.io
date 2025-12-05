@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebGPU Voxel DDA Ray Traversal</title>
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #1a1a1a;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+canvas {
+  border: 2px solid #444;
+  background: #000;
+  max-width: 100%;
+}
+.controls {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+label {
+  font-size: 12px;
+  color: #aaa;
+}
+input[type="range"] {
+  width: 150px;
+}
+.info {
+  font-size: 14px;
+  color: #888;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas" width="800" height="600"></canvas>
+<div class="controls">
+  <div class="control-group">
+    <label>Camera Y Rotation: <span id="rotYValue">0</span>°</label>
+    <input type="range" id="rotY" min="0" max="360" value="0">
+  </div>
+  <div class="control-group">
+    <label>Camera X Rotation: <span id="rotXValue">-20</span>°</label>
+    <input type="range" id="rotX" min="-90" max="90" value="-20">
+  </div>
+  <div class="control-group">
+    <label>Camera Distance: <span id="distValue">8</span></label>
+    <input type="range" id="dist" min="5" max="15" value="8" step="0.5">
+  </div>
+</div>
+<div class="info">WebGPU Voxel Renderer with DDA Ray Traversal</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const rotYSlider = document.getElementById('rotY');
+const rotXSlider = document.getElementById('rotX');
+const distSlider = document.getElementById('dist');
+
+// Check WebGPU support
+if (!navigator.gpu) {
+  document.body.innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
+  throw new Error('WebGPU not supported');
+}
+
+// Initialize voxel grid (4x4x4)
+const voxelData = new Uint32Array(64); // 4x4x4 = 64 voxels
+for (let i = 0; i < 64; i++) {
+  const x = i % 4;
+  const y = Math.floor(i / 4) % 4;
+  const z = Math.floor(i / 16);
+  
+  // Create interesting pattern
+  let r, g, b;
+  if ((x + y + z) % 2 === 0) {
+    r = Math.floor(x * 255 / 3);
+    g = Math.floor(y * 255 / 3);
+    b = Math.floor(z * 255 / 3);
+  } else {
+    r = 255 - Math.floor(x * 255 / 3);
+    g = 255 - Math.floor(z * 255 / 3);
+    b = 255 - Math.floor(y * 255 / 3);
+  }
+  
+  // Pack RGBA into uint32 (make all visible)
+  voxelData[i] = (255 << 24) | (b << 16) | (g << 8) | r;
+}
+
+const shaderCode = `
+struct Uniforms {
+  cameraPos: vec3f,
+  cameraDir: vec3f,
+  cameraUp: vec3f,
+  cameraRight: vec3f,
+  resolution: vec2f,
+}
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<storage, read> voxelGrid: array<u32>;
+
+fn getVoxel(pos: vec3i) -> u32 {
+  if (pos.x < 0 || pos.x >= 4 || pos.y < 0 || pos.y >= 4 || pos.z < 0 || pos.z >= 4) {
+    return 0u;
+  }
+  let idx = pos.x + pos.y * 4 + pos.z * 16;
+  return voxelGrid[idx];
+}
+
+fn unpackColor(packed: u32) -> vec4f {
+  let r = f32(packed & 0xFFu) / 255.0;
+  let g = f32((packed >> 8u) & 0xFFu) / 255.0;
+  let b = f32((packed >> 16u) & 0xFFu) / 255.0;
+  let a = f32((packed >> 24u) & 0xFFu) / 255.0;
+  return vec4f(r, g, b, a);
+}
+
+// DDA ray traversal through voxel grid
+fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
+  // Find intersection with grid bounding box (0,0,0) to (4,4,4)
+  let boxMin = vec3f(0.0, 0.0, 0.0);
+  let boxMax = vec3f(4.0, 4.0, 4.0);
+  
+  let invDir = vec3f(1.0) / dir;
+  let t0 = (boxMin - origin) * invDir;
+  let t1 = (boxMax - origin) * invDir;
+  
+  let tmin = min(t0, t1);
+  let tmax = max(t0, t1);
+  
+  let tenter = max(max(tmin.x, tmin.y), tmin.z);
+  let texit = min(min(tmax.x, tmax.y), tmax.z);
+  
+  // Ray misses box or starts after exit
+  if (tenter > texit || texit < 0.0) {
+    return vec4f(0.1, 0.1, 0.15, 1.0);
+  }
+  
+  // Start ray at entry point (or origin if inside box)
+  let tstart = max(tenter, 0.0);
+  var rayPos = origin + dir * tstart + dir * 0.001; // Small epsilon to ensure we're inside
+  
+  // Current voxel position
+  var voxelPos = vec3i(floor(rayPos));
+  
+  // Clamp to valid range
+  voxelPos = clamp(voxelPos, vec3i(0), vec3i(3));
+  
+  // Step direction (1 or -1 for each axis)
+  let step = vec3i(sign(dir));
+  
+  // Distance to next voxel boundary along each axis
+  let deltaDist = abs(vec3f(1.0) / dir);
+  
+  // Initial side distances
+  var sideDist: vec3f;
+  if (dir.x < 0.0) {
+    sideDist.x = (rayPos.x - f32(voxelPos.x)) * deltaDist.x;
+  } else {
+    sideDist.x = (f32(voxelPos.x + 1) - rayPos.x) * deltaDist.x;
+  }
+  if (dir.y < 0.0) {
+    sideDist.y = (rayPos.y - f32(voxelPos.y)) * deltaDist.y;
+  } else {
+    sideDist.y = (f32(voxelPos.y + 1) - rayPos.y) * deltaDist.y;
+  }
+  if (dir.z < 0.0) {
+    sideDist.z = (rayPos.z - f32(voxelPos.z)) * deltaDist.z;
+  } else {
+    sideDist.z = (f32(voxelPos.z + 1) - rayPos.z) * deltaDist.z;
+  }
+  
+  // DDA traversal
+  var hit = false;
+  var side = 0;
+  let maxSteps = 64;
+  
+  for (var i = 0; i < maxSteps; i++) {
+    // Check current voxel
+    let voxel = getVoxel(voxelPos);
+    if (voxel != 0u) {
+      hit = true;
+      let color = unpackColor(voxel);
+      if (color.a > 0.0) {
+        // Simple shading based on face normal
+        var shade = 1.0;
+        if (side == 0) { shade = 0.9; }      // X face
+        else if (side == 1) { shade = 1.0; } // Y face (top)
+        else { shade = 0.7; }                // Z face
+        
+        return vec4f(color.rgb * shade, 1.0);
+      }
+    }
+    
+    // Step to next voxel
+    if (sideDist.x < sideDist.y) {
+      if (sideDist.x < sideDist.z) {
+        sideDist.x += deltaDist.x;
+        voxelPos.x += step.x;
+        side = 0;
+      } else {
+        sideDist.z += deltaDist.z;
+        voxelPos.z += step.z;
+        side = 2;
+      }
+    } else {
+      if (sideDist.y < sideDist.z) {
+        sideDist.y += deltaDist.y;
+        voxelPos.y += step.y;
+        side = 1;
+      } else {
+        sideDist.z += deltaDist.z;
+        voxelPos.z += step.z;
+        side = 2;
+      }
+    }
+    
+    // Check if ray left grid bounds
+    if (voxelPos.x < -1 || voxelPos.x > 4 || 
+        voxelPos.y < -1 || voxelPos.y > 4 || 
+        voxelPos.z < -1 || voxelPos.z > 4) {
+      break;
+    }
+  }
+  
+  // Sky color
+  return vec4f(0.1, 0.1, 0.15, 1.0);
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+  // Full screen quad
+  var pos = array<vec2f, 6>(
+    vec2f(-1.0, -1.0),
+    vec2f(1.0, -1.0),
+    vec2f(-1.0, 1.0),
+    vec2f(-1.0, 1.0),
+    vec2f(1.0, -1.0),
+    vec2f(1.0, 1.0)
+  );
+  return vec4f(pos[vertexIndex], 0.0, 1.0);
+}
+
+@fragment
+fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
+  let uv = (fragCoord.xy / uniforms.resolution) * 2.0 - 1.0;
+  let aspect = uniforms.resolution.x / uniforms.resolution.y;
+  
+  // Construct ray direction
+  let rayDir = normalize(
+    uniforms.cameraDir + 
+    uniforms.cameraRight * uv.x * aspect +
+    uniforms.cameraUp * uv.y
+  );
+  
+  return traceRay(uniforms.cameraPos, rayDir);
+}
+`;
+
+async function init() {
+  const adapter = await navigator.gpu.requestAdapter();
+  const device = await adapter.requestDevice();
+  const context = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  
+  context.configure({
+    device,
+    format,
+    alphaMode: 'opaque',
+  });
+  
+  // Create shader module
+  const shaderModule = device.createShaderModule({
+    code: shaderCode,
+  });
+  
+  // Create uniform buffer
+  // 4 vec4s (camera pos, dir, up, right) + 1 vec2 (resolution) + padding = 80 bytes
+  const uniformBuffer = device.createBuffer({
+    size: 80,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  
+  // Create voxel storage buffer
+  const voxelBuffer = device.createBuffer({
+    size: voxelData.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(voxelBuffer, 0, voxelData);
+  
+  // Create bind group layout
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform' },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'read-only-storage' },
+      },
+    ],
+  });
+  
+  const bindGroup = device.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [
+      { binding: 0, resource: { buffer: uniformBuffer } },
+      { binding: 1, resource: { buffer: voxelBuffer } },
+    ],
+  });
+  
+  // Create pipeline
+  const pipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [bindGroupLayout],
+    }),
+    vertex: {
+      module: shaderModule,
+      entryPoint: 'vs_main',
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: 'fs_main',
+      targets: [{ format }],
+    },
+    primitive: {
+      topology: 'triangle-list',
+    },
+  });
+
+  // Bindgroup and pipeline for compute shader
+  const stage3p3BindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' }, }
+    ]
+  });
+  const stage3p3BindGroup = device.createBindGroup({
+    layout: stage3p3BindGroupLayout,
+    entries: [
+      { binding: 0, resource: { buffer: voxelBuffer } }
+    ]
+  });
+  
+  
+  function updateCamera() {
+    const rotY = parseFloat(rotYSlider.value) * Math.PI / 180;
+    const rotX = parseFloat(rotXSlider.value) * Math.PI / 180;
+    const dist = parseFloat(distSlider.value);
+    
+    document.getElementById('rotYValue').textContent = rotYSlider.value;
+    document.getElementById('rotXValue').textContent = rotXSlider.value;
+    document.getElementById('distValue').textContent = distSlider.value;
+    
+    // Camera position (orbit around center at 2,2,2)
+    const cx = 2 + Math.cos(rotY) * Math.cos(rotX) * dist;
+    const cy = 2 + Math.sin(rotX) * dist;
+    const cz = 2 + Math.sin(rotY) * Math.cos(rotX) * dist;
+    
+    // Camera direction (look at center)
+    const target = [2, 2, 2];
+    const dx = target[0] - cx;
+    const dy = target[1] - cy;
+    const dz = target[2] - cz;
+    const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    const dir = [dx/len, dy/len, dz/len];
+    
+    // Camera up and right vectors
+    const worldUp = [0, 1, 0];
+    const right = [
+      dir[1] * worldUp[2] - dir[2] * worldUp[1],
+      dir[2] * worldUp[0] - dir[0] * worldUp[2],
+      dir[0] * worldUp[1] - dir[1] * worldUp[0],
+    ];
+    const rlen = Math.sqrt(right[0]**2 + right[1]**2 + right[2]**2);
+    right[0] /= rlen; right[1] /= rlen; right[2] /= rlen;
+    
+    const up = [
+      right[1] * dir[2] - right[2] * dir[1],
+      right[2] * dir[0] - right[0] * dir[2],
+      right[0] * dir[1] - right[1] * dir[0],
+    ];
+    
+    // Update uniform buffer
+    const uniforms = new Float32Array([
+      cx, cy, cz, 0,
+      dir[0], dir[1], dir[2], 0,
+      up[0], up[1], up[2], 0,
+      right[0], right[1], right[2], 0,
+      canvas.width, canvas.height, 0, 0,
+    ]);
+    device.queue.writeBuffer(uniformBuffer, 0, uniforms);
+  }
+  
+  function render() {
+    updateCamera();
+    
+    const commandEncoder = device.createCommandEncoder();
+    const textureView = context.getCurrentTexture().createView();
+    
+    const renderPass = commandEncoder.beginRenderPass({
+      colorAttachments: [{
+        view: textureView,
+        clearValue: { r: 0, g: 0, b: 0, a: 1 },
+        loadOp: 'clear',
+        storeOp: 'store',
+      }],
+    });
+    
+    renderPass.setPipeline(pipeline);
+    renderPass.setBindGroup(0, bindGroup);
+    renderPass.draw(6);
+    renderPass.end();
+    
+    device.queue.submit([commandEncoder.finish()]);
+    requestAnimationFrame(render);
+  }
+  
+  rotYSlider.addEventListener('input', () => {});
+  rotXSlider.addEventListener('input', () => {});
+  distSlider.addEventListener('input', () => {});
+  
+  render();
+}
+
+init().catch(err => {
+  console.error(err);
+  document.body.innerHTML += '<div style="color: red; padding: 20px;">Error: ' + err.message + '</div>';
+});
+</script>
+</body>
+</html>
