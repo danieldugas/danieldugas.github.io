@@ -65,6 +65,9 @@ input[type="range"] {
 <div class="info">WebGPU Voxel Renderer with DDA Ray Traversal</div>
 
 <script>
+
+const VOX = 64; // Voxel grid size
+
 const canvas = document.getElementById('canvas');
 const rotYSlider = document.getElementById('rotY');
 const rotXSlider = document.getElementById('rotX');
@@ -77,22 +80,22 @@ if (!navigator.gpu) {
 }
 
 // Initialize voxel grid (4x4x4)
-const voxelData = new Uint32Array(64*64*64); // 64x64x64 grid for simplicity
-for (let i = 0; i < (64*64*64); i++) {
-  const x = i % 64;
-  const y = Math.floor(i / 64) % 64;
-  const z = Math.floor(i / (64*64));
+const voxelData = new Uint32Array(VOX*VOX*VOX); // 64x64x64 grid for simplicity
+for (let i = 0; i < (VOX*VOX*VOX); i++) {
+  const x = i % VOX;
+  const y = Math.floor(i / VOX) % VOX;
+  const z = Math.floor(i / (VOX*VOX));
   
   // Create interesting pattern
   let r, g, b;
   // if ((x + y + z) % 2 === 0) {
-  //   r = Math.floor(x * 255 / (64-1));
-  //   g = Math.floor(y * 255 / (64-1));
-  //   b = Math.floor(z * 255 / (64-1));
+  //   r = Math.floor(x * 255 / (VOX-1));
+  //   g = Math.floor(y * 255 / (VOX-1));
+  //   b = Math.floor(z * 255 / (VOX-1));
   // } else {
-  //   r = 255 - Math.floor(x * 255 / (64-1));
-  //   g = 255 - Math.floor(z * 255 / (64-1));
-  //   b = 255 - Math.floor(y * 255 / (64-1));
+  //   r = 255 - Math.floor(x * 255 / (VOX-1));
+  //   g = 255 - Math.floor(z * 255 / (VOX-1));
+  //   b = 255 - Math.floor(y * 255 / (VOX-1));
   // }
   // Random color
   r = Math.floor(Math.random() * 256);
@@ -127,14 +130,17 @@ struct Uniforms {
   resolution: vec2f,
 }
 
+const fVOX: f32 = 64.0;
+const iVOX: i32 = 64;
+
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 @group(0) @binding(1) var<storage, read> voxelGrid: array<u32>;
 
 fn getVoxel(pos: vec3i) -> u32 {
-  if (pos.x < 0 || pos.x >= 64 || pos.y < 0 || pos.y >= 64 || pos.z < 0 || pos.z >= 64) {
+  if (pos.x < 0 || pos.x >= iVOX || pos.y < 0 || pos.y >= iVOX || pos.z < 0 || pos.z >= iVOX) {
     return 0u;
   }
-  let idx = pos.x + pos.y * 64 + pos.z * 64 * 64;
+  let idx = pos.x + pos.y * iVOX + pos.z * iVOX * iVOX;
   return voxelGrid[idx];
 }
 
@@ -148,9 +154,9 @@ fn unpackColor(packed: u32) -> vec4f {
 
 // DDA ray traversal through voxel grid
 fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
-  // Find intersection with grid bounding box (0,0,0) to (64,64,64)
+  // Find intersection with grid bounding box (0,0,0) to (VOX,VOX,VOX)
   let boxMin = vec3f(0.0, 0.0, 0.0);
-  let boxMax = vec3f(64.0, 64.0, 64.0);
+  let boxMax = vec3f(fVOX, fVOX, fVOX);
   
   let invDir = vec3f(1.0) / dir;
   let t0 = (boxMin - origin) * invDir;
@@ -175,7 +181,7 @@ fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
   var voxelPos = vec3i(floor(rayPos));
   
   // Clamp to valid range
-  voxelPos = clamp(voxelPos, vec3i(0), vec3i(64-1));
+  voxelPos = clamp(voxelPos, vec3i(0), vec3i(iVOX-1));
   
   // Step direction (1 or -1 for each axis)
   let step = vec3i(sign(dir));
@@ -204,7 +210,7 @@ fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
   // DDA traversal
   var hit = false;
   var side = 0;
-  let maxSteps = 64;
+  let maxSteps = iVOX;
   
   for (var i = 0; i < maxSteps; i++) {
     // Check current voxel
@@ -247,9 +253,9 @@ fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
     }
     
     // Check if ray left grid bounds
-    if (voxelPos.x < -1 || voxelPos.x > 64 || 
-        voxelPos.y < -1 || voxelPos.y > 64 || 
-        voxelPos.z < -1 || voxelPos.z > 64) {
+    if (voxelPos.x < -1 || voxelPos.x > iVOX || 
+        voxelPos.y < -1 || voxelPos.y > iVOX || 
+        voxelPos.z < -1 || voxelPos.z > iVOX) {
       break;
     }
   }
@@ -374,12 +380,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     document.getElementById('distValue').textContent = distSlider.value;
     
     // Camera position (orbit around center at 2,2,2)
-    const cx = 64 / 2 + Math.cos(rotY) * Math.cos(rotX) * dist;
-    const cy = 64 / 2 + Math.sin(rotX) * dist;
-    const cz = 64 / 2 + Math.sin(rotY) * Math.cos(rotX) * dist;
+    const cx = VOX / 2 + Math.cos(rotY) * Math.cos(rotX) * dist;
+    const cy = VOX / 2 + Math.sin(rotX) * dist;
+    const cz = VOX / 2 + Math.sin(rotY) * Math.cos(rotX) * dist;
     
     // Camera direction (look at center)
-    const target = [64 / 2, 64 / 2, 64 / 2];
+    const target = [VOX / 2, VOX / 2, VOX / 2];
     const dx = target[0] - cx;
     const dy = target[1] - cy;
     const dz = target[2] - cz;
