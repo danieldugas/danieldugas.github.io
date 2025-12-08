@@ -98,9 +98,9 @@ for (let i = 0; i < (VOX*VOX*VOX); i++) {
   //   b = 255 - Math.floor(y * 255 / (VOX-1));
   // }
   // Random color
-  r = Math.floor(Math.random() * 256);
-  g = Math.floor(Math.random() * 256);
-  b = Math.floor(Math.random() * 256);
+  r = Math.floor(240 + Math.random() * 0.07 * 256);
+  g = Math.floor(240 + Math.random() * 0.07 * 256);
+  b = Math.floor(240 + Math.random() * 0.07 * 256);
   
   // Pack RGBA into uint32 (make all visible)
   voxelData[i] = (255 << 24) | (b << 16) | (g << 8) | r;
@@ -118,6 +118,30 @@ async function init() {
     device,
     format,
     alphaMode: 'opaque',
+  });
+
+  // Stage 3.3 - Per voxel: tetra tests and final compute shader to write to voxels
+  const stage3p3ShaderCode = `
+// Final compute shader to write voxel colors (placeholder)
+
+@group(0) @binding(0) var<storage, read_write> voxelGrid: array<u32>;
+
+@compute @workgroup_size(4,4,4)
+fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
+  let idx = gid.x + gid.y * ${VOX}u + gid.z * ${VOX * VOX}u;
+  // Simple pattern for demonstration
+  if (gid.x < ${VOX}u && gid.y < ${VOX}u && gid.z < ${VOX}u) {
+    let r = (gid.x * 255u) / (${VOX}u - 1u);
+    let g = (gid.y * 255u) / (${VOX}u - 1u);
+    let b = (gid.z * 255u) / (${VOX}u - 1u);
+    voxelGrid[idx] = (255u << 24u) | (b << 16u) | (g << 8u) | r;
+  }
+}
+`;
+
+  // Create shader module
+  const stage3p3ShaderModule = device.createShaderModule({
+    code: stage3p3ShaderCode,
   });
 
   // DDA ray traversal shader code
@@ -356,7 +380,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     },
   });
 
-  // Bindgroup and pipeline for compute shader
+  // Bindgroup and pipeline for final compute shader (writes to voxels)
   const stage3p3BindGroupLayout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' }, }
@@ -367,6 +391,16 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     entries: [
       { binding: 0, resource: { buffer: voxelBuffer } }
     ]
+  });
+
+  const stage3p3Pipeline = device.createComputePipeline({
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [stage3p3BindGroupLayout],
+    }),
+    compute: {
+      module: stage3p3ShaderModule,
+      entryPoint: 'cs_main',
+    },
   });
   
   
@@ -424,6 +458,16 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
+
+    // compute pass to update voxel data (if needed)
+    {
+      const computePass = commandEncoder.beginComputePass();
+      computePass.setPipeline(stage3p3Pipeline);
+      computePass.setBindGroup(0, stage3p3BindGroup);
+      const workgroupCount = Math.ceil(VOX / 4);
+      computePass.dispatchWorkgroups(workgroupCount, workgroupCount, workgroupCount);
+      computePass.end();
+    }
     
     const renderPass = commandEncoder.beginRenderPass({
       colorAttachments: [{
