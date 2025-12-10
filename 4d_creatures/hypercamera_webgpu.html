@@ -522,14 +522,14 @@ for (let i = 0; i < (VOX*VOX*VOX); i++) {
 }
 
 // Initialize voxel grid (4x4x4)
-const voxelData = new Uint32Array(VOX*VOX*VOX); // 64x64x64 grid for simplicity
+const voxelData = new Uint32Array(VOX*VOX*VOX*8); // 64x64x64 grid for simplicity
 for (let i = 0; i < (VOX*VOX*VOX); i++) {
   const x = i % VOX;
   const y = Math.floor(i / VOX) % VOX;
   const z = Math.floor(i / (VOX*VOX));
   
   // Create interesting pattern
-  let r, g, b;
+  let r, g, b, a, s;
   // if ((x + y + z) % 2 === 0) {
   //   r = Math.floor(x * 255 / (VOX-1));
   //   g = Math.floor(y * 255 / (VOX-1));
@@ -543,9 +543,18 @@ for (let i = 0; i < (VOX*VOX*VOX); i++) {
   r = Math.floor(240 + Math.random() * 0.07 * 256);
   g = Math.floor(240 + Math.random() * 0.07 * 256);
   b = Math.floor(240 + Math.random() * 0.07 * 256);
+  a = 1.0;
+  s = 1.0;
   
   // Pack RGBA into uint32 (make all visible)
-  voxelData[i] = (255 << 24) | (b << 16) | (g << 8) | r;
+  voxelData[i * 8 + 0] = r / 256.0;
+  voxelData[i * 8 + 1] = g / 256.0;
+  voxelData[i * 8 + 2] = b / 256.0;
+  voxelData[i * 8 + 3] = a;
+  voxelData[i * 8 + 4] = s;
+  voxelData[i * 8 + 5] = 0;
+  voxelData[i * 8 + 6] = 0;
+  voxelData[i * 8 + 7] = 0;
 }
 
 
@@ -565,8 +574,18 @@ async function init() {
   // Stage 3.3 - Per voxel: tetra tests and final compute shader to write to voxels
   const stage3p3ShaderCode = `
 // Final compute shader to write voxel colors (placeholder)
+struct Voxel {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+    s: f32,
+    _pad: u32,
+    _pad2: u32,
+    _pad3: u32,
+}
 
-@group(0) @binding(0) var<storage, read_write> voxelGrid: array<u32>;
+@group(0) @binding(0) var<storage, read_write> voxelGrid: array<Voxel>;
 
 @compute @workgroup_size(4,4,4)
 fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
@@ -576,7 +595,7 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
     let r = (gid.x * 255u) / (${VOX}u - 1u);
     let g = (gid.y * 255u) / (${VOX}u - 1u);
     let b = (gid.z * 255u) / (${VOX}u - 1u);
-    voxelGrid[idx] = (255u << 24u) | (b << 16u) | (g << 8u) | r;
+    voxelGrid[idx] = Voxel(f32(r) / 256.0, f32(g) / 256.0, f32(b) / 256.0, f32(1.0), f32(1.0), 0u, 0u, 0u);
   }
 }
 `;
@@ -596,25 +615,37 @@ struct Uniforms {
   resolution: vec2f,
 }
 
+struct Voxel {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+    s: f32,
+    _pad: u32,
+    _pad2: u32,
+    _pad3: u32,
+}
+
 const fVOX: f32 = 64.0;
 const iVOX: i32 = 64;
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var<storage, read> voxelGrid: array<u32>;
+@group(0) @binding(1) var<storage, read> voxelGrid: array<Voxel>;
 
-fn getVoxel(pos: vec3i) -> u32 {
+fn getVoxel(pos: vec3i) -> Voxel {
   if (pos.x < 0 || pos.x >= iVOX || pos.y < 0 || pos.y >= iVOX || pos.z < 0 || pos.z >= iVOX) {
-    return 0u;
+    return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
   }
   let idx = pos.x + pos.y * iVOX + pos.z * iVOX * iVOX;
   return voxelGrid[idx];
 }
 
-fn unpackColor(packed: u32) -> vec4f {
-  let r = f32(packed & 0xFFu) / 255.0;
-  let g = f32((packed >> 8u) & 0xFFu) / 255.0;
-  let b = f32((packed >> 16u) & 0xFFu) / 255.0;
-  let a = f32((packed >> 24u) & 0xFFu) / 255.0;
+
+fn unpackColor(voxel: Voxel) -> vec4f {
+  let r = voxel.r;
+  let g = voxel.g;
+  let b = voxel.b;
+  let a = voxel.a;
   return vec4f(r, g, b, a);
 }
 
@@ -681,10 +712,10 @@ fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
   for (var i = 0; i < maxSteps; i++) {
     // Check current voxel
     let voxel = getVoxel(voxelPos);
-    if (voxel != 0u) {
-      hit = true;
+    if (true) {
       let color = unpackColor(voxel);
       if (color.a > 0.0) {
+        hit = true;
         // Simple shading based on face normal
         var shade = 1.0;
         if (side == 0) { shade = 0.9; }      // X face
