@@ -402,9 +402,9 @@ let hyperpyramid = new Hyperobject(
     // pose (Transform4D)
     new Transform4D([
         [1, 0, 0, 0, 4],
-        [0, 1, 0, 0, 2],
-        [0, 0, 1, 0, 2],
-        [0, 0, 0, 1, 2],
+        [0, 1, 0, 0, 0],
+        [0, 0, 1, 0, 1],
+        [0, 0, 0, 1, 0],
         [0, 0, 0, 0, 1]
     ]),
     // name
@@ -524,11 +524,11 @@ for (let i = 0; i < (TILE_RES*TILE_RES*TILE_RES); i++) {
 }
 
 // Initialize voxel grid (4x4x4)
-const voxelData = new Uint32Array(VOX*VOX*VOX*8); // 64x64x64 grid for simplicity
+const voxelData = new Float32Array(VOX*VOX*VOX*8); // 64x64x64 grid for simplicity
 for (let i = 0; i < (VOX*VOX*VOX); i++) {
-  const x = i % VOX;
-  const y = Math.floor(i / VOX) % VOX;
-  const z = Math.floor(i / (VOX*VOX));
+  const U = i % VOX;
+  const V = Math.floor(i / VOX) % VOX;
+  const L = Math.floor(i / (VOX*VOX));
   
   // Create interesting pattern
   let r, g, b, a, s;
@@ -542,16 +542,19 @@ for (let i = 0; i < (VOX*VOX*VOX); i++) {
   //   b = 255 - Math.floor(y * 255 / (VOX-1));
   // }
   // Random color
-  r = Math.floor(240 + Math.random() * 0.07 * 256);
-  g = Math.floor(240 + Math.random() * 0.07 * 256);
-  b = Math.floor(240 + Math.random() * 0.07 * 256);
-  a = 1.0;
+  r = 1.0;
+  g = 1.0;
+  b = 1.0;
+  a = 0.0;
+  if (U === 0 || U === (VOX-1) || V === 0 || V === (VOX-1) || L === 0 || L === (VOX-1)) {
+    a = 0.5;
+  }
   s = 1.0;
   
   // Pack RGBA into uint32 (make all visible)
-  voxelData[i * 8 + 0] = r / 256.0;
-  voxelData[i * 8 + 1] = g / 256.0;
-  voxelData[i * 8 + 2] = b / 256.0;
+  voxelData[i * 8 + 0] = r;
+  voxelData[i * 8 + 1] = g;
+  voxelData[i * 8 + 2] = b;
   voxelData[i * 8 + 3] = a;
   voxelData[i * 8 + 4] = s;
   voxelData[i * 8 + 5] = 0;
@@ -642,6 +645,14 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (U >= RES || V >= RES || L >= RES) {
         return;
     }
+
+      
+    let voxel_index = U + V * RES + L * RES * RES;
+
+    if (U == 0 || U == RES-1 || V == 0 || V == RES-1 || L == 0 || L == RES-1) {
+     voxels[voxel_index] = Voxel(1.0, 1.0, 1.0, 0.1, 1.0, 0u, 0u, 0u);
+     return;
+     } 
     
     let TU = U / TILE_SZ;
     let TV = V / TILE_SZ;
@@ -661,9 +672,10 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
     let cell_offset = cell_offsets[CELL_ID];
     let cell_count = cell_counts[CELL_ID];
-    
-    let voxel_index = U + V * RES + L * RES * RES;
+  
     var best_voxel = voxels[voxel_index];
+    best_voxel.s = 100000000.0; // TODO inf
+    best_voxel.a = 0.0;
     
     for (var i = 0u; i < cell_count; i++) {
         let tetra_index = cell_tetra_indices[cell_offset + i];
@@ -821,8 +833,9 @@ fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
   
   // DDA traversal
   var hit = false;
+  var compositeRayColor = vec4f(0.0, 0.0, 0.0, 0.0);
   var side = 0;
-  let maxSteps = iVOX;
+  let maxSteps = iVOX * 4;
   
   for (var i = 0; i < maxSteps; i++) {
     // Check current voxel
@@ -837,7 +850,12 @@ fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
         else if (side == 1) { shade = 1.0; } // Y face (top)
         else { shade = 0.7; }                // Z face
         
-        return vec4f(color.rgb * shade, 1.0);
+        var effectiveAlpha = color.a;
+        var srcAlpha = effectiveAlpha * (1 - compositeRayColor.a);
+        compositeRayColor = vec4f(compositeRayColor.rgb + color.rgb * srcAlpha, compositeRayColor.a + srcAlpha);
+        if (compositeRayColor.a >= 0.99) {
+          return compositeRayColor;
+        }
       }
     }
     
@@ -873,7 +891,12 @@ fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
   }
   
   // Sky color
-  return vec4f(0.1, 0.1, 0.15, 1.0);
+  var skyColor = vec4f(0.1, 0.1, 0.15, 1.0);
+  var effectiveAlpha = skyColor.a;
+  var srcAlpha = effectiveAlpha * (1 - compositeRayColor.a);
+  compositeRayColor = vec4f(compositeRayColor.rgb + skyColor.rbg * srcAlpha, compositeRayColor.a + srcAlpha);
+
+  return compositeRayColor;
 }
 
 @vertex
