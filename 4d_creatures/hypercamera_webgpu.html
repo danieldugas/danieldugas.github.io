@@ -714,10 +714,10 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let s = bary.x * v0_s + bary.y * v1_s + bary.z * v2_s + bary.w * v3_s;
             
             if (s < best_voxel.s) {
-                best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u);
-                best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u);
-                best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u);
-                best_voxel.a = 1.0;
+                best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u) / 256.0;
+                best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u) / 256.0;
+                best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u) / 256.0;
+                best_voxel.a = 0.2;
                 best_voxel.s = s;
             }
         }
@@ -832,7 +832,6 @@ fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
   }
   
   // DDA traversal
-  var hit = false;
   var compositeRayColor = vec4f(0.0, 0.0, 0.0, 0.0);
   var side = 0;
   let maxSteps = iVOX * 4;
@@ -843,13 +842,6 @@ fn traceRay(origin: vec3f, dir: vec3f) -> vec4f {
     if (true) {
       let color = unpackColor(voxel);
       if (color.a > 0.0) {
-        hit = true;
-        // Simple shading based on face normal
-        var shade = 1.0;
-        if (side == 0) { shade = 0.9; }      // X face
-        else if (side == 1) { shade = 1.0; } // Y face (top)
-        else { shade = 0.7; }                // Z face
-        
         var effectiveAlpha = color.a;
         var srcAlpha = effectiveAlpha * (1 - compositeRayColor.a);
         compositeRayColor = vec4f(compositeRayColor.rgb + color.rgb * srcAlpha, compositeRayColor.a + srcAlpha);
