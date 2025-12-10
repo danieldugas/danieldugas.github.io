@@ -504,15 +504,17 @@ for (let i = 0; i < vertices_in_1uvl.length; i++) {
 }
 
 // initialize bvh
-const MAX_ACCEL_STRUCTURE_SIZE = VOX*VOX*VOX*N_TETS;
-const accelStructureOffsetsData = new Uint32Array(VOX*VOX*VOX);
-const accelStructureCountsData = new Uint32Array(VOX*VOX*VOX);
+  const TILE_SZ = 1;
+  const TILE_RES = VOX / TILE_SZ;
+const MAX_ACCEL_STRUCTURE_SIZE = TILE_RES*TILE_RES*TILE_RES*N_TETS;
+const accelStructureOffsetsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
+const accelStructureCountsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
 const accelStructureTetraIndicesData = new Uint32Array(MAX_ACCEL_STRUCTURE_SIZE);
 // for now we assign all 5 pyramid tetras to all voxels
-for (let i = 0; i < (VOX*VOX*VOX); i++) {
-  const U = i % VOX;
-  const V = Math.floor(i / VOX) % VOX;
-  const L = Math.floor(i / (VOX*VOX)); 
+for (let i = 0; i < (TILE_RES*TILE_RES*TILE_RES); i++) {
+  const TU = i % TILE_RES;
+  const TV = Math.floor(i / TILE_RES) % TILE_RES;
+  const TL = Math.floor(i / (TILE_RES*TILE_RES)); 
   // naive constant mapping
   accelStructureOffsetsData[i] = i * N_TETS;
   accelStructureCountsData[i] = N_TETS;
@@ -573,7 +575,21 @@ async function init() {
 
   // Stage 3.3 - Per voxel: tetra tests and final compute shader to write to voxels
   const stage3p3ShaderCode = `
-// Final compute shader to write voxel colors (placeholder)
+struct TetraData {
+    i0: u32,
+    i1: u32,
+    i2: u32,
+    i3: u32,
+    color: u32,
+}
+
+struct Vector4D {
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+}
+
 struct Voxel {
     r: f32,
     g: f32,
@@ -585,18 +601,117 @@ struct Voxel {
     _pad3: u32,
 }
 
-@group(0) @binding(0) var<storage, read_write> voxelGrid: array<Voxel>;
+@group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
+@group(0) @binding(1) var<storage, read> vertices_1uvls: array<Vector4D>;
+@group(0) @binding(2) var<storage, read> cell_offsets: array<u32>;
+@group(0) @binding(3) var<storage, read> cell_counts: array<u32>;
+@group(0) @binding(4) var<storage, read> cell_tetra_indices: array<u32>;
+@group(0) @binding(5) var<storage, read_write> voxels: array<Voxel>;
 
-@compute @workgroup_size(4,4,4)
-fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
-  let idx = gid.x + gid.y * ${VOX}u + gid.z * ${VOX * VOX}u;
-  // Simple pattern for demonstration
-  if (gid.x < ${VOX}u && gid.y < ${VOX}u && gid.z < ${VOX}u) {
-    let r = (gid.x * 255u) / (${VOX}u - 1u);
-    let g = (gid.y * 255u) / (${VOX}u - 1u);
-    let b = (gid.z * 255u) / (${VOX}u - 1u);
-    voxelGrid[idx] = Voxel(f32(r) / 256.0, f32(g) / 256.0, f32(b) / 256.0, f32(1.0), f32(1.0), 0u, 0u, 0u);
-  }
+@group(1) @binding(0) var<uniform> params: vec4<u32>; // RES, TILE_RES, TILE_SZ, unused
+
+fn signedVolume(a: vec3<f32>, b: vec3<f32>, c: vec3<f32>, d: vec3<f32>) -> f32 {
+    let ab = b - a;
+    let ac = c - a;
+    let ad = d - a;
+    return dot(cross(ab, ac), ad) / 6.0;
+}
+
+fn barycentricCoordinates(P: vec3<f32>, A: vec3<f32>, B: vec3<f32>, C: vec3<f32>, D: vec3<f32>) -> vec4<f32> {
+    let V = signedVolume(A, B, C, D);
+    if (abs(V) < 1e-10) {
+        return vec4<f32>(-1.0);
+    }
+    let alpha = signedVolume(P, B, C, D) / V;
+    let beta = signedVolume(A, P, C, D) / V;
+    let gamma = signedVolume(A, B, P, D) / V;
+    let delta = signedVolume(A, B, C, P) / V;
+    return vec4<f32>(alpha, beta, gamma, delta);
+}
+
+@compute @workgroup_size(4, 4, 4)
+fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let RES = params.x;
+    let TILE_RES = params.y;
+    let TILE_SZ = params.z;
+    
+    let U = global_id.x;
+    let V = global_id.y;
+    let L = global_id.z;
+    
+    if (U >= RES || V >= RES || L >= RES) {
+        return;
+    }
+    
+    let TU = U / TILE_SZ;
+    let TV = V / TILE_SZ;
+    let TL = L / TILE_SZ;
+    
+    let S_U_START = -1.0;
+    let S_U_RANGE = 2.0;
+    let S_V_START = -1.0;
+    let S_V_RANGE = 2.0;
+    let S_L_START = -1.0;
+    let S_L_RANGE = 2.0;
+    
+    let u = S_U_START + (f32(U) + 0.5) / f32(RES) * S_U_RANGE;
+    let v = S_V_START + (f32(V) + 0.5) / f32(RES) * S_V_RANGE;
+    let l = S_L_START + (f32(L) + 0.5) / f32(RES) * S_L_RANGE;
+    
+    let CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
+    let cell_offset = cell_offsets[CELL_ID];
+    let cell_count = cell_counts[CELL_ID];
+    
+    let voxel_index = U + V * RES + L * RES * RES;
+    var best_voxel = voxels[voxel_index];
+    
+    for (var i = 0u; i < cell_count; i++) {
+        let tetra_index = cell_tetra_indices[cell_offset + i];
+        let tetra = tetras[tetra_index];
+        
+        let v0_1uvls = vertices_1uvls[tetra.i0];
+        let v1_1uvls = vertices_1uvls[tetra.i1];
+        let v2_1uvls = vertices_1uvls[tetra.i2];
+        let v3_1uvls = vertices_1uvls[tetra.i3];
+        
+        let v0_s = v0_1uvls.w;
+        let v1_s = v1_1uvls.w;
+        let v2_s = v2_1uvls.w;
+        let v3_s = v3_1uvls.w;
+        
+        let A = vec3<f32>(v0_1uvls.x, v0_1uvls.y, v0_1uvls.z);
+        let B = vec3<f32>(v1_1uvls.x, v1_1uvls.y, v1_1uvls.z);
+        let C = vec3<f32>(v2_1uvls.x, v2_1uvls.y, v2_1uvls.z);
+        let D = vec3<f32>(v3_1uvls.x, v3_1uvls.y, v3_1uvls.z);
+        let P = vec3<f32>(u, v, l);
+        
+        let u_min = min(min(v0_1uvls.x, v1_1uvls.x), min(v2_1uvls.x, v3_1uvls.x));
+        let u_max = max(max(v0_1uvls.x, v1_1uvls.x), max(v2_1uvls.x, v3_1uvls.x));
+        let v_min = min(min(v0_1uvls.y, v1_1uvls.y), min(v2_1uvls.y, v3_1uvls.y));
+        let v_max = max(max(v0_1uvls.y, v1_1uvls.y), max(v2_1uvls.y, v3_1uvls.y));
+        let l_min = min(min(v0_1uvls.z, v1_1uvls.z), min(v2_1uvls.z, v3_1uvls.z));
+        let l_max = max(max(v0_1uvls.z, v1_1uvls.z), max(v2_1uvls.z, v3_1uvls.z));
+        
+        if (u < u_min || u > u_max || v < v_min || v > v_max || l < l_min || l > l_max) {
+            continue;
+        }
+        
+        let bary = barycentricCoordinates(P, A, B, C, D);
+        
+        if (all(bary >= vec4<f32>(0.0)) && all(bary <= vec4<f32>(1.0))) {
+            let s = bary.x * v0_s + bary.y * v1_s + bary.z * v2_s + bary.w * v3_s;
+            
+            if (s < best_voxel.s) {
+                best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u);
+                best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u);
+                best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u);
+                best_voxel.a = 1.0;
+                best_voxel.s = s;
+            }
+        }
+    }
+    
+    voxels[voxel_index] = best_voxel;
 }
 `;
 
@@ -853,27 +968,94 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     },
   });
 
-  // Bindgroup and pipeline for final compute shader (writes to voxels)
-  const stage3p3BindGroupLayout = device.createBindGroupLayout({
-    entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' }, }
-    ]
+  // Stage 3p3 Bind Groups ----
+  // Create buffers
+  
+    const tetraBuffer = device.createBuffer({
+        size: tetraData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(tetraBuffer, 0, tetraData);
+
+      const vertices1uvlsBuffer = device.createBuffer({
+        size: vertices1uvlsData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(vertices1uvlsBuffer, 0, vertices1uvlsData);
+    
+    const cellCountsBuffer = device.createBuffer({
+        size: accelStructureCountsData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(cellCountsBuffer, 0, accelStructureCountsData);
+
+    const cellOffsetsBuffer = device.createBuffer({
+        size: accelStructureOffsetsData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(cellOffsetsBuffer, 0, accelStructureOffsetsData);
+
+    const cellTetraIndicesBuffer = device.createBuffer({
+        size: accelStructureTetraIndicesData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(cellTetraIndicesBuffer, 0, accelStructureTetraIndicesData);
+
+
+  // Update params for rasterization
+  const rasterParamsData = new Uint32Array([VOX, TILE_RES, TILE_SZ, 0]);
+  const rasterParamsBuffer = device.createBuffer({
+      size: 16,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   });
-  const stage3p3BindGroup = device.createBindGroup({
-    layout: stage3p3BindGroupLayout,
-    entries: [
-      { binding: 0, resource: { buffer: voxelBuffer } }
-    ]
+  device.queue.writeBuffer(rasterParamsBuffer, 0, rasterParamsData);
+
+  const stage3p3BindGroupLayout = device.createBindGroupLayout({
+      entries: [
+          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+      ]
+  });
+
+  const stage3p3ParamsBindGroupLayout = device.createBindGroupLayout({
+      entries: [
+          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+      ]
+  });
+
+  const stage3p3PipelineLayout = device.createPipelineLayout({
+      bindGroupLayouts: [stage3p3BindGroupLayout, stage3p3ParamsBindGroupLayout]
   });
 
   const stage3p3Pipeline = device.createComputePipeline({
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [stage3p3BindGroupLayout],
-    }),
-    compute: {
-      module: stage3p3ShaderModule,
-      entryPoint: 'cs_main',
-    },
+      layout: stage3p3PipelineLayout,
+      compute: {
+          module: stage3p3ShaderModule,
+          entryPoint: 'cs_main'
+      }
+  });
+
+  const stage3p3BindGroup = device.createBindGroup({
+      layout: stage3p3BindGroupLayout,
+      entries: [
+          { binding: 0, resource: { buffer: tetraBuffer } },
+          { binding: 1, resource: { buffer: vertices1uvlsBuffer } },
+          { binding: 2, resource: { buffer: cellOffsetsBuffer } },
+          { binding: 3, resource: { buffer: cellCountsBuffer } },
+          { binding: 4, resource: { buffer: cellTetraIndicesBuffer } },
+          { binding: 5, resource: { buffer: voxelBuffer } }
+      ]
+  });
+
+  const stage3p3ParamsBindGroup = device.createBindGroup({
+      layout: stage3p3ParamsBindGroupLayout,
+      entries: [
+          { binding: 0, resource: { buffer: rasterParamsBuffer } }
+      ]
   });
   
   
@@ -933,10 +1115,11 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     const textureView = context.getCurrentTexture().createView();
 
     // compute pass to update voxel data (if needed)
-    {
+    if (true) {
       const computePass = commandEncoder.beginComputePass();
       computePass.setPipeline(stage3p3Pipeline);
       computePass.setBindGroup(0, stage3p3BindGroup);
+      computePass.setBindGroup(1, stage3p3ParamsBindGroup);
       const workgroupCount = Math.ceil(VOX / 4);
       computePass.dispatchWorkgroups(workgroupCount, workgroupCount, workgroupCount);
       computePass.end();
