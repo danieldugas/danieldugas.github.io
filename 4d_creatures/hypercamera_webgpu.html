@@ -73,10 +73,452 @@ const rotYSlider = document.getElementById('rotY');
 const rotXSlider = document.getElementById('rotX');
 const distSlider = document.getElementById('dist');
 
+// 4D transform class prototype
+class Vector4D {
+    constructor(x, y, z, w) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.w = w;
+    }
+    add(v) {
+        return new Vector4D(this.x + v.x, this.y + v.y, this.z + v.z, this.w + v.w);
+    }
+    subtract(v) {
+        return new Vector4D(this.x - v.x, this.y - v.y, this.z - v.z, this.w - v.w);
+    }
+    normalize() {
+        let mag = Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
+        if (mag === 0) return new Vector4D(0, 0, 0, 0);
+        return new Vector4D(this.x / mag, this.y / mag, this.z / mag, this.w / mag);
+    }
+    magnitude() {
+        return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
+    }
+    dot(v) {
+        return this.x * v.x + this.y * v.y + this.z * v.z + this.w * v.w;
+    }
+    multiply_by_scalar(s) {
+        return new Vector4D(this.x * s, this.y * s, this.z * s, this.w * s);
+    }
+}
+class Transform4D {
+    // constructor() {
+    //     this.matrix = [
+    //         [1, 0, 0, 0, 0],
+    //         [0, 1, 0, 0, 0],
+    //         [0, 0, 1, 0, 0],
+    //         [0, 0, 0, 1, 0],
+    //         [0, 0, 0, 0, 1]
+    //     ];
+    // }
+    constructor(matrix) {
+        this.matrix = matrix;
+    }
+
+    origin() {
+        return new Vector4D(this.matrix[0][4], this.matrix[1][4], this.matrix[2][4], this.matrix[3][4]);
+    }
+
+    // transform_point(v: Vector4D): Vector4D
+    transform_point(v) {
+        let x = this.matrix[0][0] * v.x + this.matrix[0][1] * v.y + this.matrix[0][2] * v.z + this.matrix[0][3] * v.w + this.matrix[0][4];
+        let y = this.matrix[1][0] * v.x + this.matrix[1][1] * v.y + this.matrix[1][2] * v.z + this.matrix[1][3] * v.w + this.matrix[1][4];
+        let z = this.matrix[2][0] * v.x + this.matrix[2][1] * v.y + this.matrix[2][2] * v.z + this.matrix[2][3] * v.w + this.matrix[2][4];
+        let w = this.matrix[3][0] * v.x + this.matrix[3][1] * v.y + this.matrix[3][2] * v.z + this.matrix[3][3] * v.w + this.matrix[3][4];
+        return new Vector4D(x, y, z, w);
+    }
+
+    transform_vector(v) {
+        let x = this.matrix[0][0] * v.x + this.matrix[0][1] * v.y + this.matrix[0][2] * v.z + this.matrix[0][3] * v.w;
+        let y = this.matrix[1][0] * v.x + this.matrix[1][1] * v.y + this.matrix[1][2] * v.z + this.matrix[1][3] * v.w;
+        let z = this.matrix[2][0] * v.x + this.matrix[2][1] * v.y + this.matrix[2][2] * v.z + this.matrix[2][3] * v.w;
+        let w = this.matrix[3][0] * v.x + this.matrix[3][1] * v.y + this.matrix[3][2] * v.z + this.matrix[3][3] * v.w;
+        return new Vector4D(x, y, z, w);
+    }
+
+    transform_transform(T) {
+        // matrix multiplication: this.matrix * T.matrix
+        // inC_T_B * inB_T_A  -> inC_T_A
+        // inC_T_B.transform_transform(inB_T_A) -> inC_T_A
+        let Tl = this.matrix;
+        let Tr = T.matrix;
+        let Tn = [
+            [
+                Tl[0][0] * Tr[0][0] + Tl[0][1] * Tr[1][0] + Tl[0][2] * Tr[2][0] + Tl[0][3] * Tr[3][0],
+                Tl[0][0] * Tr[0][1] + Tl[0][1] * Tr[1][1] + Tl[0][2] * Tr[2][1] + Tl[0][3] * Tr[3][1],
+                Tl[0][0] * Tr[0][2] + Tl[0][1] * Tr[1][2] + Tl[0][2] * Tr[2][2] + Tl[0][3] * Tr[3][2],
+                Tl[0][0] * Tr[0][3] + Tl[0][1] * Tr[1][3] + Tl[0][2] * Tr[2][3] + Tl[0][3] * Tr[3][3],
+                Tl[0][0] * Tr[0][4] + Tl[0][1] * Tr[1][4] + Tl[0][2] * Tr[2][4] + Tl[0][3] * Tr[3][4] + Tl[0][4]
+            ],
+            [
+                Tl[1][0] * Tr[0][0] + Tl[1][1] * Tr[1][0] + Tl[1][2] * Tr[2][0] + Tl[1][3] * Tr[3][0],
+                Tl[1][0] * Tr[0][1] + Tl[1][1] * Tr[1][1] + Tl[1][2] * Tr[2][1] + Tl[1][3] * Tr[3][1],
+                Tl[1][0] * Tr[0][2] + Tl[1][1] * Tr[1][2] + Tl[1][2] * Tr[2][2] + Tl[1][3] * Tr[3][2],
+                Tl[1][0] * Tr[0][3] + Tl[1][1] * Tr[1][3] + Tl[1][2] * Tr[2][3] + Tl[1][3] * Tr[3][3],
+                Tl[1][0] * Tr[0][4] + Tl[1][1] * Tr[1][4] + Tl[1][2] * Tr[2][4] + Tl[1][3] * Tr[3][4] + Tl[1][4]
+            ],
+            [
+                Tl[2][0] * Tr[0][0] + Tl[2][1] * Tr[1][0] + Tl[2][2] * Tr[2][0] + Tl[2][3] * Tr[3][0],
+                Tl[2][0] * Tr[0][1] + Tl[2][1] * Tr[1][1] + Tl[2][2] * Tr[2][1] + Tl[2][3] * Tr[3][1],
+                Tl[2][0] * Tr[0][2] + Tl[2][1] * Tr[1][2] + Tl[2][2] * Tr[2][2] + Tl[2][3] * Tr[3][2],
+                Tl[2][0] * Tr[0][3] + Tl[2][1] * Tr[1][3] + Tl[2][2] * Tr[2][3] + Tl[2][3] * Tr[3][3],
+                Tl[2][0] * Tr[0][4] + Tl[2][1] * Tr[1][4] + Tl[2][2] * Tr[2][4] + Tl[2][3] * Tr[3][4] + Tl[2][4]
+            ],
+            [
+                Tl[3][0] * Tr[0][0] + Tl[3][1] * Tr[1][0] + Tl[3][2] * Tr[2][0] + Tl[3][3] * Tr[3][0],
+                Tl[3][0] * Tr[0][1] + Tl[3][1] * Tr[1][1] + Tl[3][2] * Tr[2][1] + Tl[3][3] * Tr[3][1],
+                Tl[3][0] * Tr[0][2] + Tl[3][1] * Tr[1][2] + Tl[3][2] * Tr[2][2] + Tl[3][3] * Tr[3][2],
+                Tl[3][0] * Tr[0][3] + Tl[3][1] * Tr[1][3] + Tl[3][2] * Tr[2][3] + Tl[3][3] * Tr[3][3],
+                Tl[3][0] * Tr[0][4] + Tl[3][1] * Tr[1][4] + Tl[3][2] * Tr[2][4] + Tl[3][3] * Tr[3][4] + Tl[3][4]
+            ],
+            [0, 0, 0, 0, 1]
+        ];
+        return new Transform4D(Tn);
+    }
+
+
+    translate_self_by_delta(dx, dy, dz, dw, is_in_own_frame) {
+        if (is_in_own_frame) {
+            // translation in own frame
+            let delta_in_parent = this.transform_vector(new Vector4D(dx, dy, dz, dw));
+            this.matrix[0][4] += delta_in_parent.x;
+            this.matrix[1][4] += delta_in_parent.y;
+            this.matrix[2][4] += delta_in_parent.z;
+            this.matrix[3][4] += delta_in_parent.w;
+        } else {
+            // translation in parent frame
+            this.matrix[0][4] += dx;
+            this.matrix[1][4] += dy;
+            this.matrix[2][4] += dz;
+            this.matrix[3][4] += dw;
+        }
+    }
+
+    rotate_self_by_delta(plane_string, angle_rad, is_in_own_frame) {
+        // plane string: 'XY', 'XZ', 'XW', 'YZ', 'YW', 'ZW'
+        let c = Math.cos(angle_rad);
+        let s = Math.sin(angle_rad);
+        let R = [
+            [1, 0, 0, 0,  0],
+            [0, 1, 0, 0,  0],
+            [0, 0, 1, 0,  0],
+            [0, 0, 0, 1,  0],
+
+            [0, 0, 0, 0,  1]
+        ];
+        switch (plane_string) {
+            case 'XY':
+                R[0][0] = c; R[0][1] = -s;
+                R[1][0] = s; R[1][1] = c;
+                break;
+            case 'XZ':
+                R[0][0] = c; R[0][2] = -s;
+                R[2][0] = s; R[2][2] = c;
+                break;
+            case 'XW':
+                R[0][0] = c; R[0][3] = -s;
+                R[3][0] = s; R[3][3] = c;
+                break;
+            case 'YZ':
+                R[1][1] = c; R[1][2] = -s;
+                R[2][1] = s; R[2][2] = c;
+                break;
+            case 'YW':
+                R[1][1] = c; R[1][3] = -s;
+                R[3][1] = s; R[3][3] = c;
+                break;
+            case 'ZW':
+                R[2][2] = c; R[2][3] = -s;
+                R[3][2] = s; R[3][3] = c;
+                break;
+            default:
+                console.error('Invalid plane string for rotation');
+                return;
+        }
+        // let newT = this.transform_transform(new Transform4D(R));
+        // this.matrix = newT.matrix;
+        let Rdelta = new Transform4D(R);
+        if (is_in_own_frame) {
+            // Apply rotation in own frame
+            let newT = this.transform_transform(Rdelta);
+            this.matrix = newT.matrix;
+        } else {
+            // Apply rotation in parent frame
+            let newT = Rdelta.transform_transform(this);
+            // this.matrix = newT.matrix;
+            // only copy the rotation part, keep the translation part
+            // without rotation_only, we rotate around the parent origin instead of our own origin
+            this.matrix = [
+                [newT.matrix[0][0], newT.matrix[0][1], newT.matrix[0][2], newT.matrix[0][3], this.matrix[0][4]],
+                [newT.matrix[1][0], newT.matrix[1][1], newT.matrix[1][2], newT.matrix[1][3], this.matrix[1][4]],
+                [newT.matrix[2][0], newT.matrix[2][1], newT.matrix[2][2], newT.matrix[2][3], this.matrix[2][4]],
+                [newT.matrix[3][0], newT.matrix[3][1], newT.matrix[3][2], newT.matrix[3][3], this.matrix[3][4]],
+                [0, 0, 0, 0, 1]
+            ];
+        }
+    }
+            
+
+    
+
+    rotation_only() {
+        let R = [
+            [this.matrix[0][0], this.matrix[0][1], this.matrix[0][2], this.matrix[0][3], 0],
+            [this.matrix[1][0], this.matrix[1][1], this.matrix[1][2], this.matrix[1][3], 0],
+            [this.matrix[2][0], this.matrix[2][1], this.matrix[2][2], this.matrix[2][3], 0],
+            [this.matrix[3][0], this.matrix[3][1], this.matrix[3][2], this.matrix[3][3], 0],
+            [0, 0, 0, 0, 1]
+        ];
+        return new Transform4D(R);
+    }
+
+    inverse() {
+        // separate rotation and translation
+        let R = [
+            [this.matrix[0][0], this.matrix[0][1], this.matrix[0][2], this.matrix[0][3]],
+            [this.matrix[1][0], this.matrix[1][1], this.matrix[1][2], this.matrix[1][3]],
+            [this.matrix[2][0], this.matrix[2][1], this.matrix[2][2], this.matrix[2][3]],
+            [this.matrix[3][0], this.matrix[3][1], this.matrix[3][2], this.matrix[3][3]]
+        ];
+        let t = [
+            this.matrix[0][4],
+            this.matrix[1][4],
+            this.matrix[2][4],
+            this.matrix[3][4]
+        ];
+        // transpose rotation
+        let R_inv = [
+            [R[0][0], R[1][0], R[2][0], R[3][0]],
+            [R[0][1], R[1][1], R[2][1], R[3][1]],
+            [R[0][2], R[1][2], R[2][2], R[3][2]],
+            [R[0][3], R[1][3], R[2][3], R[3][3]]
+        ];
+        // new translation
+        let t_inv = [
+            -(R_inv[0][0] * t[0] + R_inv[0][1] * t[1] + R_inv[0][2] * t[2] + R_inv[0][3] * t[3]),
+            -(R_inv[1][0] * t[0] + R_inv[1][1] * t[1] + R_inv[1][2] * t[2] + R_inv[1][3] * t[3]),
+            -(R_inv[2][0] * t[0] + R_inv[2][1] * t[1] + R_inv[2][2] * t[2] + R_inv[2][3] * t[3]),
+            -(R_inv[3][0] * t[0] + R_inv[3][1] * t[1] + R_inv[3][2] * t[2] + R_inv[3][3] * t[3])
+        ];
+        // combine into new matrix
+        let invMatrix = [
+            [R_inv[0][0], R_inv[0][1], R_inv[0][2], R_inv[0][3], t_inv[0]],
+            [R_inv[1][0], R_inv[1][1], R_inv[1][2], R_inv[1][3], t_inv[1]],
+            [R_inv[2][0], R_inv[2][1], R_inv[2][2], R_inv[2][3], t_inv[2]],
+            [R_inv[3][0], R_inv[3][1], R_inv[3][2], R_inv[3][3], t_inv[3]],
+            [0, 0, 0, 0, 1]
+        ];
+        return new Transform4D(invMatrix);
+    }
+}
+
+// Hypercamera definition
+let scene_bound = 10.0; // +10 means the scene goes from -10 to +10 in all dimensions
+const hypercamera_height_above_ground = 1.0;
+let hypercamera_T = new Transform4D([
+    [1, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0],
+    [0, 0, 1, 0, 1],
+    [0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 1]
+]); // hypercam in world
+// let hf = 1.0; // hyper focal length
+// let hypercamera_intrinsics = [
+    // [hf, 0, 0, 0],
+    // [0, hf, 0, 0],
+    // [0, 0, hf, 0],
+    // [0, 0, 0, 1]
+// ]; // see TODO s , for now assume identity intrinsics
+let hypercamera_sensor_size = 1
+let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
+let hypercamera_is_unit_sensor = true;
+let hypercamera_sensor_resolution = VOX;
+
+// Define scene statically for now
+class Hyperobject {
+    constructor(vertices_in_object, edges, tetras, color, simulate_physics, show_vertices, mass, pose, name) {
+        this.vertices_in_object = vertices_in_object; // in object frame
+        this.edges = edges;
+        this.tetras = tetras;
+        this.color = color;
+        this.simulate_physics = simulate_physics; // if true, object gets affected by physics
+        this.show_vertices = show_vertices;
+        this.mass = mass;
+        this.pose = pose; // Transform4D from object frame to world frame
+        this.name = name;
+        // variables
+        this.velocity_in_world = new Vector4D(0, 0, 0, 0);
+        this.rotational_velocity = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
+        // computed properties
+        this.update_vertices_in_world();
+    }
+
+    update_vertices_in_world() {
+        this.vertices_in_world = [];
+        for (let v of this.vertices_in_object) {
+            let v_world = this.pose.transform_point(v);
+            this.vertices_in_world.push(v_world);
+        }
+    }
+
+    get_com() {
+        return this.pose.origin();
+    }
+}
+
+let hyperpyramid = new Hyperobject(
+    // vertices in object frame
+    [
+        new Vector4D(0, 0, 1, 0),
+        new Vector4D(1, 1, -1, 1),
+        new Vector4D(1, -1, -1, -1),
+        new Vector4D(-1, 1, -1, -1),
+        new Vector4D(-1, -1, -1, 1)
+    ],
+    // edges
+    [
+        [0,1],[0,2],[0,3],[0,4],
+        [1,2],[1,3],[1,4],
+        [2,3],[2,4],
+        [3,4]
+    ],
+    // tetras
+    [
+        [0,1,2,3],
+        [0,1,2,4],
+        [0,1,3,4],
+        [0,2,3,4],
+        [1,2,3,4]
+    ],
+    // color
+    0x00ff00,
+    // simulate_physics
+    true,
+    // show_vertices
+    true,
+    // mass
+    1.0,
+    // pose (Transform4D)
+    new Transform4D([
+        [1, 0, 0, 0, 4],
+        [0, 1, 0, 0, 2],
+        [0, 0, 1, 0, 2],
+        [0, 0, 0, 1, 2],
+        [0, 0, 0, 0, 1]
+    ]),
+    // name
+    "Hyperpyramid"
+);
+
 // Check WebGPU support
 if (!navigator.gpu) {
   document.body.innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
   throw new Error('WebGPU not supported');
+}
+
+let timingsInfosHtml = "";
+
+// Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
+const s0_start = performance.now();
+let visibleHyperobjects = [hyperpyramid];
+// let vertices_in_world = hypercube.vertices_in_world;
+// let tetras = hypercube.tetras.map(tetra => ({ indices: tetra, color: hypercube.color }));
+let vertices_in_world = [];
+let tetras = [];
+for (let obj of visibleHyperobjects) {
+    const base_index = vertices_in_world.length;
+    // add vertices
+    for (let v of obj.vertices_in_world) {
+        vertices_in_world.push(v);
+    }
+    // add tetras with adjusted indices
+    for (let tet of obj.tetras) {
+        tetras.push({ indices: tet.map(vi => vi + base_index), color: obj.color });
+    }
+}
+const s0_end = performance.now();
+console.log(`Stage 0: Gathered vertices and tetras from visible hyperobjects in ${(s0_end - s0_start).toFixed(2)} ms`);
+timingsInfosHtml += `<p>Stage 0: Gathered vertices and tetras from visible hyperobjects in ${(s0_end - s0_start).toFixed(2)} ms</p>`;
+        
+// ---------------------------------------------------------------------------------
+// Stage 1: Per-vertex - Transform vertices from world to camera space
+const s1_start = performance.now();
+let vertices_in_suvl = new Array(vertices_in_world.length);
+let vertices_in_1uvl = new Array(vertices_in_world.length);
+const camera_inverse = hypercamera_T.inverse();
+function perVertex(vertex_index, vertices_in_world, vertices_in_suvl, vertices_in_1uvl) {
+    const vert_suvl = camera_inverse.transform_point(vertices_in_world[vertex_index]);
+    vertices_in_suvl[vertex_index] = vert_suvl;
+    vertices_in_1uvl[vertex_index] = new Vector4D(1.0, vert_suvl.y / vert_suvl.x, vert_suvl.z / vert_suvl.x, vert_suvl.w / vert_suvl.x);
+}
+for (let vi = 0; vi < vertices_in_world.length; vi++) { perVertex(vi, vertices_in_world, vertices_in_suvl, vertices_in_1uvl); } // run the "shader"
+const s1_end = performance.now();
+console.log("Stage 1: # of vertices transformed to camera space:", vertices_in_world.length, `in ${(s1_end - s1_start).toFixed(2)} ms`);
+timingsInfosHtml += `<p>Stage 1: # of vertices transformed to camera space: ${vertices_in_world.length} in ${(s1_end - s1_start).toFixed(2)} ms</p>`;
+
+// ---------------------------------------------------------------------------------
+// Stage 2: (CPU) Per-tetra - Exclude tetras with any vertex behind camera
+const s2_start = performance.now();
+let valid_tetras = [];
+function perTetra(tetra_index, tetras, vertices_in_suvl, valid_tetras) {
+    let tetra = tetras[tetra_index];
+    let behind_camera = false;
+    for (let vi of tetra.indices) {
+        if (vertices_in_suvl[vi].x <= 0) { // S coordinate
+            behind_camera = true;
+            break;
+        }
+    }
+    if (!behind_camera) {
+        valid_tetras.push(tetra);
+    }
+}
+for (let ti = 0; ti < tetras.length; ti++) { perTetra(ti, tetras, vertices_in_suvl, valid_tetras); } // run the "shader"
+const s2_end = performance.now();
+console.log("Stage 2: # of valid tetras:", valid_tetras.length, `from ${tetras.length} in ${(s2_end - s2_start).toFixed(2)} ms`);
+timingsInfosHtml += `<p>Stage 2: # of valid tetras: ${valid_tetras.length} from ${tetras.length} in ${(s2_end - s2_start).toFixed(2)} ms</p>`;
+
+
+const N_TETS = 5;
+
+// Prepare tetra data
+const tetraData = new Uint32Array(N_TETS * 5); // 4 vert idx per tet + 1 color
+for (let i = 0; i < valid_tetras.length; i++) {
+    const tetra = valid_tetras[i];
+    tetraData[i * 5 + 0] = tetra.indices[0];
+    tetraData[i * 5 + 1] = tetra.indices[1];
+    tetraData[i * 5 + 2] = tetra.indices[2];
+    tetraData[i * 5 + 3] = tetra.indices[3];
+    tetraData[i * 5 + 4] = tetra.color;
+}
+
+const N_MAX_VERTS = N_TETS * 4 * 4; // 4 verts per tetra, 4 floats per vert (uvls)
+// initialize vertex storage
+const vertices1uvlsData = new Float32Array(N_MAX_VERTS);
+for (let i = 0; i < vertices_in_1uvl.length; i++) {
+  vertices1uvlsData[i * 4 + 0] = vertices_in_1uvl[i].y;
+  vertices1uvlsData[i * 4 + 1] = vertices_in_1uvl[i].z;
+  vertices1uvlsData[i * 4 + 2] = vertices_in_1uvl[i].w;
+  vertices1uvlsData[i * 4 + 3] = vertices_in_suvl[i].x;
+}
+
+// initialize bvh
+const MAX_ACCEL_STRUCTURE_SIZE = VOX*VOX*VOX*N_TETS;
+const accelStructureOffsetsData = new Uint32Array(VOX*VOX*VOX);
+const accelStructureCountsData = new Uint32Array(VOX*VOX*VOX);
+const accelStructureTetraIndicesData = new Uint32Array(MAX_ACCEL_STRUCTURE_SIZE);
+// for now we assign all 5 pyramid tetras to all voxels
+for (let i = 0; i < (VOX*VOX*VOX); i++) {
+  const U = i % VOX;
+  const V = Math.floor(i / VOX) % VOX;
+  const L = Math.floor(i / (VOX*VOX)); 
+  // naive constant mapping
+  accelStructureOffsetsData[i] = i * N_TETS;
+  accelStructureCountsData[i] = N_TETS;
+  for (let i_tet = 0; i_tet < N_TETS; i_tet++) {
+    accelStructureTetraIndicesData[i * N_TETS + i_tet] = i_tet;
+  }
 }
 
 // Initialize voxel grid (4x4x4)
