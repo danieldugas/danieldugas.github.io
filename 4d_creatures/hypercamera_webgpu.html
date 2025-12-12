@@ -791,9 +791,9 @@ for (let i = 0; i < vertices_in_1uvl.length; i++) {
 }
 
 // initialize bvh
-const TILE_SZ = 1;
+const TILE_SZ = 4 ;
 const TILE_RES = VOX / TILE_SZ;
-const MAX_ACCEL_STRUCTURE_DEPTH = 100;
+const MAX_ACCEL_STRUCTURE_DEPTH = 200;
 const MAX_ACCEL_STRUCTURE_SIZE = TILE_RES*TILE_RES*TILE_RES*MAX_ACCEL_STRUCTURE_DEPTH;
 const accelStructureOffsetsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
 const accelStructureCountsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
@@ -1259,6 +1259,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 let start_offset = cell_offsets[CELL_ID];
                 let local_idx = atomicAdd(&cell_write_counters[CELL_ID], 1u);
                 
+                // Safety check: if we exceed allocated size, skip writing
+                if (start_offset + local_idx >= arrayLength(&cell_tetra_indices)) {
+                    continue; // TODO: raise some kind of error
+                }
+
                 // Write the tetra index to the global buffer
                 // Note: We should technically check bounds here, but MAX_SIZE is usually large enough
                 cell_tetra_indices[start_offset + local_idx] = tetra_index;
@@ -2457,8 +2462,8 @@ const stage3p3BindGroup = device.createBindGroup({
       computePass.end();
     }
 
-    // Stage 2: Cull tetras
-
+    // Stage 2: Cull tetras, + add clipped tetras if needed
+    // TODO
 
     // Stage 3.0: Clear Counters (Use Compute Shader, NOT writeBuffer for proper sync) ---
     const clearPass = commandEncoder.beginComputePass();
