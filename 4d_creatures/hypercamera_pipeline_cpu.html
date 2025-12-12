@@ -1,36 +1,3 @@
-<!--
-I want to understand WebGPU. To do so, create a single html file that implements 3 simple stages of a 4D graphics pipeline:
-- per vertex: convert vertices from 4D world / object to 4D camera space (XYZW -> SUVL) where S is the x axis of the camera, and the sensor is at S=1
-- (not on GPU) per tetra: for now just exclude tetras that have any vertex behind camera (S<=0), but leave a stub to do near-plane clipping / splitting tetras into more, later
-- per tetra: pre-rasterize, clip and accel structure building
-- per voxel: intersection tests, and fill z-buffer (3D grid, let's call it s-buffer) with final color
-- per ray in 2D image: do DDA ray intersect in the S-buffer grid, render to 2D canvas
-
-The following code executes the above pipeline on CPU,
-make a simple equivalent using WebGPU for the per-vertex, per-tetra, and per-fragment stages (all with compute shaders).
--->
-
-<!--
-I made this rendering pipeline as a first step towards executing the heavy loads on WebGPU. Before modifying any code, could you reason about:
-- the pipeline stages, and whether it is already efficient and correct
-- How each stage should be parallelized on a modern GPU, e.g. 4050 laptop
-
-Timings:
-Stage 0: Gathered vertices and tetras from visible hyperobjects in 10.00 ms
-Stage 1: # of vertices transformed to camera space: 9282 in 2.00 ms
-Stage 2: # of valid tetras: 18045 from 40045 in 5.00 ms
-Stage 3 Part 1: 18045 tetras mapped to 2767946 entries in accel structure with 262144 tiles in 180.00 ms
-Stage 3 Part 2: Processed 262144 voxels (tested 1187418) to fill S-buffer with 135801 fragments in 644.00 ms
-Stage 4: Rendered initial frame in 213.00 ms
-
-Begin code:
--->
-
-<!-- 
-Convert just stage 3 (part 1 and 2) to WebGPU compute shaders, keeping the rest on CPU for now.
--->
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
