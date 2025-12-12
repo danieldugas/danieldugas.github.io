@@ -756,8 +756,8 @@ for (let i = 0; i < vertices_in_1uvl.length; i++) {
 }
 
 // initialize bvh
-  const TILE_SZ = 1;
-  const TILE_RES = VOX / TILE_SZ;
+const TILE_SZ = 1;
+const TILE_RES = VOX / TILE_SZ;
 const MAX_ACCEL_STRUCTURE_DEPTH = 100;
 const MAX_ACCEL_STRUCTURE_SIZE = TILE_RES*TILE_RES*TILE_RES*MAX_ACCEL_STRUCTURE_DEPTH;
 const accelStructureOffsetsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
@@ -933,9 +933,80 @@ async function init() {
     format,
     alphaMode: 'opaque',
   });
+  
+  // Stage 3.1 - Update counts in GAS
+  const stage3p1ShaderCode = `
+struct TetraData {
+    i0: u32,
+    i1: u32,
+    i2: u32,
+    i3: u32,
+    color: u32,
+}
 
-  // Stage 3.3 - Per voxel: tetra tests and final compute shader to write to voxels
-  const stage3p3ShaderCode = `
+struct Vector4D {
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+}
+
+@group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
+@group(0) @binding(1) var<storage, read> vertices_1uvls: array<Vector4D>;
+@group(0) @binding(2) var<storage, read_write> cell_counters: array<atomic<u32>>;
+
+@group(1) @binding(0) var<uniform> params: vec4<u32>; // RES, TILE_RES, TILE_SZ, unused
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let tetra_index = global_id.x;
+    let num_tetras = 20000u; // TODO: pass as uniform
+    let TILE_RES = params.y;
+    
+    if (tetra_index >= num_tetras) {
+        return;
+    }
+    
+    let tetra = tetras[tetra_index];
+    let v0_1uvls = vertices_1uvls[tetra.i0];
+    let v1_1uvls = vertices_1uvls[tetra.i1];
+    let v2_1uvls = vertices_1uvls[tetra.i2];
+    let v3_1uvls = vertices_1uvls[tetra.i3];
+    
+    let u_min = min(min(v0_1uvls.x, v1_1uvls.x), min(v2_1uvls.x, v3_1uvls.x));
+    let u_max = max(max(v0_1uvls.x, v1_1uvls.x), max(v2_1uvls.x, v3_1uvls.x));
+    let v_min = min(min(v0_1uvls.y, v1_1uvls.y), min(v2_1uvls.y, v3_1uvls.y));
+    let v_max = max(max(v0_1uvls.y, v1_1uvls.y), max(v2_1uvls.y, v3_1uvls.y));
+    let l_min = min(min(v0_1uvls.z, v1_1uvls.z), min(v2_1uvls.z, v3_1uvls.z));
+    let l_max = max(max(v0_1uvls.z, v1_1uvls.z), max(v2_1uvls.z, v3_1uvls.z));
+    
+    let S_U_START = -1.0;
+    let S_U_RANGE = 2.0;
+    let S_V_START = -1.0;
+    let S_V_RANGE = 2.0;
+    let S_L_START = -1.0;
+    let S_L_RANGE = 2.0;
+    
+    let TU_min = u32(clamp(floor((u_min - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TU_max = u32(clamp(ceil((u_max - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TV_min = u32(clamp(floor((v_min - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TV_max = u32(clamp(ceil((v_max - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TL_min = u32(clamp(floor((l_min - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TL_max = u32(clamp(ceil((l_max - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    
+    for (var TU = TU_min; TU <= TU_max; TU++) {
+        for (var TV = TV_min; TV <= TV_max; TV++) {
+            for (var TL = TL_min; TL <= TL_max; TL++) {
+                let CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
+                atomicAdd(&cell_counters[CELL_ID], 1u);
+            }
+        }
+    }
+}
+`;
+
+  // Stage 3.4 - Per voxel: tetra tests and final compute shader to write to voxels
+  const stage3p4ShaderCode = `
 struct TetraData {
     i0: u32,
     i1: u32,
@@ -1086,8 +1157,11 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 `;
 
   // Create shader module
-  const stage3p3ShaderModule = device.createShaderModule({
-    code: stage3p3ShaderCode,
+  const stage3p1ShaderModule = device.createShaderModule({
+    code: stage3p1ShaderCode,
+  });
+  const stage3p4ShaderModule = device.createShaderModule({
+    code: stage3p4ShaderCode,
   });
 
   // DDA ray traversal shader code
@@ -1343,7 +1417,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     },
   });
 
-  // Stage 3p3 Bind Groups ----
+  // Stage 3p4 Bind Groups ----
   // Create buffers
   
     const tetraBuffer = device.createBuffer({
@@ -1385,7 +1459,44 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
   });
   device.queue.writeBuffer(rasterParamsBuffer, 0, rasterParamsData);
 
-  const stage3p3BindGroupLayout = device.createBindGroupLayout({
+  const stage3p1BindGroupLayout = device.createBindGroupLayout({
+      entries: [
+          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+      ]
+  });
+  const stage3p1ParamsBindGroupLayout = device.createBindGroupLayout({
+      entries: [
+          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+      ]
+  });
+  const stage3p1PipelineLayout = device.createPipelineLayout({
+      bindGroupLayouts: [stage3p1BindGroupLayout, stage3p1ParamsBindGroupLayout]
+  });
+  const stage3p1Pipeline = device.createComputePipeline({
+      layout: stage3p1PipelineLayout,
+      compute: {
+          module: stage3p1ShaderModule,
+          entryPoint: 'main'
+      }
+  });
+  const stage3p1BindGroup = device.createBindGroup({
+      layout: stage3p1BindGroupLayout,
+      entries: [
+          { binding: 0, resource: { buffer: tetraBuffer } },
+          { binding: 1, resource: { buffer: vertices1uvlsBuffer } },
+          { binding: 2, resource: { buffer: cellCountsBuffer } }
+      ]
+  });
+  const stage3p1ParamsBindGroup = device.createBindGroup({
+      layout: stage3p1ParamsBindGroupLayout,
+      entries: [
+          { binding: 0, resource: { buffer: rasterParamsBuffer } }
+      ]
+  });
+
+  const stage3p4BindGroupLayout = device.createBindGroupLayout({
       entries: [
           { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
           { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
@@ -1395,27 +1506,23 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
           { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
   });
-
-  const stage3p3ParamsBindGroupLayout = device.createBindGroupLayout({
+  const stage3p4ParamsBindGroupLayout = device.createBindGroupLayout({
       entries: [
           { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
       ]
   });
-
-  const stage3p3PipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [stage3p3BindGroupLayout, stage3p3ParamsBindGroupLayout]
+  const stage3p4PipelineLayout = device.createPipelineLayout({
+      bindGroupLayouts: [stage3p4BindGroupLayout, stage3p4ParamsBindGroupLayout]
   });
-
-  const stage3p3Pipeline = device.createComputePipeline({
-      layout: stage3p3PipelineLayout,
+  const stage3p4Pipeline = device.createComputePipeline({
+      layout: stage3p4PipelineLayout,
       compute: {
-          module: stage3p3ShaderModule,
+          module: stage3p4ShaderModule,
           entryPoint: 'cs_main'
       }
   });
-
-  const stage3p3BindGroup = device.createBindGroup({
-      layout: stage3p3BindGroupLayout,
+  const stage3p4BindGroup = device.createBindGroup({
+      layout: stage3p4BindGroupLayout,
       entries: [
           { binding: 0, resource: { buffer: tetraBuffer } },
           { binding: 1, resource: { buffer: vertices1uvlsBuffer } },
@@ -1425,9 +1532,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
           { binding: 5, resource: { buffer: voxelBuffer } }
       ]
   });
-
-  const stage3p3ParamsBindGroup = device.createBindGroup({
-      layout: stage3p3ParamsBindGroupLayout,
+  const stage3p4ParamsBindGroup = device.createBindGroup({
+      layout: stage3p4ParamsBindGroupLayout,
       entries: [
           { binding: 0, resource: { buffer: rasterParamsBuffer } }
       ]
@@ -1485,21 +1591,46 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
   
   function render() {
     updateCamera();
+    // update physics
+    // move first vertices of cube
+    for (let i = 0; i < 16; i++) {
+      const idx = i * 4;
+      const time = performance.now() * 0.001;
+      const offset = Math.sin(time) * 0.001;
+      vertices1uvlsData[idx + 1] = vertices1uvlsData[idx + 1] + offset; // modify 'z' coordinate
+    }
+    device.queue.writeBuffer(vertices1uvlsBuffer, 0, vertices1uvlsData);
     
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
 
-    // compute pass to update voxel data (if needed)
+    // Stage 3.1: Accel structure counts
+    if (true) {
+      // Clear counts buffer
+      const zeroArray = new Uint32Array(accelStructureCountsData.length);
+      device.queue.writeBuffer(cellCountsBuffer, 0, zeroArray);
+      
+      const computePass = commandEncoder.beginComputePass();
+      computePass.setPipeline(stage3p1Pipeline);
+      computePass.setBindGroup(0, stage3p1BindGroup);
+      computePass.setBindGroup(1, stage3p1ParamsBindGroup);
+      const workgroupCount = Math.ceil(valid_tetras.length / 64);
+      computePass.dispatchWorkgroups(workgroupCount);
+      computePass.end();
+    }
+
+    // Stage 3.4: Intersection tests compute pass to update voxel data
     if (true) {
       const computePass = commandEncoder.beginComputePass();
-      computePass.setPipeline(stage3p3Pipeline);
-      computePass.setBindGroup(0, stage3p3BindGroup);
-      computePass.setBindGroup(1, stage3p3ParamsBindGroup);
+      computePass.setPipeline(stage3p4Pipeline);
+      computePass.setBindGroup(0, stage3p4BindGroup);
+      computePass.setBindGroup(1, stage3p4ParamsBindGroup);
       const workgroupCount = Math.ceil(VOX / 4);
       computePass.dispatchWorkgroups(workgroupCount, workgroupCount, workgroupCount);
       computePass.end();
     }
     
+    // Stage 4: DDA Render pass
     const renderPass = commandEncoder.beginRenderPass({
       colorAttachments: [{
         view: textureView,
@@ -1508,7 +1639,6 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         storeOp: 'store',
       }],
     });
-    
     renderPass.setPipeline(pipeline);
     renderPass.setBindGroup(0, bindGroup);
     renderPass.draw(6);
