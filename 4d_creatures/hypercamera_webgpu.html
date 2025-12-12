@@ -2097,22 +2097,28 @@ const stage3p3BindGroup = device.createBindGroup({
     ]);
     device.queue.writeBuffer(uniformBuffer, 0, uniforms);
   }
-  
-  // Keyboard controls
-        const keys = {};
-        window.addEventListener('keydown', (e) => {
-            keys[e.key.toLowerCase()] = true;
-        });
 
-        window.addEventListener('keyup', (e) => {
-            keys[e.key.toLowerCase()] = false;
-        });
+  let STEP_PHYSICS_ONCE = false;
+  let DEBUG_PHYSICS = false;
+  let physics_time_s = 0;
+  let accumulated_animation_time_s = 0;
+  
+  // Register Keyboard controls
+  const keys = {};
+  window.addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+  });
+
+  window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+  });
 
 
   function render() {
+    // update DDA camera
     updateCamera();
     // update hypercamera
-    // Handle WASD movement for selected vertex
+    //  Handle WASD movement for selected vertex
             if (true) {
                 
                 const moveSpeed = 0.1;
@@ -2207,14 +2213,216 @@ const stage3p3BindGroup = device.createBindGroup({
     }
     device.queue.writeBuffer(hypercameraInvPoseBuffer, 0, inv_pose_data);
     // update physics
+                // Simulate physics
+            const SIMULATE_PHYSICS = true;
+            for (let n = 0; n < 4; n++) { // substeps for stability
+                if (SIMULATE_PHYSICS) {
+                    moved = true;
+
+                    // debug log
+                    let html_physics_log = '';
+
+                    const FLOOR_STIFFNESS = 100;
+                    const FLOOR_DAMPING = 10;
+                    const GRAVITY = -9.81;
+                    const AIR_FRICTION_COEFFICIENT = 1.0;
+                    const FLOOR_SIDE_FRICTION_COEFFICIENT = 1;
+                    const dt = 0.016; // ~60fps
+
+                    html_physics_log += '<b>Sim Time:</b> ' + physics_time_s.toFixed(2) + ' s<br>';
+                    html_physics_log += '<b>UI Time:</b> ' + accumulated_animation_time_s.toFixed(2) + ' s<br>';
+
+                    for (let hyperobject of visibleHyperobjects) {
+                        if (hyperobject.simulate_physics) {
+
+                            html_physics_log += `<b>Object:</b> ${hyperobject.name}<br>`;
+
+                            // calculate hyperobject center of mass 
+                            let hyperobject_com = hyperobject.get_com();
+                            
+                            // mujoco-style forward/backward
+                            // 1. apply gravity
+                            // 2. apply collision to c.o.m based on vertices penetrating the floor (use z=-2 as the floor height)
+                            // 3. resolve c.o.m velocity and rotational velocity
+                            // 4. update vertex positions based on c.o.m and rotational velocity
+                            
+                            // force and torque accumulators
+                            let com_force = new Vector4D(0, 0, GRAVITY * hyperobject.mass, 0);
+                            let com_torque = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
+
+                            // If object com is within 1 unit of camera, push it away with small force
+                            let to_camera = hyperobject_com.subtract(hypercamera_T.origin());
+                            let distance_to_camera = Math.sqrt(to_camera.x**2 + to_camera.y**2 + to_camera.z**2 + to_camera.w**2);
+                            if (distance_to_camera < 2.0 && distance_to_camera > 0.01) {
+                                // let push_strength = 50 * (1.0 - distance_to_camera);
+                                let min_push_strength = 50;
+                                let max_push_strength = 500;
+                                let push_01 = (2.0 - distance_to_camera) / 2.0;
+                                let push_strength = min_push_strength + (max_push_strength - min_push_strength) * push_01;
+                                let push_direction = to_camera.multiply_by_scalar(1.0 / distance_to_camera); // normalize
+                                let push_force = push_direction.multiply_by_scalar(push_strength);
+                                com_force = com_force.add(push_force);
+                                // update mission variables
+                                user_has_pushed_object = true;
+                            }
+
+                            // Add a general friction force
+                            let friction_force = hyperobject.velocity_in_world.multiply_by_scalar(-AIR_FRICTION_COEFFICIENT);
+                            com_force = com_force.add(friction_force);
+
+                            // Add a general air friction rotational torque
+                            com_torque.xy += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.xy;
+                            com_torque.xz += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.xz;
+                            com_torque.xw += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.xw;
+                            com_torque.yz += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.yz;
+                            com_torque.yw += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.yw;
+                            com_torque.zw += -AIR_FRICTION_COEFFICIENT * hyperobject.rotational_velocity.zw;
+                            
+                            // 2. Check for collisions with floor and accumulate forces/torques
+                            for (let v of hyperobject.vertices_in_world) {
+                                let floor_height = floor_heightmap(v.x, v.y, v.w);
+                                let penetration = floor_height - v.z;
+                                if (penetration > 0) {
+                                    // Position relative to CoM
+                                    let r = v.subtract(hyperobject_com); // position relative to CoM
+                                    
+                                    // Calculate velocity of this vertex in world frame
+                                    let vertex_velocity = new Vector4D(0, 0, 0, 0);
+
+                                    // Linear velocity from CoM
+                                    vertex_velocity = vertex_velocity.add(hyperobject.velocity_in_world)
+
+                                    // Velocity due to rotation (v_rot = omega × r in 4D)
+                                    // too unstable
+                                    // let v_rot = new Vector4D(
+                                        // hyperobject.rotational_velocity.xy * r.y - hyperobject.rotational_velocity.xz * r.z - hyperobject.rotational_velocity.xw * r.w,
+                                        // -hyperobject.rotational_velocity.xy * r.x + hyperobject.rotational_velocity.yz * r.z + hyperobject.rotational_velocity.yw * r.w,
+                                        // hyperobject.rotational_velocity.xz * r.x - hyperobject.rotational_velocity.yz * r.y + hyperobject.rotational_velocity.zw * r.w,
+                                        // hyperobject.rotational_velocity.xw * r.x - hyperobject.rotational_velocity.yw * r.y - hyperobject.rotational_velocity.zw * r.z
+                                    // );
+                                    // vertex_velocity = vertex_velocity.add(v_rot);
+                                    
+                                    
+                                    
+                                    // Spring-damper force (normal direction only, z-axis)
+                                    let normal_force_z = FLOOR_STIFFNESS * penetration - FLOOR_DAMPING * vertex_velocity.z;
+                                    
+                                    let contact_force = new Vector4D(0, 0, normal_force_z, 0);
+
+                                    // Add side friction to contact force
+                                    let lateral_velocity = new Vector4D(vertex_velocity.x, vertex_velocity.y, 0, vertex_velocity.w);
+                                    let lateral_speed = Math.sqrt(lateral_velocity.x**2 + lateral_velocity.y**2 + lateral_velocity.w**2);
+                                    if (lateral_speed > 0.01) {
+                                        let lateral_direction = lateral_velocity.multiply_by_scalar(1.0 / lateral_speed); // normalize
+                                        let lateral_friction_magnitude = FLOOR_SIDE_FRICTION_COEFFICIENT * Math.abs(normal_force_z);
+                                        let lateral_friction = lateral_direction.multiply_by_scalar(-lateral_friction_magnitude);
+                                        contact_force = contact_force.add(lateral_friction);
+                                    }
+                                    
+                                    // Accumulate force on CoM
+                                    com_force = com_force.add(contact_force);
+
+                                    // Debug
+                                    if (v.z < -4) {
+                                        let aaa = 1;
+                                    }
+                                    
+                                    // Accumulate torque (r × F in 4D gives bivector with 6 components)
+                                    com_torque.xy += r.x * contact_force.y - r.y * contact_force.x;
+                                    com_torque.xz += r.x * contact_force.z - r.z * contact_force.x;
+                                    com_torque.xw += r.x * contact_force.w - r.w * contact_force.x;
+                                    com_torque.yz += r.y * contact_force.z - r.z * contact_force.y;
+                                    com_torque.yw += r.y * contact_force.w - r.w * contact_force.y;
+                                    com_torque.zw += r.z * contact_force.w - r.w * contact_force.z;
+                                }
+                            }
+
+
+                            const fmt = (n) => {
+                                let str = n.toFixed(3);
+                                str = (n < 0 ? str.slice(1) : str); // remove minus for padding
+                                str = str.padStart(8, '_');
+                                str = (n >= 0 ? '+' + str : '-' + str);
+                                return str
+                            };
+
+                            html_physics_log += `<table style="border-collapse: collapse; font-family: monospace;">`;
+                            html_physics_log += `<tr><th>Property</th><th>x</th><th>y</th><th>z</th><th>w</th><th></th><th></th></tr>`;
+                            html_physics_log += `<tr><td>Com Force</td><td>${fmt(com_force.x)}</td><td>${fmt(com_force.y)}</td><td>${fmt(com_force.z)}</td><td>${fmt(com_force.w)}</td><td></td><td></td></tr>`;
+                            html_physics_log += `<tr><td>Com Vel</td><td>${fmt(hyperobject.velocity_in_world.x)}</td><td>${fmt(hyperobject.velocity_in_world.y)}</td><td>${fmt(hyperobject.velocity_in_world.z)}</td><td>${fmt(hyperobject.velocity_in_world.w)}</td><td></td><td></td></tr>`;
+                            html_physics_log += `<tr><th></th><th>xy</th><th>xz</th><th>xw</th><th>yz</th><th>yw</th><th>zw</th></tr>`;
+                            html_physics_log += `<tr><td>Com Torque</td><td>${fmt(com_torque.xy)}</td><td>${fmt(com_torque.xz)}</td><td>${fmt(com_torque.xw)}</td><td>${fmt(com_torque.yz)}</td><td>${fmt(com_torque.yw)}</td><td>${fmt(com_torque.zw)}</td></tr>`;
+                            html_physics_log += `<tr><td>Com Ang Vel</td><td>${fmt(hyperobject.rotational_velocity.xy)}</td><td>${fmt(hyperobject.rotational_velocity.xz)}</td><td>${fmt(hyperobject.rotational_velocity.xw)}</td><td>${fmt(hyperobject.rotational_velocity.yz)}</td><td>${fmt(hyperobject.rotational_velocity.yw)}</td><td>${fmt(hyperobject.rotational_velocity.zw)}</td></tr>`;
+                            html_physics_log += `</table>`;
+                            
+                            // 3. Integrate velocities (simple Euler integration)
+                            
+                            // Linear velocity update: v += (F/m) * dt
+                            hyperobject.velocity_in_world = hyperobject.velocity_in_world.add(
+                                new Vector4D(
+                                    com_force.x / hyperobject.mass * dt,
+                                    com_force.y / hyperobject.mass * dt,
+                                    com_force.z / hyperobject.mass * dt,
+                                    com_force.w / hyperobject.mass * dt
+                                )
+                            );
+                            
+                            // Angular velocity update: omega += (torque / I) * dt
+                            // For uniform hyperobject with edge length 2: I = (2/3) * mass
+                            const I = (2/3) * hyperobject.mass;
+                            hyperobject.rotational_velocity.xy += (com_torque.xy / I) * dt;
+                            hyperobject.rotational_velocity.xz += (com_torque.xz / I) * dt;
+                            hyperobject.rotational_velocity.xw += (com_torque.xw / I) * dt;
+                            hyperobject.rotational_velocity.yz += (com_torque.yz / I) * dt;
+                            hyperobject.rotational_velocity.yw += (com_torque.yw / I) * dt;
+                            hyperobject.rotational_velocity.zw += (com_torque.zw / I) * dt;
+                            
+                            // 4. Update pose based on CoM velocity and rotation, update vertices
+                            // Update CoM position
+                            previous_pose = hyperobject.pose;
+                            // translate the pose matrix by velocity * dt
+                            hyperobject.pose.translate_self_by_delta(
+                                hyperobject.velocity_in_world.x * dt,
+                                hyperobject.velocity_in_world.y * dt,
+                                hyperobject.velocity_in_world.z * dt,
+                                hyperobject.velocity_in_world.w * dt,
+                                false
+                            );
+                            // rotate the pose matrix by rotational velocity * dt
+                            hyperobject.pose.rotate_self_by_delta('XY', hyperobject.rotational_velocity.xy * dt, false);
+                            hyperobject.pose.rotate_self_by_delta('XZ', hyperobject.rotational_velocity.xz * dt, false);
+                            hyperobject.pose.rotate_self_by_delta('XW', hyperobject.rotational_velocity.xw * dt, false);
+                            hyperobject.pose.rotate_self_by_delta('YZ', hyperobject.rotational_velocity.yz * dt, false);
+                            hyperobject.pose.rotate_self_by_delta('YW', hyperobject.rotational_velocity.yw * dt, false);
+                            hyperobject.pose.rotate_self_by_delta('ZW', hyperobject.rotational_velocity.zw * dt, false);
+                            // update vertices
+                            hyperobject.update_vertices_in_world();
+                        }
+                    }
+
+                    physics_time_s += dt;
+
+                    if (DEBUG_PHYSICS) {
+                        // document.getElementById('physics-debug-text').innerHTML = html_physics_log;
+                    } else {
+                        // document.getElementById('physics-debug-text').innerHTML = '';
+                    }
+
+                    if (STEP_PHYSICS_ONCE) {
+                        SIMULATE_PHYSICS = false;
+                        STEP_PHYSICS_ONCE = false;
+                    }
+                } // End of SIMULATE_PHYSICS
+            } // end of substeps
     let new_object_poses_data = new Float32Array(visibleHyperobjects.length * 5 * 5);
     for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
         let obj = visibleHyperobjects[obj_index];
         // basic physics - move cube up and down 
         let time = performance.now() * 0.001;
-        if (obj_index === 0) {
-            obj.pose.rotate_self_by_delta('ZW', 0.01, false)
-        }
+        // DEBUG - rotate the hypercube
+        // if (obj_index === 0) {
+        //     obj.pose.rotate_self_by_delta('ZW', 0.01, false)
+        // }
         // object poses
         let pose = obj.pose.matrix;
         for (let i = 0; i < 5; i++) {
@@ -2460,24 +2668,25 @@ const stage3p3BindGroup = device.createBindGroup({
   render();
 
   // DEBUG: read back counts and offsets and log
-  const readbackBuffer = device.createBuffer({
-    size: cellCountsBuffer.size + cellOffsetsBuffer.size,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  });
-  const readbackEncoder = device.createCommandEncoder();
-  const nItemsToRead = 128;
-  const itemsReadStart = 100000;
-  readbackEncoder.copyBufferToBuffer(cellCountsBuffer, itemsReadStart * 4, readbackBuffer, 0, nItemsToRead * 4);
-  readbackEncoder.copyBufferToBuffer(cellOffsetsBuffer, itemsReadStart * 4, readbackBuffer, nItemsToRead * 4, nItemsToRead * 4);
-  readbackEncoder.copyBufferToBuffer(tempBuffer, itemsReadStart * 4, readbackBuffer, nItemsToRead * 8, nItemsToRead * 4); // NOCOMMIT DEBUG
-  device.queue.submit([readbackEncoder.finish()]);
-  await readbackBuffer.mapAsync(GPUMapMode.READ);
-  const readbackArray = new Uint32Array(readbackBuffer.getMappedRange());
-  console.log('Cell Counts:', readbackArray.slice(0, nItemsToRead));
-  console.log('Cell Offsets:', readbackArray.slice(nItemsToRead, nItemsToRead * 2));
-  console.log('Temp Buffer (NOCOMMIT DEBUG):', readbackArray.slice(nItemsToRead * 2, nItemsToRead * 3));
-  readbackBuffer.unmap();
-
+  if (false) {
+    const readbackBuffer = device.createBuffer({
+      size: cellCountsBuffer.size + cellOffsetsBuffer.size,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    const readbackEncoder = device.createCommandEncoder();
+    const nItemsToRead = 128;
+    const itemsReadStart = 100000;
+    readbackEncoder.copyBufferToBuffer(cellCountsBuffer, itemsReadStart * 4, readbackBuffer, 0, nItemsToRead * 4);
+    readbackEncoder.copyBufferToBuffer(cellOffsetsBuffer, itemsReadStart * 4, readbackBuffer, nItemsToRead * 4, nItemsToRead * 4);
+    readbackEncoder.copyBufferToBuffer(tempBuffer, itemsReadStart * 4, readbackBuffer, nItemsToRead * 8, nItemsToRead * 4); // NOCOMMIT DEBUG
+    device.queue.submit([readbackEncoder.finish()]);
+    await readbackBuffer.mapAsync(GPUMapMode.READ);
+    const readbackArray = new Uint32Array(readbackBuffer.getMappedRange());
+    console.log('Cell Counts:', readbackArray.slice(0, nItemsToRead));
+    console.log('Cell Offsets:', readbackArray.slice(nItemsToRead, nItemsToRead * 2));
+    console.log('Temp Buffer (NOCOMMIT DEBUG):', readbackArray.slice(nItemsToRead * 2, nItemsToRead * 3));
+    readbackBuffer.unmap();
+  }
   
 }
 
