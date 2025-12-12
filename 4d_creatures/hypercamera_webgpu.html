@@ -934,7 +934,7 @@ async function init() {
     alphaMode: 'opaque',
   });
   
-  // Stage 3.1 - Update counts in GAS
+  // Stage 3.1 - Update counts in Screen Space Tile Acceleration Structure
   const stage3p1ShaderCode = `
 struct TetraData {
     i0: u32,
@@ -961,7 +961,7 @@ struct Vector4D {
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let tetra_index = global_id.x;
-    let num_tetras = 20000u; // TODO: pass as uniform
+    let num_tetras = tetra_counts.x; // TODO: pass as uniform
     let TILE_RES = params.y;
     
     if (tetra_index >= num_tetras) {
@@ -1006,8 +1006,159 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 `;
 
-  // Stage 3.4 - Per voxel: tetra tests and final compute shader to write to voxels
-  const stage3p4ShaderCode = `
+// Stage 3.2
+// Stage 3.2: Prefix Sum to calculate offsets from counts
+// This uses a work-efficient parallel scan algorithm
+const stage3p2ShaderCode = `
+@group(0) @binding(0) var<storage, read> counts: array<u32>;
+@group(0) @binding(1) var<storage, read_write> offsets: array<u32>;
+@group(0) @binding(2) var<storage, read_write> temp: array<u32>;
+
+@group(1) @binding(0) var<uniform> params: vec4<u32>; 
+
+@compute @workgroup_size(256)
+fn upsweep(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let tid = global_id.x;
+    let level = params.y;
+    let num_elements = params.x;
+    
+    let stride = 1u << (level + 1u);
+    let idx = tid * stride;
+    
+    if (idx + stride - 1u < num_elements) {
+        let left = idx + (1u << level) - 1u;
+        let right = idx + stride - 1u;
+        temp[right] = temp[left] + temp[right];
+    }
+}
+
+@compute @workgroup_size(256)
+fn downsweep(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let tid = global_id.x;
+    let level = params.y;
+    let num_elements = params.x;
+    
+    let stride = 1u << (level + 1u);
+    let idx = tid * stride;
+    
+    if (idx + stride - 1u < num_elements) {
+        let left = idx + (1u << level) - 1u;
+        let right = idx + stride - 1u;
+        
+        let t = temp[left];
+        temp[left] = temp[right];
+        temp[right] = t + temp[right];
+    }
+}
+
+@compute @workgroup_size(256)
+fn init(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let tid = global_id.x;
+    let num_elements = params.x;
+    if (tid < num_elements) {
+        temp[tid] = counts[tid];
+    }
+}
+
+@compute @workgroup_size(256)
+fn finalize(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let tid = global_id.x;
+    let num_elements = params.x;
+    if (tid < num_elements) {
+        offsets[tid] = temp[tid];
+    }
+}
+
+// NEW: Kernel to clear the root element safely
+@compute @workgroup_size(1)
+fn clear_root() {
+    let num_elements = params.x;
+    if (num_elements > 0u) {
+        temp[num_elements - 1u] = 0u;
+    }
+}
+`;
+
+// NEW: Shader to clear buffers (replaces queue.writeBuffer)
+const clearBufferShaderCode = `
+@group(0) @binding(0) var<storage, read_write> buffer: array<u32>;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let idx = global_id.x;
+    if (idx < arrayLength(&buffer)) {
+        buffer[idx] = 0u;
+    }
+}
+`;
+
+// NEW: Stage 3.3 - Binning (Writes tetra indices into the grid)
+const stage3p3ShaderCode = `
+struct TetraData { i0: u32, i1: u32, i2: u32, i3: u32, color: u32 }
+struct Vector4D { x: f32, y: f32, z: f32, w: f32 }
+
+@group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
+@group(0) @binding(1) var<storage, read> vertices_1uvls: array<Vector4D>;
+@group(0) @binding(2) var<storage, read> cell_offsets: array<u32>;
+@group(0) @binding(3) var<storage, read_write> cell_write_counters: array<atomic<u32>>; // Temporary atomic counter
+@group(0) @binding(4) var<storage, read_write> cell_tetra_indices: array<u32>; // Output
+
+@group(1) @binding(0) var<uniform> params: vec4<u32>;
+@group(1) @binding(1) var<uniform> tetra_counts: vec4<u32>;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let tetra_index = global_id.x;
+    let num_tetras = tetra_counts.x;
+    let TILE_RES = params.y;
+    
+    if (tetra_index >= num_tetras) { return; }
+    
+    let tetra = tetras[tetra_index];
+    let v0 = vertices_1uvls[tetra.i0];
+    let v1 = vertices_1uvls[tetra.i1];
+    let v2 = vertices_1uvls[tetra.i2];
+    let v3 = vertices_1uvls[tetra.i3];
+    
+    // Calculate AABB (Same logic as Stage 3.1)
+    let u_min = min(min(v0.x, v1.x), min(v2.x, v3.x));
+    let u_max = max(max(v0.x, v1.x), max(v2.x, v3.x));
+    let v_min = min(min(v0.y, v1.y), min(v2.y, v3.y));
+    let v_max = max(max(v0.y, v1.y), max(v2.y, v3.y));
+    let l_min = min(min(v0.z, v1.z), min(v2.z, v3.z));
+    let l_max = max(max(v0.z, v1.z), max(v2.z, v3.z));
+    
+    let S_U_START = -1.0; let S_U_RANGE = 2.0;
+    let S_V_START = -1.0; let S_V_RANGE = 2.0;
+    let S_L_START = -1.0; let S_L_RANGE = 2.0;
+    
+    let TU_min = u32(clamp(floor((u_min - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TU_max = u32(clamp(ceil((u_max - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TV_min = u32(clamp(floor((v_min - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TV_max = u32(clamp(ceil((v_max - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TL_min = u32(clamp(floor((l_min - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    let TL_max = u32(clamp(ceil((l_max - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
+    
+    for (var TU = TU_min; TU <= TU_max; TU++) {
+        for (var TV = TV_min; TV <= TV_max; TV++) {
+            for (var TL = TL_min; TL <= TL_max; TL++) {
+                let CELL_ID = TU + TV * TILE_RES + TL * TILE_RES * TILE_RES;
+                
+                // CRITICAL FIX: Determine where to write using Offsets + Atomic Increment
+                let start_offset = cell_offsets[CELL_ID];
+                let local_idx = atomicAdd(&cell_write_counters[CELL_ID], 1u);
+                
+                // Write the tetra index to the global buffer
+                // Note: We should technically check bounds here, but MAX_SIZE is usually large enough
+                cell_tetra_indices[start_offset + local_idx] = tetra_index;
+            }
+        }
+    }
+}
+`;
+
+  // Stage 3.5 - Per voxel: tetra tests and final compute shader to write to voxels
+  const stage3p5ShaderCode = `
 struct TetraData {
     i0: u32,
     i1: u32,
@@ -1161,8 +1312,11 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   const stage3p1ShaderModule = device.createShaderModule({
     code: stage3p1ShaderCode,
   });
-  const stage3p4ShaderModule = device.createShaderModule({
-    code: stage3p4ShaderCode,
+  const stage3p2ShaderModule = device.createShaderModule({
+    code: stage3p2ShaderCode,
+  });
+  const stage3p5ShaderModule = device.createShaderModule({
+    code: stage3p5ShaderCode,
   });
 
   // DDA ray traversal shader code
@@ -1418,7 +1572,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     },
   });
 
-  // Stage 3p4 Bind Groups ----
+
+  // Stage 3p5 Bind Groups ----
   // Create buffers
   
     const tetraBuffer = device.createBuffer({
@@ -1428,10 +1583,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     device.queue.writeBuffer(tetraBuffer, 0, tetraData);
 
     const tetraCountsBuffer = device.createBuffer({
-        size: 8,
+        size: 16,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
-    device.queue.writeBuffer(tetraCountsBuffer, 0, new Uint32Array([valid_tetras.length, vertices_in_1uvl.length]));
+    device.queue.writeBuffer(tetraCountsBuffer, 0, new Uint32Array([valid_tetras.length, vertices_in_1uvl.length, 0, 0]));
 
       const vertices1uvlsBuffer = device.createBuffer({
         size: vertices1uvlsData.byteLength,
@@ -1457,6 +1612,27 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     });
     device.queue.writeBuffer(cellTetraIndicesBuffer, 0, accelStructureTetraIndicesData);
 
+  // Stage 3p2 - Buffers
+  // Create temp buffer for scan algorithm
+  const tempBuffer = device.createBuffer({
+      size: cellCountsBuffer.size,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC // NOCOMMIT DEBUG
+  });
+  //  Create a larger buffer for parameters
+  // We need space for ~40 passes. 256 bytes alignment is standard.
+  const ALIGNED_SIZE = 256; 
+  const MAX_PASSES = 100; // Enough for Init + Up(18) + Clear + Down(18) + Finalize
+  const prefixSumParamsBuffer = device.createBuffer({
+      size: MAX_PASSES * ALIGNED_SIZE, 
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+  });
+
+  // Stage 3p3 - Buffers
+  // Buffer for temporary write counts during binning
+  const cellWriteCountsBuffer = device.createBuffer({
+      size: accelStructureCountsData.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  });
 
   // Update params for rasterization
   const rasterParamsData = new Uint32Array([VOX, TILE_RES, TILE_SZ, 0]);
@@ -1505,7 +1681,141 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
       ]
   });
 
-  const stage3p4BindGroupLayout = device.createBindGroupLayout({
+  // 3p2
+
+    const prefixSumBindGroupLayout = device.createBindGroupLayout({
+      entries: [
+          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+      ]
+  });
+   const prefixSumParamsLayout = device.createBindGroupLayout({
+      entries: [
+          { 
+            binding: 0, 
+            visibility: GPUShaderStage.COMPUTE, 
+            buffer: { type: 'uniform', hasDynamicOffset: true } // Changed to true
+          }
+      ]
+  });
+  const prefixSumBindGroup = device.createBindGroup({
+      layout: prefixSumBindGroupLayout,
+      entries: [
+          { binding: 0, resource: { buffer: cellCountsBuffer } },
+          { binding: 1, resource: { buffer: cellOffsetsBuffer } },
+          { binding: 2, resource: { buffer: tempBuffer } }
+      ]
+  });
+
+    const prefixSumParamsBindGroup = device.createBindGroup({
+      layout: prefixSumParamsLayout,
+      entries: [
+          { 
+            binding: 0, 
+            resource: { 
+                buffer: prefixSumParamsBuffer,
+                size: 16 // Shader only needs a vec4<u32> (16 bytes)
+            } 
+          }
+      ]
+  });
+  const prefixSumPipelineLayout = device.createPipelineLayout({
+      bindGroupLayouts: [prefixSumBindGroupLayout, prefixSumParamsLayout]
+  });
+
+    // Create pipelines for each stage
+  const initPipeline = device.createComputePipeline({
+    layout: prefixSumPipelineLayout,
+    compute: {
+      module: stage3p2ShaderModule,
+      entryPoint: 'init'
+    }
+  });
+  const upsweepPipeline = device.createComputePipeline({
+    layout: prefixSumPipelineLayout,
+    compute: {
+      module: stage3p2ShaderModule,
+      entryPoint: 'upsweep'
+    }
+  });
+  const clearRootPipeline = device.createComputePipeline({
+    layout: prefixSumPipelineLayout,
+    compute: {
+      module: stage3p2ShaderModule,
+      entryPoint: 'clear_root'
+    }
+  });
+  const downsweepPipeline = device.createComputePipeline({
+    layout: prefixSumPipelineLayout,
+    compute: {
+      module: stage3p2ShaderModule,
+      entryPoint: 'downsweep'
+    }
+  });
+  const finalizePipeline = device.createComputePipeline({
+    layout: prefixSumPipelineLayout,
+    compute: {
+      module: stage3p2ShaderModule,
+      entryPoint: 'finalize'
+    }
+  });
+
+  // 3p3
+
+  
+// 1. Setup Clear Pipeline
+const clearShaderModule = device.createShaderModule({ code: clearBufferShaderCode });
+const clearBindGroupLayout = device.createBindGroupLayout({
+    entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }]
+});
+const clearPipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [clearBindGroupLayout] });
+const clearPipeline = device.createComputePipeline({
+    layout: clearPipelineLayout,
+    compute: { module: clearShaderModule, entryPoint: 'main' }
+});
+// Create bind groups for clearing specific buffers
+const clearCountsBG = device.createBindGroup({
+    layout: clearBindGroupLayout,
+    entries: [{ binding: 0, resource: { buffer: cellCountsBuffer } }]
+});
+const clearWriteCountsBG = device.createBindGroup({
+    layout: clearBindGroupLayout,
+    entries: [{ binding: 0, resource: { buffer: cellWriteCountsBuffer } }]
+});
+
+// 2. Setup Stage 3.3 (Binning) Pipeline
+const stage3p3ShaderModule = device.createShaderModule({ code: stage3p3ShaderCode });
+const stage3p3BindGroupLayout = device.createBindGroupLayout({
+    entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // Offsets
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },           // Write Counters (Atomic)
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }            // Tetra Indices (Output)
+    ]
+});
+const stage3p3PipelineLayout = device.createPipelineLayout({
+    bindGroupLayouts: [stage3p3BindGroupLayout, stage3p1ParamsBindGroupLayout] // Reuse params layout
+});
+const stage3p3Pipeline = device.createComputePipeline({
+    layout: stage3p3PipelineLayout,
+    compute: { module: stage3p3ShaderModule, entryPoint: 'main' }
+});
+const stage3p3BindGroup = device.createBindGroup({
+    layout: stage3p3BindGroupLayout,
+    entries: [
+        { binding: 0, resource: { buffer: tetraBuffer } },
+        { binding: 1, resource: { buffer: vertices1uvlsBuffer } },
+        { binding: 2, resource: { buffer: cellOffsetsBuffer } },
+        { binding: 3, resource: { buffer: cellWriteCountsBuffer } },
+        { binding: 4, resource: { buffer: cellTetraIndicesBuffer } }
+    ]
+});
+
+  // 3p5
+
+  const stage3p5BindGroupLayout = device.createBindGroupLayout({
       entries: [
           { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
           { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
@@ -1515,23 +1825,23 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
           { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
   });
-  const stage3p4ParamsBindGroupLayout = device.createBindGroupLayout({
+  const stage3p5ParamsBindGroupLayout = device.createBindGroupLayout({
       entries: [
           { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
       ]
   });
-  const stage3p4PipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [stage3p4BindGroupLayout, stage3p4ParamsBindGroupLayout]
+  const stage3p5PipelineLayout = device.createPipelineLayout({
+      bindGroupLayouts: [stage3p5BindGroupLayout, stage3p5ParamsBindGroupLayout]
   });
-  const stage3p4Pipeline = device.createComputePipeline({
-      layout: stage3p4PipelineLayout,
+  const stage3p5Pipeline = device.createComputePipeline({
+      layout: stage3p5PipelineLayout,
       compute: {
-          module: stage3p4ShaderModule,
+          module: stage3p5ShaderModule,
           entryPoint: 'cs_main'
       }
   });
-  const stage3p4BindGroup = device.createBindGroup({
-      layout: stage3p4BindGroupLayout,
+  const stage3p5BindGroup = device.createBindGroup({
+      layout: stage3p5BindGroupLayout,
       entries: [
           { binding: 0, resource: { buffer: tetraBuffer } },
           { binding: 1, resource: { buffer: vertices1uvlsBuffer } },
@@ -1541,8 +1851,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
           { binding: 5, resource: { buffer: voxelBuffer } }
       ]
   });
-  const stage3p4ParamsBindGroup = device.createBindGroup({
-      layout: stage3p4ParamsBindGroupLayout,
+  const stage3p5ParamsBindGroup = device.createBindGroup({
+      layout: stage3p5ParamsBindGroupLayout,
       entries: [
           { binding: 0, resource: { buffer: rasterParamsBuffer } }
       ]
@@ -1613,12 +1923,19 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
 
+    // --- STEP 1: Clear Counters (Use Compute Shader, NOT writeBuffer for proper sync) ---
+    const clearPass = commandEncoder.beginComputePass();
+    clearPass.setPipeline(clearPipeline);
+    // Clear cell_counts
+    clearPass.setBindGroup(0, clearCountsBG);
+    clearPass.dispatchWorkgroups(Math.ceil(accelStructureCountsData.length / 256));
+    // Clear cell_write_counters
+    clearPass.setBindGroup(0, clearWriteCountsBG);
+    clearPass.dispatchWorkgroups(Math.ceil(accelStructureCountsData.length / 256));
+    clearPass.end();
+
     // Stage 3.1: Accel structure counts
     if (true) {
-      // Clear counts buffer
-      const zeroArray = new Uint32Array(accelStructureCountsData.length);
-      device.queue.writeBuffer(cellCountsBuffer, 0, zeroArray);
-      
       const computePass = commandEncoder.beginComputePass();
       computePass.setPipeline(stage3p1Pipeline);
       computePass.setBindGroup(0, stage3p1BindGroup);
@@ -1628,17 +1945,130 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
       computePass.end();
     }
 
-    // Stage 3.4: Intersection tests compute pass to update voxel data
+    function computePrefixSum(commandEncoder, numElements) {
+        const numLevels = Math.ceil(Math.log2(numElements));
+        
+        // --- 1. Prepare Data CPU Side ---
+        // We calculate all parameters needed for every pass and put them in one array
+        const ALIGNED_SIZE = 256;
+        // Total steps: Init(1) + Up(numLevels) + Clear(1) + Down(numLevels) + Finalize(1)
+        const totalSteps = 1 + numLevels + 1 + numLevels + 1;
+        
+        // Use a DataView or typed array to write into the buffer
+        const uniformData = new Uint8Array(totalSteps * ALIGNED_SIZE);
+        const view = new DataView(uniformData.buffer);
+
+        let stepIndex = 0;
+        
+        // Helper to write params (num_elements, level, 0, 0)
+        function addParams(n, l) {
+            const offset = stepIndex * ALIGNED_SIZE;
+            view.setUint32(offset + 0, n, true); // Little endian
+            view.setUint32(offset + 4, l, true);
+            view.setUint32(offset + 8, 0, true);
+            view.setUint32(offset + 12, 0, true);
+            stepIndex++;
+            return offset;
+        }
+
+        // Generate Offsets
+        const offsetInit = addParams(numElements, 0);
+        
+        const offsetsUp = [];
+        for (let level = 0; level < numLevels; level++) {
+            offsetsUp.push(addParams(numElements, level));
+        }
+        
+        const offsetClear = addParams(numElements, 0); // params.x used for bounds check
+        
+        const offsetsDown = [];
+        for (let level = numLevels - 1; level >= 0; level--) {
+            offsetsDown.push(addParams(numElements, level));
+        }
+        
+        const offsetFinalize = addParams(numElements, 0);
+
+        // --- 2. Upload Data to GPU ---
+        // Write the entire sequence of parameters once
+        device.queue.writeBuffer(prefixSumParamsBuffer, 0, uniformData);
+
+        // --- 3. Record Commands with Dynamic Offsets ---
+        
+        // Init
+        let pass = commandEncoder.beginComputePass();
+        pass.setPipeline(initPipeline);
+        pass.setBindGroup(0, prefixSumBindGroup);
+        pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetInit]); // Pass offset here
+        pass.dispatchWorkgroups(Math.ceil(numElements / 256));
+        pass.end();
+        
+        // Up-sweep
+        for (let i = 0; i < numLevels; i++) {
+            const level = i;
+            pass = commandEncoder.beginComputePass();
+            pass.setPipeline(upsweepPipeline);
+            pass.setBindGroup(0, prefixSumBindGroup);
+            pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetsUp[i]]);
+            const workgroups = Math.ceil(numElements / (256 * (1 << (level + 1))));
+            pass.dispatchWorkgroups(Math.max(1, workgroups));
+            pass.end();
+        }
+        
+        // Clear Root (GPU side)
+        pass = commandEncoder.beginComputePass();
+        pass.setPipeline(clearRootPipeline);
+        pass.setBindGroup(0, prefixSumBindGroup);
+        pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetClear]);
+        pass.dispatchWorkgroups(1);
+        pass.end();
+        
+        // Down-sweep
+        for (let i = 0; i < numLevels; i++) {
+            const level = numLevels - 1 - i;
+            pass = commandEncoder.beginComputePass();
+            pass.setPipeline(downsweepPipeline);
+            pass.setBindGroup(0, prefixSumBindGroup);
+            pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetsDown[i]]);
+            const workgroups = Math.ceil(numElements / (256 * (1 << (level + 1))));
+            pass.dispatchWorkgroups(Math.max(1, workgroups));
+            pass.end();
+        }
+        
+        // Finalize
+        pass = commandEncoder.beginComputePass();
+        pass.setPipeline(finalizePipeline);
+        pass.setBindGroup(0, prefixSumBindGroup);
+        pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetFinalize]);
+        pass.dispatchWorkgroups(Math.ceil(numElements / 256));
+        pass.end();
+    }
+
+    // Stage 3.2: Prefix sum to compute cell offsets
+    if (true) {
+      computePrefixSum(commandEncoder, TILE_RES * TILE_RES * TILE_RES);
+    }
+
+    // Stage 3.3 (Binning - Write Indices) ---
+    // populates cellTetraIndicesBuffer with the current frame's data
+    const pass3 = commandEncoder.beginComputePass();
+    pass3.setPipeline(stage3p3Pipeline);
+    pass3.setBindGroup(0, stage3p3BindGroup);
+    pass3.setBindGroup(1, stage3p1ParamsBindGroup); // Reusing params
+    pass3.dispatchWorkgroups(Math.ceil(valid_tetras.length / 64));
+    pass3.end();
+
+    // Stage 3.5: Intersection tests compute pass to update voxel data
     if (true) {
       const computePass = commandEncoder.beginComputePass();
-      computePass.setPipeline(stage3p4Pipeline);
-      computePass.setBindGroup(0, stage3p4BindGroup);
-      computePass.setBindGroup(1, stage3p4ParamsBindGroup);
+      computePass.setPipeline(stage3p5Pipeline);
+      computePass.setBindGroup(0, stage3p5BindGroup);
+      computePass.setBindGroup(1, stage3p5ParamsBindGroup);
       const workgroupCount = Math.ceil(VOX / 4);
       computePass.dispatchWorkgroups(workgroupCount, workgroupCount, workgroupCount);
       computePass.end();
     }
-    
+
+
     // Stage 4: DDA Render pass
     const renderPass = commandEncoder.beginRenderPass({
       colorAttachments: [{
@@ -1699,6 +2129,27 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
   });
   
   render();
+
+  // DEBUG: read back counts and offsets and log
+  const readbackBuffer = device.createBuffer({
+    size: cellCountsBuffer.size + cellOffsetsBuffer.size,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+  });
+  const readbackEncoder = device.createCommandEncoder();
+  const nItemsToRead = 128;
+  const itemsReadStart = 100000;
+  readbackEncoder.copyBufferToBuffer(cellCountsBuffer, itemsReadStart * 4, readbackBuffer, 0, nItemsToRead * 4);
+  readbackEncoder.copyBufferToBuffer(cellOffsetsBuffer, itemsReadStart * 4, readbackBuffer, nItemsToRead * 4, nItemsToRead * 4);
+  readbackEncoder.copyBufferToBuffer(tempBuffer, itemsReadStart * 4, readbackBuffer, nItemsToRead * 8, nItemsToRead * 4); // NOCOMMIT DEBUG
+  device.queue.submit([readbackEncoder.finish()]);
+  await readbackBuffer.mapAsync(GPUMapMode.READ);
+  const readbackArray = new Uint32Array(readbackBuffer.getMappedRange());
+  console.log('Cell Counts:', readbackArray.slice(0, nItemsToRead));
+  console.log('Cell Offsets:', readbackArray.slice(nItemsToRead, nItemsToRead * 2));
+  console.log('Temp Buffer (NOCOMMIT DEBUG):', readbackArray.slice(nItemsToRead * 2, nItemsToRead * 3));
+  readbackBuffer.unmap();
+
+  
 }
 
 init().catch(err => {
