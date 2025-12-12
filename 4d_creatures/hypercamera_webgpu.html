@@ -2098,17 +2098,105 @@ const stage3p3BindGroup = device.createBindGroup({
     device.queue.writeBuffer(uniformBuffer, 0, uniforms);
   }
   
+  // Keyboard controls
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+
   function render() {
     updateCamera();
     // update hypercamera
-    let time = performance.now() * 0.001;
-    hypercamera_T.translate_self_by_delta(
-        Math.sin(time) * 0.05,
-        0,
-        0,
-        0,
-        false
-    );
+    // Handle WASD movement for selected vertex
+            if (true) {
+                
+                const moveSpeed = 0.1;
+                const RELATIVE_MOVEMENT = true;
+                if (keys['w']) {
+                    hypercamera_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                if (keys['s']) {
+                    hypercamera_T.translate_self_by_delta(-moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                if (keys['a']) {
+                    hypercamera_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                if (keys['d']) {
+                    hypercamera_T.translate_self_by_delta(0,-moveSpeed, 0, 0, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                if (keys['q']) {
+                    hypercamera_T.translate_self_by_delta(0, 0, 0, moveSpeed, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                if (keys['e']) {
+                    hypercamera_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                if (keys['r']) {
+                    hypercamera_T.translate_self_by_delta(0, 0, moveSpeed, 0, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                if (keys['f']) {
+                    hypercamera_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                // reset camera z to 0
+                hypercamera_T.matrix[2][4] = floor_heightmap(
+                    hypercamera_T.matrix[0][4],
+                    hypercamera_T.matrix[1][4],
+                    hypercamera_T.matrix[3][4]
+                ) + hypercamera_height_above_ground;
+
+                if (keys['i']) {
+                    hypercamera_T.rotate_self_by_delta('XZ', 0.05, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                if (keys['k']) {
+                    hypercamera_T.rotate_self_by_delta('XZ', -0.05, RELATIVE_MOVEMENT);
+                    moved = true;
+                }
+                if (keys['j']) {
+                    hypercamera_T.rotate_self_by_delta('XY', 0.05, false);
+                    moved = true;
+                }
+                if (keys['l']) {
+                    hypercamera_T.rotate_self_by_delta('XY', -0.05, false);
+                    moved = true;
+                }
+                if (keys['u']) {
+                    hypercamera_T.rotate_self_by_delta('XW', 0.05, false);
+                    moved = true;
+                }
+                if (keys['o']) {
+                    hypercamera_T.rotate_self_by_delta('XW', -0.05, false);
+                    moved = true;
+                }
+                if (keys['y']) {
+                    hypercamera_T.rotate_self_by_delta('YW', -0.05, false);
+                    moved = true;
+                }
+                if (keys['p']) {
+                    hypercamera_T.rotate_self_by_delta('YW', 0.05, false);
+                    moved = true;
+                }
+              }
+    // let time = performance.now() * 0.001;
+    // hypercamera_T.translate_self_by_delta(
+    //     Math.sin(time) * 0.05,
+    //     0,
+    //     0,
+    //     0,
+    //     false
+    // );
     let inv_pose = hypercamera_T.inverse();
     let inv_pose_data = new Float32Array(5 * 5);
     let inv_pose_matrix = inv_pose.matrix;
