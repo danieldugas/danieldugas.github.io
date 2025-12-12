@@ -364,7 +364,7 @@ class Hyperobject {
             w_min: -scene_bound,
             w_max: scene_bound
         };
-        const N_TILES = 20;
+        const N_TILES = 10;
         const GRID_RES = 2 * scene_bound / N_TILES; // grid resolution
         const n_i = Math.floor((GRID_LIMS.x_max - GRID_LIMS.x_min) / GRID_RES) + 1;
         const n_j = Math.floor((GRID_LIMS.y_max - GRID_LIMS.y_min) / GRID_RES) + 1;
@@ -791,9 +791,9 @@ for (let i = 0; i < vertices_in_1uvl.length; i++) {
 }
 
 // initialize bvh
-const TILE_SZ = 4 ;
+const TILE_SZ = 2;
 const TILE_RES = VOX / TILE_SZ;
-const MAX_ACCEL_STRUCTURE_DEPTH = 200;
+const MAX_ACCEL_STRUCTURE_DEPTH = 400;
 const MAX_ACCEL_STRUCTURE_SIZE = TILE_RES*TILE_RES*TILE_RES*MAX_ACCEL_STRUCTURE_DEPTH;
 const accelStructureOffsetsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
 const accelStructureCountsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
