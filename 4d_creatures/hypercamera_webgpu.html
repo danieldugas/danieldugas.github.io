@@ -675,6 +675,7 @@ let timingsInfosHtml = "";
 // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
 const s0_start = performance.now();
 let visibleHyperobjects = [hypercube, hyperpyramid, hyperfloor];
+
 // let vertices_in_world = hypercube.vertices_in_world;
 // let tetras = hypercube.tetras.map(tetra => ({ indices: tetra, color: hypercube.color }));
 let vertices_in_world = [];
@@ -694,6 +695,40 @@ const s0_end = performance.now();
 console.log(`Stage 0: Gathered vertices and tetras from visible hyperobjects in ${(s0_end - s0_start).toFixed(2)} ms`);
 timingsInfosHtml += `<p>Stage 0: Gathered vertices and tetras from visible hyperobjects in ${(s0_end - s0_start).toFixed(2)} ms</p>`;
         
+
+// Create buffers with 1. all vertices in object frame, 2. all object poses 3. the object index of each vertex
+let all_vertices_in_object_data = new Float32Array(vertices_in_world.length * 4);
+let all_object_poses_data = new Float32Array(visibleHyperobjects.length * 5 * 5);
+let vertex_object_indices_data = new Uint32Array(vertices_in_world.length);
+let vertex_counter = 0;
+for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
+    let obj = visibleHyperobjects[obj_index];
+    // object poses
+    let pose = obj.pose.matrix;
+    for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+            all_object_poses_data[obj_index * 5 * 5 + i * 5 + j] = pose[i][j];
+        }
+    }
+    // vertices
+    for (let v of obj.vertices_in_object) {
+        all_vertices_in_object_data[vertex_counter * 4 + 0] = v.x;
+        all_vertices_in_object_data[vertex_counter * 4 + 1] = v.y;
+        all_vertices_in_object_data[vertex_counter * 4 + 2] = v.z;
+        all_vertices_in_object_data[vertex_counter * 4 + 3] = v.w;
+        vertex_object_indices_data[vertex_counter] = obj_index;
+        vertex_counter++;
+    }
+}
+// Initit Hypercamera Pose buffer
+let hypercamera_inv_pose_data = new Float32Array(5 * 5);
+let hc_pose = hypercamera_T.inverse().matrix;
+for (let i = 0; i < 5; i++) {
+    for (let j = 0; j < 5; j++) {
+        hypercamera_inv_pose_data[i * 5 + j] = hc_pose[i][j];
+    }
+}
+
 // ---------------------------------------------------------------------------------
 // Stage 1: Per-vertex - Transform vertices from world to camera space
 const s1_start = performance.now();
@@ -933,6 +968,72 @@ async function init() {
     format,
     alphaMode: 'opaque',
   });
+
+  const stage1ShaderCode = `
+  // Stage 1: Transform vertices from object space to world space, then to camera space, then to SUVL space
+struct Vector4D {
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+}
+
+@group(0) @binding(0) var<storage, read> vertices_in_object: array<Vector4D>;
+@group(0) @binding(1) var<storage, read> object_poses_5by5: array<f32>;
+@group(0) @binding(2) var<storage, read> vertex_object_indices: array<u32>;
+@group(0) @binding(3) var<storage, read> hypercamera_inv_pose_5by5: array<f32>;
+@group(0) @binding(4) var<storage, read_write> vertices_1uvls: array<Vector4D>;
+
+@group(1) @binding(0) var<uniform> vertex_counts: vec4<u32>; // num_vertices, unused, unused, unused
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let vertex_index = global_id.x;
+    let num_vertices = vertex_counts.x; // TODO: pass as uniform
+    if (vertex_index >= num_vertices) {
+        return;
+    }
+
+    // Load vertex in object space
+    let v_obj = vertices_in_object[vertex_index];
+    // Load object pose
+    let obj_index = vertex_object_indices[vertex_index];
+    var obj_pose: array<array<f32,5>,5>;
+    for (var i: u32 = 0u; i < 5u; i++) {
+        for (var j: u32 = 0u; j < 5u; j++) {
+            obj_pose[i][j] = object_poses_5by5[obj_index * 25u + i * 5u + j];
+        }
+    }
+    // Transform to world space
+    var v_world: Vector4D;
+    v_world.x = obj_pose[0][0] * v_obj.x + obj_pose[0][1] * v_obj.y + obj_pose[0][2] * v_obj.z + obj_pose[0][3] * v_obj.w + obj_pose[0][4];
+    v_world.y = obj_pose[1][0] * v_obj.x + obj_pose[1][1] * v_obj.y + obj_pose[1][2] * v_obj.z + obj_pose[1][3] * v_obj.w + obj_pose[1][4];
+    v_world.z = obj_pose[2][0] * v_obj.x + obj_pose[2][1] * v_obj.y + obj_pose[2][2] * v_obj.z + obj_pose[2][3] * v_obj.w + obj_pose[2][4];
+    v_world.w = obj_pose[3][0] * v_obj.x + obj_pose[3][1] * v_obj.y + obj_pose[3][2] * v_obj.z + obj_pose[3][3] * v_obj.w + obj_pose[3][4];
+    // Load hypercamera pose
+    var hc_pose: array<array<f32,5>,5>;
+    for (var i: u32 = 0u; i < 5u; i++) {
+        for (var j: u32 = 0u; j < 5u; j++) {
+            hc_pose[i][j] = hypercamera_inv_pose_5by5[i * 5u + j];
+        }
+    }
+    // Transform to camera space
+    var v_cam: Vector4D;
+    v_cam.x = hc_pose[0][0] * v_world.x + hc_pose[0][1] * v_world.y + hc_pose[0][2] * v_world.z + hc_pose[0][3] * v_world.w + hc_pose[0][4];
+    v_cam.y = hc_pose[1][0] * v_world.x + hc_pose[1][1] * v_world.y + hc_pose[1][2] * v_world.z + hc_pose[1][3] * v_world.w + hc_pose[1][4];
+    v_cam.z = hc_pose[2][0] * v_world.x + hc_pose[2][1] * v_world.y + hc_pose[2][2] * v_world.z + hc_pose[2][3] * v_world.w + hc_pose[2][4];
+    v_cam.w = hc_pose[3][0] * v_world.x + hc_pose[3][1] * v_world.y + hc_pose[3][2] * v_world.z + hc_pose[3][3] * v_world.w + hc_pose[3][4];
+    // Transform to 1UVL space
+    var v_1uvls: Vector4D;
+    v_1uvls.x = v_cam.y / v_cam.x;
+    v_1uvls.y = v_cam.z / v_cam.x;
+    v_1uvls.z = v_cam.w / v_cam.x;
+    v_1uvls.w = v_cam.x;
+
+    // Store result
+    vertices_1uvls[vertex_index] = v_1uvls;
+}
+`;
   
   // Stage 3.1 - Update counts in Screen Space Tile Acceleration Structure
   const stage3p1ShaderCode = `
@@ -973,7 +1074,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let v1_1uvls = vertices_1uvls[tetra.i1];
     let v2_1uvls = vertices_1uvls[tetra.i2];
     let v3_1uvls = vertices_1uvls[tetra.i3];
-    
+
+    // For safety, ignore tetra if any vertex has non-positive S
+    if (v0_1uvls.w <= 0.0 || v1_1uvls.w <= 0.0 || v2_1uvls.w <= 0.0 || v3_1uvls.w <= 0.0) {
+        return;
+    }
+
     let u_min = min(min(v0_1uvls.x, v1_1uvls.x), min(v2_1uvls.x, v3_1uvls.x));
     let u_max = max(max(v0_1uvls.x, v1_1uvls.x), max(v2_1uvls.x, v3_1uvls.x));
     let v_min = min(min(v0_1uvls.y, v1_1uvls.y), min(v2_1uvls.y, v3_1uvls.y));
@@ -1119,6 +1225,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let v1 = vertices_1uvls[tetra.i1];
     let v2 = vertices_1uvls[tetra.i2];
     let v3 = vertices_1uvls[tetra.i3];
+
+    // For safety, ignore tetra if any vertex has non-positive S
+    if (v0.w <= 0.0 || v1.w <= 0.0 || v2.w <= 0.0 || v3.w <= 0.0) {
+        return;
+    }
     
     // Calculate AABB (Same logic as Stage 3.1)
     let u_min = min(min(v0.x, v1.x), min(v2.x, v3.x));
@@ -1309,6 +1420,9 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 `;
 
   // Create shader module
+  const stage1ShaderModule = device.createShaderModule({
+    code: stage1ShaderCode,
+  });
   const stage3p1ShaderModule = device.createShaderModule({
     code: stage3p1ShaderCode,
   });
@@ -1514,6 +1628,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
   const shaderModule = device.createShaderModule({
     code: shaderCode,
   });
+
+  // ----------------------
   
   // Create uniform buffer
   // 4 vec4s (camera pos, dir, up, right) + 1 vec2 (resolution) + padding = 80 bytes
@@ -1572,10 +1688,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     },
   });
 
-
-  // Stage 3p5 Bind Groups ----
-  // Create buffers
-  
+  // Stage 1 Buffers and Pipeline
+    
     const tetraBuffer = device.createBuffer({
         size: tetraData.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
@@ -1594,6 +1708,82 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     });
     device.queue.writeBuffer(vertices1uvlsBuffer, 0, vertices1uvlsData);
     
+  const allVerticesInObjectBuffer = device.createBuffer({
+    size: all_vertices_in_object_data.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  });
+  device.queue.writeBuffer(allVerticesInObjectBuffer, 0, all_vertices_in_object_data);
+
+  const objectPosesBuffer = device.createBuffer({
+    size: all_object_poses_data.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  });
+  device.queue.writeBuffer(objectPosesBuffer, 0, all_object_poses_data);
+
+  const vertexObjectIndicesBuffer = device.createBuffer({
+    size: vertex_object_indices_data.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  });
+  device.queue.writeBuffer(vertexObjectIndicesBuffer, 0, vertex_object_indices_data);
+
+  const hypercameraInvPoseBuffer = device.createBuffer({
+    size: hypercamera_inv_pose_data.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  });
+  device.queue.writeBuffer(hypercameraInvPoseBuffer, 0, hypercamera_inv_pose_data);
+
+  const stage1ParamsBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+  });
+  device.queue.writeBuffer(stage1ParamsBuffer, 0, new Uint32Array([all_vertices_in_object_data.length, 0, 0, 0]));
+
+  const stage1BindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+      { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+    ]
+  });
+  const stage1ParamsBindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+    ]
+  });
+  const stage1PipelineLayout = device.createPipelineLayout({
+    bindGroupLayouts: [stage1BindGroupLayout, stage1ParamsBindGroupLayout]
+  });
+  const stage1Pipeline = device.createComputePipeline({
+    layout: stage1PipelineLayout,
+    compute: {
+      module: stage1ShaderModule,
+      entryPoint: 'main'
+    }
+  });
+  const stage1BindGroup = device.createBindGroup({
+    layout: stage1BindGroupLayout,
+    entries: [
+      { binding: 0, resource: { buffer: allVerticesInObjectBuffer } },
+      { binding: 1, resource: { buffer: objectPosesBuffer } },
+      { binding: 2, resource: { buffer: vertexObjectIndicesBuffer } },
+      { binding: 3, resource: { buffer: hypercameraInvPoseBuffer } },
+      { binding: 4, resource: { buffer: vertices1uvlsBuffer } }
+    ]
+  });
+  const stage1ParamsBindGroup = device.createBindGroup({
+    layout: stage1ParamsBindGroupLayout,
+    entries: [
+      { binding: 0, resource: { buffer: stage1ParamsBuffer } }
+    ]
+  });
+
+
+
+  // Stage 3p5 Bind Groups ----
+  // Create buffers
+
     const cellCountsBuffer = device.createBuffer({
         size: accelStructureCountsData.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
@@ -1910,20 +2100,71 @@ const stage3p3BindGroup = device.createBindGroup({
   
   function render() {
     updateCamera();
-    // update physics
-    // move first vertices of cube
-    for (let i = 0; i < 16; i++) {
-      const idx = i * 4;
-      const time = performance.now() * 0.001;
-      const offset = Math.sin(time) * 0.001;
-      vertices1uvlsData[idx + 1] = vertices1uvlsData[idx + 1] + offset; // modify 'z' coordinate
+    // update hypercamera
+    let time = performance.now() * 0.001;
+    hypercamera_T.translate_self_by_delta(
+        Math.sin(time) * 0.05,
+        0,
+        0,
+        0,
+        false
+    );
+    let inv_pose = hypercamera_T.inverse();
+    let inv_pose_data = new Float32Array(5 * 5);
+    let inv_pose_matrix = inv_pose.matrix;
+    for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+            inv_pose_data[i * 5 + j] = inv_pose_matrix[i][j];
+        }
     }
-    device.queue.writeBuffer(vertices1uvlsBuffer, 0, vertices1uvlsData);
+    device.queue.writeBuffer(hypercameraInvPoseBuffer, 0, inv_pose_data);
+    // update physics
+    let new_object_poses_data = new Float32Array(visibleHyperobjects.length * 5 * 5);
+    for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
+        let obj = visibleHyperobjects[obj_index];
+        // basic physics - move cube up and down 
+        let time = performance.now() * 0.001;
+        if (obj_index === 0) {
+            obj.pose.rotate_self_by_delta('ZW', 0.01, false)
+        }
+        // object poses
+        let pose = obj.pose.matrix;
+        for (let i = 0; i < 5; i++) {
+            for (let j = 0; j < 5; j++) {
+                new_object_poses_data[obj_index * 5 * 5 + i * 5 + j] = pose[i][j];
+            }
+        }
+    }
+    device.queue.writeBuffer(objectPosesBuffer, 0, new_object_poses_data);
+
+    // Vertex Shader - Calculate vertices in 1uvl space
+    // move first vertices of cube
+    // for (let i = 0; i < 16; i++) {
+    //   const idx = i * 4;
+    //   const time = performance.now() * 0.001;
+    //   const offset = Math.sin(time) * 0.001;
+    //   vertices1uvlsData[idx + 1] = vertices1uvlsData[idx + 1] + offset; // modify 'z' coordinate
+    // }
+    // device.queue.writeBuffer(vertices1uvlsBuffer, 0, vertices1uvlsData);
     
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
 
-    // --- STEP 1: Clear Counters (Use Compute Shader, NOT writeBuffer for proper sync) ---
+    // Stage 1: Vertex Shader
+    if (true) {
+      const computePass = commandEncoder.beginComputePass();
+      computePass.setPipeline(stage1Pipeline);
+      computePass.setBindGroup(0, stage1BindGroup);
+      computePass.setBindGroup(1, stage1ParamsBindGroup);
+      const workgroupCount = Math.ceil(all_vertices_in_object_data.length / 64);
+      computePass.dispatchWorkgroups(workgroupCount);
+      computePass.end();
+    }
+
+    // Stage 2: Cull tetras
+
+
+    // Stage 3.0: Clear Counters (Use Compute Shader, NOT writeBuffer for proper sync) ---
     const clearPass = commandEncoder.beginComputePass();
     clearPass.setPipeline(clearPipeline);
     // Clear cell_counts
