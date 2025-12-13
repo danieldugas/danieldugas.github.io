@@ -122,6 +122,7 @@ But when you think about how our brains are exposed to 3D, it’s often through 
   </p>
 
   <p style="font-size:130%;">
+  Simply put, there are two stages:<br>
   - 4D to 3D Projection of vertices and lines to camera space (custom, CPU)<br>
   - 3D Primitive Rasterization to 2D using standard threejs
   </p>
@@ -143,12 +144,12 @@ But when you think about how our brains are exposed to 3D, it’s often through 
   </p>
 
   <p style="font-size:130%;">
-First the <a href="https://www.makingsoftware.com/chapters/shaders">traditional</a> <a href="https://www.youtube.com/watch?v=yyJ-hdISgnw">rasterization</a> <a href="https://jtsorlinis.github.io/rendering-tutorial/">pipeline</a> stages (but in 4D, so triangles -> tetrahedra, 2D pixels -> 3D voxels):<br>
+<i>First the <a href="https://www.makingsoftware.com/chapters/shaders">traditional</a> <a href="https://www.youtube.com/watch?v=yyJ-hdISgnw">rasterization</a> <a href="https://jtsorlinis.github.io/rendering-tutorial/">pipeline</a> stages (but in 4D, so triangles -> tetrahedra, 2D pixels -> 3D voxels):</i><br>
 <b>Stage 1</b> - Per Vertex: Convert vertex from world to <a href="https://en.wikipedia.org/wiki/Perspective-n-Point#Definition">camera coordinates</a><br>
 <b>Stage 2</b> - Per Tetra: Cull clipped tetras and assign valid tetras to bins in the acceleration structure (screen-space tiles)<br>
 <b>Stage 3</b> - Per Voxel: Query the acceleration structure, then do intersection tests to figure out if voxel is inside a tetra, store nearest result in z-buffer<br>
 <br>
-And an additional stage which renders the 3D sensor to the screen:<br>
+<i>And an additional stage which renders the 3D sensor to the screen:</i><br>
 <b>Stage 4</b> - Per Pixel: DDA ray traversal of the 3D sensor grid<br>
   </p> 
 
@@ -181,6 +182,10 @@ Try it yourself! (Requires a GPU)
         <span style="color:rgb(58, 58, 58)">Try the Hypercamera WebGPU demo</span>
       </a>
   </div>
+
+  <p style="font-size:130%;">
+  <i>Note: There is also a <a href="../4d_creatures/hypercamera_pipeline_cpu.html">CPU version of the custom pipeline</a> if your computer does not support WebGPU, although the scene is frozen to keep performance acceptable.</i>
+  </p>
 
   <h2>What’s Next</h2>
 
