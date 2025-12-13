@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PP4068J99C"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-PP4068J99C');
+</script>
+<!-- end of GA -->
+<title>Visualizing the 4th Dimension with WebGPU</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<style>
+body,h1 {font-family: "Raleway", Arial, sans-serif}
+h1 {letter-spacing: 6px}
+.w3-row-padding img {margin-bottom: 12px}
+.code-block {
+    background: #e8e8e8;
+    padding: 16px;
+    margin: 20px 0;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+.comment {
+    color: #22863a;
+}
+.indent-1 { margin-left: 20px; }
+.indent-2 { margin-left: 40px; }
+.indent-3 { margin-left: 60px; }
+.indent-4 { margin-left: 80px; }
+</style>
+<body>
+
+<!-- !PAGE CONTENT! -->
+<div class="w3-content" style="max-width:1500px">
+
+<!-- Header -->
+<header class="w3-panel w3-center w3-opacity" style="padding:28px 16px">
+  <h1 class="w3-xlarge">FUN, MODELS & PEDANTRY</h1>
+  <h1>The Funderstanding Series</h1>
+
+  <div class="w3-padding-32">
+    <div class="w3-bar w3-border">
+      <a href="../index.html" class="w3-bar-item w3-button">dugas.ch</a>
+      <a href="../blog.html" class="w3-bar-item w3-button">/ Blog</a>
+      <a href="./index.html" class="w3-bar-item w3-button">/ Funderstanding</a>
+      <a href="#" class="w3-bar-item w3-button w3-light-grey">/ Visualizing the 4th Dimension</a>
+    </div>
+  </div>
+</header>
+
+<!-- Photo Grid -->
+<div class="w3-row-padding" style="margin-bottom:128px;max-width:800px">
+  <h1>Visualizing the 4th Dimension with WebGPU</h1>
+  <p style="color:rgb(131, 131, 131); font-size:130%">Shaders as far as the eye can see</p>
+  <!-- Date and author -->
+  <p style="font-size:110%;">Dec 2025 &nbsp; | &nbsp; By Daniel Dugas
+    <!-- follow button, rounded corners, white with 1px gray border -->
+    <a href="https://x.com/intent/follow?user_id=1502311633514909700"
+      class="w3-button w3-white w3-border w3-round-large"
+      style="font-size:90%; border-radius:20px; padding:4px 8px; margin-left: 10px">
+      Follow
+    </a>
+  </p>
+  <br>
+  <br>
+  <p style="font-size:150%;">
+    <i>Can our brains intuitively understand 4D?</i>
+  </p>
+
+  <p style="font-size:130%;">
+  It’s something that I’ve always wondered about. And since nothing is better than giving our curiosity some practice, I decided to give it a try.
+  </p>
+
+  <h2>Why a 4D Camera?</h2>
+
+  <p style="font-size:130%;">
+  Often when trying to visualize a 4D object, we are asked to do so from a 2D image or video. This makes sense, because our screens are inherently 2D. 
+But when you think about how our brains are exposed to 3D, it’s often through our eyes, which are essentially cameras: they project the 3D world to a 2D sensor, from which we then reconstitute our 3D understanding.
+  </p>
+
+  <div style="text-align:center; margin: 60px 0;">
+    <img src="./img/visualizing_the_4th_dimension/understanding_3d.png" style="width:40%">
+    <br>
+    <i><b>Fig. 1</b> The brain bootstraps 3D understanding from sequential 2D data.</i>
+    <br>
+    <i>With some practice, could it do the same from 3D to 4D?</i>
+  </div>
+
+  <p style="font-size:130%;">
+  If we extrapolate, there’s a chance that to better “get” 4D, we need to perceive its projection into a 3D sensor (which lucky for us, our brains can inherently understand.), as the jump from 2D to 4D is a big one (imagine trying to understand the 3D world when given only a 1D line of pixels…). Think of it as getting a glimpse into the mind of a 4D being, by emulating their eye.
+  </p>
+
+  <p style="font-size:130%;">
+  That’s why I made <a href="../4d_creatures/4d_camera.html">Hypercamera</a>, a demo using three.js to render the 3D camera sensor projection of a 4D world.
+  </p>
+
+  <div style="text-align:center; ">
+    <a href="../4d_creatures/4d_camera.html">
+    <img src="./img/4d_camera/hypercamera.webp" style="width:50%; border: 2px solid rgb(60, 123, 182); border-radius:28px;">
+    </a>
+    <br>
+      <a href="../4d_creatures/4d_camera.html" class="w3-bar-item w3-button w3-light-grey" style="border: 1px solid rgb(201, 201, 201); font-size:110%;">
+        <span style="color:rgb(58, 58, 58)">Try the Hypercamera demo</span>
+      </a>
+  </div>
+
+  <h2>Custom Rendering Pipeline with WebGPU</h2>
+
+  <p style="font-size:130%;">
+  The Hypercamera demo was fun to play with, but pretty soon the limits of this type of rendering on CPU became apparent. And it became clear we would need a more powerful rendering system. 
+  </p>
+
+  <p style="font-size:130%;">
+  First a quick explanation of how the Hypercamera rendering works:
+  </p>
+
+  <p style="font-size:130%;">
+  - 4D to 3D Projection of vertices and lines to camera space (custom, CPU)<br>
+  - 3D Primitive Rasterization to 2D using standard threejs
+  </p>
+
+  <div style="text-align:center; margin: 60px 0;">
+    <img src="./img/visualizing_the_4th_dimension/simplified_pipeline.png" style="width:90%">
+    <br>
+    <i><b>Fig. 2</b> The simplified-rendering pipeline used in the Hypercamera demo above.</i>
+    <br>
+    <i></i>
+  </div>
+
+  <p style="font-size:130%;">
+  This is a minimal way of emulating the sensor of a 4D camera, and made it very simple to quickly get visuals, as the first part is just some matrix transforms, and the second is populating the spheres and lines in a 3D scene. On the other hand, it means we only have vertices and wireframes, no fills, colors. And of course, we’re severely limited in terms of the amount of vertices and objects we can have in our scene.
+  </p>
+
+  <p style="font-size:130%;">
+  A proper native pipeline should instead look like this:
+  </p>
+
+  <p style="font-size:130%;">
+First the <a href="https://www.makingsoftware.com/chapters/shaders">traditional</a> <a href="https://www.youtube.com/watch?v=yyJ-hdISgnw">rasterization</a> <a href="https://jtsorlinis.github.io/rendering-tutorial/">pipeline</a> stages (but in 4D, so triangles -> tetrahedra, 2D pixels -> 3D voxels):<br>
+<b>Stage 1</b> - Per Vertex: Convert vertex from world to <a href="https://en.wikipedia.org/wiki/Perspective-n-Point#Definition">camera coordinates</a><br>
+<b>Stage 2</b> - Per Tetra: Cull clipped tetras and assign valid tetras to bins in the acceleration structure (screen-space tiles)<br>
+<b>Stage 3</b> - Per Voxel: Query the acceleration structure, then do intersection tests to figure out if voxel is inside a tetra, store nearest result in z-buffer<br>
+<br>
+And an additional stage which renders the 3D sensor to the screen:<br>
+<b>Stage 4</b> - Per Pixel: DDA ray traversal of the 3D sensor grid<br>
+  </p> 
+
+  <div style="text-align:center; margin: 60px 0;">
+    <img src="./img/visualizing_the_4th_dimension/custom_pipeline.png" style="width:90%">
+    <br>
+    <i><b>Fig. 3</b> The full Hypercamera rendering pipeline, all stages are executed on the GPU</i>
+    <br>
+    <i></i>
+  </div>
+
+  <p style="font-size:130%;">
+  The first three stages need to be done in compute shaders, because the standard fragment shader pipelines are limited to operating on a 2d canvas. Luckily, WebGPU supports all this: we can do the first 3 stages in separate compute shaders, and then do the 4th in a fragment shader to get the final render.
+  </p>
+
+  <p style="font-size:130%;">
+It was quite a lot of work to figure out the WebGPU API, buffers, pipelines and so on. But it was definitely worth it, we can now render almost a million tetras inside a 64x64x64 voxel sensor at two-digit fps on my laptop.
+  </p>
+
+  <p style="font-size:130%;">
+Try it yourself! (Requires a GPU)
+  </p>
+
+  <div style="text-align:center; ">
+    <a href="../4d_creatures/hypercamera_webgpu.html">
+    <img src="./img/visualizing_the_4th_dimension/hypercamera_webgpu.gif" style="width:50%; border: 2px solid rgb(60, 123, 182); border-radius:28px;">
+    </a>
+    <br>
+      <a href="../4d_creatures/hypercamera_webgpu.html" class="w3-bar-item w3-button w3-light-grey" style="border: 1px solid rgb(201, 201, 201); font-size:110%;">
+        <span style="color:rgb(58, 58, 58)">Try the Hypercamera WebGPU demo</span>
+      </a>
+  </div>
+
+  <h2>What’s Next</h2>
+
+  <p style="font-size:130%;">
+  This is only the second step in the Hypercamera journey!
+  </p>
+
+  <p style="font-size:130%;">
+With the renderer (and basic physics) in place, we have the first components of a 4D engine. 
+The next steps are to create the 4D worlds to be visualized, with textures instead of random colors and meaningful shapes. I already have some ideas, for example 4D fauna, flora, and maybe some cool geography. Coming soon!
+  </p>
+
+  <h2>Pseudocode</h2>
+
+  <p style="font-size:130%;">
+The full source code is available for the <a href="../4d_creatures/4d_camera.html">simplified pipeline</a>, the <a href="../4d_creatures/hypercamera_pipeline_cpu.html">custom pipeline (CPU version)</a>, and the <a href="../4d_creatures/hypercamera_webgpu.html">custom pipeline in WebGPU</a>. I made each of them a single html file with all the javascript included.
+  </p>
+
+<p style="font-size:130%;">
+Still, the pseudocode for the custom pipeline can help understand it a little better.
+  </p>
+
+<h3>Stage 1:</h3>
+<div class="code-block">
+<div class="comment"># Physics update on CPU</div>
+<div>do_physics_step() -> updated pose matrix for each object</div>
+<div class="comment"># on GPU</div>
+<div>For each vertex: (one thread per vertex)</div>
+<div class="indent-1 comment"># vertices are stored in object frame</div>
+<div class="indent-1">Get pose of parent object</div>
+<div class="indent-1">Compute vertex in world frame from object pose</div>
+<div class="indent-1">Compute vertex in hypercamera frame using perspective-n-point equation and hypercamera pose</div>
+</div>
+
+<h3>Stage 2:</h3>
+<div class="code-block">
+<div class="comment"># setup acceleration structure with NxNxN tiles</div>
+<div>acceleration_structure.init()</div>
+<div>For each tetra: (one thread per tetra)</div>
+<div class="indent-1">Cull tetra if one or more vertex is behind the hypercamera plane</div>
+<div class="indent-1 comment"># ideally we should also create new clipped tetras, see <a href="https://youtu.be/yyJ-hdISgnw?t=2435&si=EYIFTIanOvdYh6Gr">near-plane clipping</a></div>
+<div class="indent-1">Calculate tetra bounding box in sensor coordinates</div>
+<div class="indent-1 comment"># We loop over all acceleration structure tiles/bins that cover the bounding box and add the tetra index to that tile/bin</div>
+<div class="indent-1">For U in bounding box:</div>
+<div class="indent-2">For V in bounding box:</div>
+<div class="indent-3">For L in bounding box:</div>
+<div class="indent-4">acceleration_structure.get_tile(U,V,L).add(tetra_index)*</div>
+</div>
+
+<p style="font-size:100%;">
+* I am grossly simplifying this line. In practice it requires several compute shader steps on GPU, because each tile needs a differing amount of storage, which is only known part-way.
+So the acceleration structure creation is done in the following substeps:<br>
+Stage 2.1. Same as above, but only increment counter for # of tetras in each tile<br>
+Stage 2.2 Parallel Prefix-sum scan to caculate the tile index/offset in memory by summing the counters<br>
+Stage 2.3 Actually assign the tetra indices to the memory using the calculated offsets.<br>
+See the source code for the actual implementation on WebGPU.<br>
+I couldn't find a great resource on this topic, although <a href="https://developer.samsung.com/galaxy-gamedev/resources/articles/gpu-framebuffer.html">this</a> was the closest. (and of course, you can just look at the source code for <a href="../4d_creatures/hypercamera_webgpu.html">demo</a>).
+</p>
+
+<h3>Stage 3:</h3>
+<div class="code-block">
+<div class="comment"># In the 4D case, I call S the depth dimension of the hypercamera. S=1 means the point is at the sensor focal length, S&lt;1 is closer, S&gt;1 is further, negative S is behind the hypercamera.</div>
+<div>s-buffer.init()</div>
+<div>For each voxel: (one thread per voxel)</div>
+<div class="indent-1">U,V,L = voxel_coordinates in sensor</div>
+<div class="indent-1 comment"># query the tetras that likely overlap this tile</div>
+<div class="indent-1">Tetras_to_test = acceleration_structure.get_tile(U,V,L).get_tetras()</div>
+<div class="indent-1">For tetra in tetras_to_test:</div>
+<div class="indent-2">A, B, C, D = tetra.vertices</div>
+<div class="indent-2 comment"># Check if voxel is inside tetra using barycentric coordinates</div>
+<div class="indent-2">Wa, Wb, Wc, Wd = barycentricCoordinates([U,V,L], A, B, C, D);</div>
+<div class="indent-2">If (Wa, Wb, Wc, Wd) are all 0 &lt; b &lt; 1: <span class="comment"># voxel is inside tetra</span></div>
+<div class="indent-3 comment"># get hypercamera depth coordinate of intersect</div>
+<div class="indent-3">S = Wa * A.s + Wb * B.s + Wc * C.s + Wd * D.s</div>
+<div class="indent-3 comment"># Add to S-buffer</div>
+<div class="indent-3">If S &lt; s-buffer[U,V,L].depth:</div>
+<div class="indent-4">s-buffer[U,V,L].update(color=tetra.color, depth=S)</div>
+</div>
+
+<h3>Stage 4:</h3>
+<div class="code-block">
+<div class="comment"># We now want to visualize the 3D sensor, so we create a regular 3D camera that looks at the cube, and render it using a more traditional 3D shader</div>
+<div>For each pixel on screen: (one thread per pixel)</div>
+<div class="indent-1 comment"># Each pixel is mapped to a ray leaving the camera</div>
+<div class="indent-1">ray_origin, ray_direction = create_ray(pixel.u, pixel.v)</div>
+<div class="indent-1 comment"># Move along the ray, finding all voxels hit by the ray</div>
+<div class="indent-1">ray_color = 0</div>
+<div class="indent-1">ray_alpha = 0</div>
+<div class="indent-1">t = 0 <span class="comment"># position along ray</span></div>
+<div class="indent-1">While True:</div>
+<div class="indent-2 comment"># find the next voxel intersected by the ray</div>
+<div class="indent-2">t, hit_voxel = get_next_intersect(ray_origin, ray_direction, t)</div>
+<div class="indent-2 comment"># if we leave the sensor, exit</div>
+<div class="indent-2">If hit_voxel is null:</div>
+<div class="indent-3">break</div>
+<div class="indent-2 comment"># add voxel color to the ray</div>
+<div class="indent-2">ray_color, ray_alpha = blend(ray_color, ray_alpha, hit_voxel.color, hit_voxel.alpha)</div>
+<div class="indent-1">pixel.color = ray_color</div>
+<div class="indent-1">pixel.alpha = ray_alpha</div>
+</div>
+
+
+</div> <!-- Main Div -->
+
+<!-- End Page Content -->
+</div>
+
+
+<!-- Javascript -->
+<style>
+.content {
+  padding: 0 18px;
+  background-color: white;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+</style>
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+}
+</script>
+
+<!-- Footer -->
+<footer class="w3-container w3-padding-64 w3-light-grey w3-center w3-large">
+  <!-- Font awesome logos: fa fa-something-something -->
+  <i class="fab fa-pied-piper-alt w3-hover-opacity"></i>
+  <p>Powered by <a  id="powered_by_link" href="http://beesbeesbees.com/" target="_blank" class="w3-hover-text-green">bees</a></p>
+
+  <script>
+  var powerSources = [
+    "bees",
+    "eels",
+    "koalas",
+    "circuits",
+    "logic",
+    "a chihuaha",
+    "infinite zoom",
+    ];
+  var powerLinks = [
+    "http://beesbeesbees.com/",
+    "http://eelslap.com",
+    "http://koalastothemax.com",
+    "http://electricboogiewoogie.com",
+    "http://www.visual6502.org/JSSim/index.html",
+    "http://chihuahuaspin.com/",
+    "http://zoomquilt.org/",
+    ];
+  var randomIndex = Math.floor(Math.random()*powerSources.length);
+  document.getElementById("powered_by_link").href = powerLinks[randomIndex];
+  document.getElementById("powered_by_link").innerHTML = powerSources[randomIndex];
+  </script>
+</footer>
+
+</body>
+</html>
