@@ -1062,7 +1062,7 @@ struct Vector4D {
 @group(0) @binding(1) var<storage, read> object_poses_5by5: array<f32>;
 @group(0) @binding(2) var<storage, read> vertex_object_indices: array<u32>;
 @group(0) @binding(3) var<storage, read> hypercamera_inv_pose_5by5: array<f32>;
-@group(0) @binding(4) var<storage, read_write> vertices_1uvls: array<Vector4D>;
+@group(0) @binding(4) var<storage, read_write> vertices1uvlsBuffer: array<Vector4D>;
 
 @group(1) @binding(0) var<uniform> vertex_counts: vec4<u32>; // num_vertices, unused, unused, unused
 
@@ -1111,7 +1111,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     v_1uvls.w = v_cam.x;
 
     // Store result
-    vertices_1uvls[vertex_index] = v_1uvls;
+    vertices1uvlsBuffer[vertex_index] = v_1uvls;
 }
 `;
   
@@ -1138,7 +1138,7 @@ struct CellCountAndOffset {
 }
 
 @group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
-@group(0) @binding(1) var<storage, read> vertices_1uvls: array<Vector4D>;
+@group(0) @binding(1) var<storage, read> vertices1uvlsBuffer: array<Vector4D>;
 @group(0) @binding(2) var<storage, read_write> cellCountsAndOffsetsBuffer: array<atomic<u32>>;
 
 @group(1) @binding(0) var<uniform> params: vec4<u32>; // RES, TILE_RES, TILE_SZ, unused
@@ -1155,10 +1155,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
     
     let tetra = tetras[tetra_index];
-    let v0_1uvls = vertices_1uvls[tetra.i0];
-    let v1_1uvls = vertices_1uvls[tetra.i1];
-    let v2_1uvls = vertices_1uvls[tetra.i2];
-    let v3_1uvls = vertices_1uvls[tetra.i3];
+    let v0_1uvls = vertices1uvlsBuffer[tetra.i0];
+    let v1_1uvls = vertices1uvlsBuffer[tetra.i1];
+    let v2_1uvls = vertices1uvlsBuffer[tetra.i2];
+    let v3_1uvls = vertices1uvlsBuffer[tetra.i3];
 
     // For safety, ignore tetra if any vertex has non-positive S
     if (v0_1uvls.w <= 0.0 || v1_1uvls.w <= 0.0 || v2_1uvls.w <= 0.0 || v3_1uvls.w <= 0.0) {
@@ -1299,7 +1299,7 @@ struct CellCountAndOffset {
 }
 
 @group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
-@group(0) @binding(1) var<storage, read> vertices_1uvls: array<Vector4D>;
+@group(0) @binding(1) var<storage, read> vertices1uvlsBuffer: array<Vector4D>;
 @group(0) @binding(2) var<storage, read> cellCountsAndOffsetsBuffer: array<CellCountAndOffset>;
 @group(0) @binding(3) var<storage, read_write> cell_write_counters: array<atomic<u32>>; // Temporary atomic counter
 @group(0) @binding(4) var<storage, read_write> cell_tetra_indices: array<u32>; // Output
@@ -1316,10 +1316,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (tetra_index >= num_tetras) { return; }
     
     let tetra = tetras[tetra_index];
-    let v0 = vertices_1uvls[tetra.i0];
-    let v1 = vertices_1uvls[tetra.i1];
-    let v2 = vertices_1uvls[tetra.i2];
-    let v3 = vertices_1uvls[tetra.i3];
+    let v0 = vertices1uvlsBuffer[tetra.i0];
+    let v1 = vertices1uvlsBuffer[tetra.i1];
+    let v2 = vertices1uvlsBuffer[tetra.i2];
+    let v3 = vertices1uvlsBuffer[tetra.i3];
 
     // For safety, ignore tetra if any vertex has non-positive S
     if (v0.w <= 0.0 || v1.w <= 0.0 || v2.w <= 0.0 || v3.w <= 0.0) {
@@ -1403,7 +1403,7 @@ struct CellCountAndOffset {
 }
 
 @group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
-@group(0) @binding(1) var<storage, read> vertices_1uvls: array<Vector4D>;
+@group(0) @binding(1) var<storage, read> vertices1uvlsBuffer: array<Vector4D>;
 @group(0) @binding(2) var<storage, read> cellCountsAndOffsetsBuffer: array<CellCountAndOffset>;
 @group(0) @binding(3) var<storage, read> cell_tetra_indices: array<u32>;
 // @group(0) @binding(5) var<storage, read> vertex_object_indices: array<u32>;
@@ -1519,10 +1519,10 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let tetra_index = cell_tetra_indices[cell_offset + i];
         let tetra = tetras[tetra_index];
         
-        let v0_1uvls = vertices_1uvls[tetra.i0];
-        let v1_1uvls = vertices_1uvls[tetra.i1];
-        let v2_1uvls = vertices_1uvls[tetra.i2];
-        let v3_1uvls = vertices_1uvls[tetra.i3];
+        let v0_1uvls = vertices1uvlsBuffer[tetra.i0];
+        let v1_1uvls = vertices1uvlsBuffer[tetra.i1];
+        let v2_1uvls = vertices1uvlsBuffer[tetra.i2];
+        let v3_1uvls = vertices1uvlsBuffer[tetra.i3];
         
         let v0_s = v0_1uvls.w;
         let v1_s = v1_1uvls.w;
