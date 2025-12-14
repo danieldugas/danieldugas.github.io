@@ -712,11 +712,13 @@ for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
         let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
         let A_color = obj.color; // B is darker version of A
         let B_color = ((A_color & 0xFEFEFE) >> 1); // darker color
+        // A_color = 0xFFFFFF;
+        // B_color = 0x000000;
         for (let u = 0; u < USIZE; u++) {
             for (let v = 0; v < VSIZE; v++) {
                 for (let w = 0; w < WSIZE; w++) {
                     // important to use the same indexing as in the shader!
-                    let index = (u + (v * USIZE) + (w * USIZE * VSIZE)) * 4;
+                    let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
                     // checkerboard pattern
                     let is_A = ((u + v + w) % 2 === 0);
                     let color = is_A ? A_color : B_color;
@@ -725,7 +727,7 @@ for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
                     let g_u8 = (color >> 8) & 0xFF;
                     let b_u8 = (color) & 0xFF;
                     let a_u8 = 255;
-                    let rgba_u32 = (r_u8 << 24) | (g_u8 << 16) | (b_u8 << 8) | (a_u8);
+                    let rgba_u32 = (a_u8 << 24) | (b_u8 << 16) | (g_u8 << 8) | (r_u8);
                     object_texture[index] = rgba_u32;
                 }
             }
@@ -1467,12 +1469,11 @@ struct CellCountAndOffset {
 @group(0) @binding(1) var<storage, read> vertices1uvlstexBuffer: array<Vertex1uvlstex>;
 @group(0) @binding(2) var<storage, read> cellCountsAndOffsetsBuffer: array<CellCountAndOffset>;
 @group(0) @binding(3) var<storage, read> cell_tetra_indices: array<u32>;
-// @group(0) @binding(5) var<storage, read> vertex_object_indices: array<u32>;
-// @group(0) @binding(6) var<storage, read> vertices_texcoords: array<Vector4D>; // merge with 1uvls
-// @group(0) @binding(7) var<storage, read> object_texture_header: array<vec4<u32>>; // offset, USIZE, VSIZE, WSIZE
-// @group(0) @binding(8) var<storage, read> texture_data: array<u32>; // combine with above
-// @group(0) @binding(9) var<storage, read_write> voxels: array<Voxel>;
-@group(0) @binding(4) var<storage, read_write> voxels: array<Voxel>;
+@group(0) @binding(4) var<storage, read> vertex_object_indices: array<u32>;
+@group(0) @binding(5) var<storage, read> object_texture_header: array<vec4<u32>>; // offset, USIZE, VSIZE, WSIZE
+@group(0) @binding(6) var<storage, read> texture_data: array<u32>; // combine with above
+@group(0) @binding(7) var<storage, read_write> voxels: array<Voxel>;
+// @group(0) @binding(4) var<storage, read_write> voxels: array<Voxel>;
 
 @group(1) @binding(0) var<uniform> params: vec4<u32>; // RES, TILE_RES, TILE_SZ, unused
 
@@ -1497,42 +1498,41 @@ fn barycentricCoordinates(P: vec3<f32>, A: vec3<f32>, B: vec3<f32>, C: vec3<f32>
 
 fn getTexture(tetra: TetraData, bary: vec4<f32>) -> vec3<f32> {
     // Get UVMap coordinates from barycentric interpolation
-    // let object_index = vertex_object_indices[tetra.i0]; // assuming all vertices of tetra belong to same object
-    // let v0_uvlstexcoord = vertices_texcoords[tetra.i0];
-    // let v1_uvlstexcoord = vertices_texcoords[tetra.i1];
-    // let v2_uvlstexcoord = vertices_texcoords[tetra.i2];
-    // let v3_uvlstexcoord = vertices_texcoords[tetra.i3];
-    // let v0_texcoord = vec3<f32>(v0_uvlstexcoord.tex_u, v0_uvlstexcoord.tex_v, v0_uvlstexcoord.tex_w);
-    // let v1_texcoord = vec3<f32>(v1_uvlstexcoord.tex_u, v1_uvlstexcoord.tex_v, v1_uvlstexcoord.tex_w);
-    // let v2_texcoord = vec3<f32>(v2_uvlstexcoord.tex_u, v2_uvlstexcoord.tex_v, v2_uvlstexcoord.tex_w);
-    // let v3_texcoord = vec3<f32>(v3_uvlstexcoord.tex_u, v3_uvlstexcoord.tex_v, v3_uvlstexcoord.tex_w);
-    // let texcoord = bary.x * v0_texcoord + bary.y * v1_texcoord + bary.z * v2_texcoord + bary.w * v3_texcoord;
+    let object_index = vertex_object_indices[tetra.i0]; // assuming all vertices of tetra belong to same object
+    let v0_uvlstexcoord = vertices1uvlstexBuffer[tetra.i0];
+    let v1_uvlstexcoord = vertices1uvlstexBuffer[tetra.i1];
+    let v2_uvlstexcoord = vertices1uvlstexBuffer[tetra.i2];
+    let v3_uvlstexcoord = vertices1uvlstexBuffer[tetra.i3];
+    let v0_texcoord = vec3<f32>(v0_uvlstexcoord.tex_u, v0_uvlstexcoord.tex_v, v0_uvlstexcoord.tex_w);
+    let v1_texcoord = vec3<f32>(v1_uvlstexcoord.tex_u, v1_uvlstexcoord.tex_v, v1_uvlstexcoord.tex_w);
+    let v2_texcoord = vec3<f32>(v2_uvlstexcoord.tex_u, v2_uvlstexcoord.tex_v, v2_uvlstexcoord.tex_w);
+    let v3_texcoord = vec3<f32>(v3_uvlstexcoord.tex_u, v3_uvlstexcoord.tex_v, v3_uvlstexcoord.tex_w);
+    let texcoord = bary.x * v0_texcoord + bary.y * v1_texcoord + bary.z * v2_texcoord + bary.w * v3_texcoord;
     // modulo texcoord to [0,1] (for repeating textures)
-    // texcoord = fract(texcoord);
+    let texcoord01 = fract(texcoord);
     // Load texture map for that object
-    // let tex_info = object_texture_header[object_index]; // offset, USIZE, VSIZE, WSIZE
-    // let tex_offset = tex_info.x; // texture for that object starts at this offset
-    // let tex_usize = tex_info.y; // number of texels in [0, 1] u direction (aka resolution)
-    // let tex_vsize = tex_info.z;
-    // let tex_wsize = tex_info.w;
-    // let texcoord_discrete = vec3<u32>(u32(texcoord.x * f32(tex_usize)), u32(texcoord.y * f32(tex_vsize)), u32(texcoord.z * f32(tex_wsize)));
+    let tex_info = object_texture_header[object_index]; // offset, USIZE, VSIZE, WSIZE
+    let tex_offset = tex_info.x; // texture for that object starts at this offset
+    let tex_usize = tex_info.y; // number of texels in [0, 1] u direction (aka resolution)
+    let tex_vsize = tex_info.z;
+    let tex_wsize = tex_info.w;
+    let texcoord_discrete = vec3<u32>(u32(texcoord01.x * f32(tex_usize)), u32(texcoord01.y * f32(tex_vsize)), u32(texcoord01.z * f32(tex_wsize)));
     // Clamp to valid range
-    // texcoord_discrete.x = min(texcoord_discrete.x, tex_usize - 1u);
-    // texcoord_discrete.y = min(texcoord_discrete.y, tex_vsize - 1u);
-    // texcoord_discrete.z = min(texcoord_discrete.z, tex_wsize - 1u);
+    let texcoord_discrete_x = min(texcoord_discrete.x, tex_usize - 1u);
+    let texcoord_discrete_y = min(texcoord_discrete.y, tex_vsize - 1u);
+    let texcoord_discrete_z = min(texcoord_discrete.z, tex_wsize - 1u);
     // Fetch texel
-    // let texel_index = tex_offset + texcoord_discrete.x + texcoord_discrete.y * tex_usize + texcoord_discrete.z * tex_usize * tex_vsize;
-    // // We can't store as u8, so we store as one big u32 and unpack here
-    // let texel_u32 = texture_data[texel_index];
-    // let texel_u8 = vec4<u32>(
-    //     (texel_u32.x >> 0u) & 0xFF
-    //     (texel_u32.x >> 8u) & 0xFF,
-    //     (texel_u32.x >> 16u) & 0xFF,
-    //     (texel_u32.x >> 24u) & 0xFF,
-    // );
-    // let texel = vec3<f32>(f32(texel_u8.x) / 255.0, f32(texel_u8.y) / 255.0, f32(texel_u8.z) / 255.0);
-    // return texel;
-    return vec3<f32>(1.0, 1.0, 1.0); // placeholder white
+    let texel_index = tex_offset + texcoord_discrete_x + texcoord_discrete_y * tex_usize + texcoord_discrete_z * tex_usize * tex_vsize;
+    // We can't store as u8, so we store as one big u32 and unpack here
+    let texel_u32 = texture_data[texel_index];
+    let texel_u8 = vec4<u32>(
+        (texel_u32 >> 0u) & 0xFF,
+        (texel_u32 >> 8u) & 0xFF,
+        (texel_u32 >> 16u) & 0xFF,
+        (texel_u32 >> 24u) & 0xFF,
+    );
+    let texel = vec3<f32>(f32(texel_u8.x) / 255.0, f32(texel_u8.y) / 255.0, f32(texel_u8.z) / 255.0);
+    return texel;
 }
 
 @compute @workgroup_size(4, 4, 4)
@@ -1617,6 +1617,12 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let s = bary.x * v0_s + bary.y * v1_s + bary.z * v2_s + bary.w * v3_s;
             
             if (s < best_voxel.s) {
+                // Fetch texture color
+                // let texel = getTexture(tetra, bary);
+                // best_voxel.r = texel.x;
+                // best_voxel.g = texel.y;
+                // best_voxel.b = texel.z;
+                // DEBUG: Uncomment this to use tetra debug colors instead
                 best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u) / 256.0;
                 best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u) / 256.0;
                 best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u) / 256.0;
@@ -2249,12 +2255,11 @@ const stage2p3BindGroup = device.createBindGroup({
           { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
           { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
           { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        //   { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        //   { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        //   { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        //   { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        //   { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
-          { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+          { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        //   { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
   });
   const stage3ParamsBindGroupLayout = device.createBindGroupLayout({
@@ -2279,12 +2284,11 @@ const stage2p3BindGroup = device.createBindGroup({
           { binding: 1, resource: { buffer: vertices1uvlstexBuffer } },
           { binding: 2, resource: { buffer: cellCountsAndOffsetsBuffer } },
           { binding: 3, resource: { buffer: cellTetraIndicesBuffer } },
-        //   { binding: 4, resource: { buffer: vertexObjectIndicesBuffer } },
-        //   { binding: 5, resource: { buffer: verticesTexcoordBuffer } },
-        //   { binding: 6, resource: { buffer: textureHeaderBuffer } },
-        //   { binding: 7, resource: { buffer: textureBuffer } },
-        //   { binding: 8, resource: { buffer: voxelBuffer } }
-            { binding: 4, resource: { buffer: voxelBuffer } }
+          { binding: 4, resource: { buffer: vertexObjectIndicesBuffer } },
+          { binding: 5, resource: { buffer: textureHeaderBuffer } },
+          { binding: 6, resource: { buffer: textureBuffer } },
+          { binding: 7, resource: { buffer: voxelBuffer } }
+            // { binding: 4, resource: { buffer: voxelBuffer } }
       ]
   });
   const stage3ParamsBindGroup = device.createBindGroup({
