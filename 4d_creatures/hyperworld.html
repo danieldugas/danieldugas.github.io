@@ -642,6 +642,42 @@ class Hyperobject {
             "Hypercube"
         );
 
+                let hypersun = new Hyperobject(
+            // vertices in object frame
+            const_hypercube_vertices.map(vert => vert.multiply_by_scalar(100.0)),
+            // edges:
+            [
+                [0,1],[1,2],[2,3],[3,0],
+                [4,5],[5,6],[6,7],[7,4],
+                [0,4],[1,5],[2,6],[3,7],
+                [8,9],[9,10],[10,11],[11,8],
+                [12,13],[13,14],[14,15],[15,12],
+                [8,12],[9,13],[10,14],[11,15],
+                [0,8],[1,9],[2,10],[3,11],
+                [4,12],[5,13],[6,14],[7,15]
+            ],
+            // tetras
+            create_40_tetrahedra_tiling_of_hypercube(const_hypercube_vertices),
+            // color
+            0xffff00,
+            // simulate_physics
+            false,
+            // show_vertices
+            true,
+            // mass
+            1.0,
+            // pose (Transform4D)
+            new Transform4D([
+                [1, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 1000],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1]
+            ]),
+            // name
+            "Hypersun"
+        );
+
 
 let hyperpyramid = new Hyperobject(
     // vertices in object frame
@@ -697,7 +733,7 @@ let timingsInfosHtml = "";
 
 // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
 const s0_start = performance.now();
-let visibleHyperobjects = [hypercube, hyperpyramid]; // , hyperfloor];
+let visibleHyperobjects = [hypercube, hyperpyramid, hypersun]; // , hyperfloor];
 
 // let vertices_in_world = hypercube.vertices_in_world;
 // let tetras = hypercube.tetras.map(tetra => ({ indices: tetra, color: hypercube.color }));
