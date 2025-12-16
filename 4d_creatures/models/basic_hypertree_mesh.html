@@ -218,7 +218,7 @@ let hypercamera_sensor_resolution = VOX;
         1.0,
         // pose (Transform4D)
         new Transform4D([
-            [1, 0, 0, 0, 2],
+            [1, 0, 0, 0, 8],
             [0, 1, 0, 0, 0],
             [0, 0, 1, 0, 1],
             [0, 0, 0, 1, 0],
@@ -511,7 +511,7 @@ let timingsInfosHtml = "";
 
 // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
 const s0_start = performance.now();
-let visibleHyperobjects = [hypercube]; // , hypersphere];
+let visibleHyperobjects = [hypercube, hypertree]; // , hypersphere];
 
 // let vertices_in_world = hypercube.vertices_in_world;
 // let tetras = hypercube.tetras.map(tetra => ({ indices: tetra, color: hypercube.color }));
