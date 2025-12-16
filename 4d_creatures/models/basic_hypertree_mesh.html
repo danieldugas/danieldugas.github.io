@@ -1472,7 +1472,7 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // add a ground plane with custom texture
     // get camera ray origin and direction from voxel coordinates
     // hypercamera_in_world_5x5 is passed as a uniform buffer
-    if (false) {
+    if (true) {
     let ray_origin_in_world = hypercameraPoseBuffer.tr;
     let ray_direction_in_hcam = vec4<f32>(1.0, u, v, l);
     let ray_direction_in_world = vec4<f32>(
