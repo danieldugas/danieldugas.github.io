@@ -191,7 +191,7 @@ let hypertree = new Hyperobject(
     1.0,
     // pose (Transform4D)
     new Transform4D([
-        [1, 0, 0, 0, 8],
+        [1, 0, 0, 0, 2],
         [0, 1, 0, 0, 0],
         [0, 0, 1, 0, 1],
         [0, 0, 0, 1, 0],
@@ -239,15 +239,6 @@ if (true) {
     // 
 }
 
-// define a hypercube object
-let hypercube = createHypercube(new Transform4D([
-    [1, 0, 0, 0, 4],
-    [0, 1, 0, 0, 0],
-    [0, 0, 1, 0, 3],
-    [0, 0, 0, 1, 0],
-    [0, 0, 0, 0, 1]
-]));
-
 // Check WebGPU support
 if (!navigator.gpu) {
   document.body.innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
@@ -257,7 +248,7 @@ if (!navigator.gpu) {
 const main_canvas = document.getElementById('canvas');
 
 let custom_scene = {
-  visibleHyperobjects: [hypercube, hypertree],
+  visibleHyperobjects: [hypertree],
   mainCanvas: main_canvas,
   floorPreset: 'island',
 };
