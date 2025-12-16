@@ -379,6 +379,7 @@ class Hyperobject {
         const n_j = 5;
         const n_k = 6;
         let grid_vertices = [];
+        let grid_vertices_texcoords = [];
         let grid_edges = [];
         let grid_tetras = [];
         for (let i = 0; i < n_i; i++) {
@@ -403,6 +404,17 @@ class Hyperobject {
                     // console.log(norm);
 
                     grid_vertices.push(new Vector4D(x, y, z, w));
+
+                    // texture coordinates
+                    let H = trunk_L + foliage_R;
+                    let theta = i / (n_i - 1.0);
+                    let phi = 0; // 0.05 * Math.cos(10 * z / H);
+                    let u = 0.75 * (Math.sin(theta * 6.0 * 20 + phi) > 0.5); // * (Math.cos(6.0 * 10.0 * z / H) > 0.0)  ; // add some dark patches
+                    let v = 0.75 * (z > trunk_L);
+                    console.log(u);
+                    console.log(v);
+                    grid_vertices_texcoords.push(new Vector4D(u, v, 0.0, 0.0));
+
                     // add an edge to the next vertex in x
                     if (i < n_i - 1) {
                         let next_index = grid_vertices.length + (n_j * n_k) - 1;
@@ -485,6 +497,7 @@ class Hyperobject {
             // name
             "Hypertree"
         );
+        hypertree.vertices_in_texmap = grid_vertices_texcoords;
 
         function floor_heightmap(x, y, w) {
             return 0; //  + x * 0.1;
@@ -766,11 +779,11 @@ for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
         let USIZE = 2; // for now fixed size
         let VSIZE = 2;
         let WSIZE = 2;
-        let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
         let A_color = obj.color; // B is darker version of A
         let B_color = ((A_color & 0xFEFEFE) >> 1); // darker color
         // A_color = 0xFFFFFF;
         // B_color = 0x000000;
+        let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
         for (let u = 0; u < USIZE; u++) {
             for (let v = 0; v < VSIZE; v++) {
                 for (let w = 0; w < WSIZE; w++) {
@@ -805,6 +818,44 @@ for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
     // update offsets
     texture_data_offset += data_size;
 }
+// TODO: Do this at Hyperobject creation
+// Fill texture info, texcoords
+if (true) {
+    let obj = hypertree;
+    let trunkColorLight = 0x333300;
+    let trunkColorDark = 0x111100;
+    let leafColorLight = 0x009900;
+    let leafColorDark = 0x007700;
+    let USIZE = 2;
+    let VSIZE = 2;
+    let WSIZE = 1;
+    let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
+    for (let u = 0; u < USIZE; u++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let w = 0; w < WSIZE; w++) {
+                // important to use the same indexing as in the shader!
+                let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
+                // checkerboard pattern
+                let color = 0xffffff;
+                if (u >= 1 && v >= 1) { color = leafColorLight; }
+                if (u === 0 && v >= 1) { color = leafColorDark; }
+                if (u >= 1 && v === 0) { color = trunkColorLight; }
+                if (u === 0 && v === 0) { color = trunkColorDark; }
+                // pack color into one u32 RGBA
+                let r_u8 = (color >> 16) & 0xFF;
+                let g_u8 = (color >> 8) & 0xFF;
+                let b_u8 = (color) & 0xFF;
+                let a_u8 = 255;
+                let rgba_u32 = (a_u8 << 24) | (b_u8 << 16) | (g_u8 << 8) | (r_u8);
+                object_texture[index] = rgba_u32;
+            }
+        }
+    }
+    obj.texture = object_texture; // store in object for now
+    obj.texture_info = { USIZE: USIZE, VSIZE: VSIZE, WSIZE: WSIZE };
+    // 
+}
+
 let total_texture_data_size = texture_data_offset;
 // fill global texture data with object textures
 let global_texture_data = new Uint32Array(total_texture_data_size);
@@ -841,7 +892,9 @@ for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
         }
     }
     // vertices
-    for (let v of obj.vertices_in_object) {
+    for (let i_v = 0; i_v < obj.vertices_in_object.length; i_v++) {
+        let v = obj.vertices_in_object[i_v];
+        let v_tex = obj.vertices_in_texmap[i_v];
         all_vertices_in_object_data[vertex_counter * 4 + 0] = v.x;
         all_vertices_in_object_data[vertex_counter * 4 + 1] = v.y;
         all_vertices_in_object_data[vertex_counter * 4 + 2] = v.z;
@@ -850,9 +903,9 @@ for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
         // set texcoords for each vertex of this object
         // just map the object coordinates to the texture coordinates directly for now
         // TODO: assign these coords at object creation
-        vertices_texcoords_data[vertex_counter * 3 + 0] = v.x;
-        vertices_texcoords_data[vertex_counter * 3 + 1] = v.y;
-        vertices_texcoords_data[vertex_counter * 3 + 2] = v.w;
+        vertices_texcoords_data[vertex_counter * 3 + 0] = v_tex.x;
+        vertices_texcoords_data[vertex_counter * 3 + 1] = v_tex.y;
+        vertices_texcoords_data[vertex_counter * 3 + 2] = v_tex.w;
         // increment counter
         vertex_counter++;
     }
