@@ -116,8 +116,6 @@ for (let i = 0; i < n_i; i++) {
             let phi = 0; // 0.05 * Math.cos(10 * z / H);
             let u = 0.75 * (Math.sin(theta * 6.0 * 20 + phi) > 0.5); // * (Math.cos(6.0 * 10.0 * z / H) > 0.0)  ; // add some dark patches
             let v = 0.75 * (z > trunk_L);
-            console.log(u);
-            console.log(v);
             grid_vertices_texcoords.push(new Vector4D(u, v, 0.0, 0.0));
 
             // add an edge to the next vertex in x
@@ -256,12 +254,14 @@ if (!navigator.gpu) {
   throw new Error('WebGPU not supported');
 }
 
-let custom_scene = { visibleHyperobjects: [hypercube, hypertree] };
-
 const main_canvas = document.getElementById('canvas');
 
+let custom_scene = {
+  visibleHyperobjects: [hypercube, hypertree],
+  mainCanvas: main_canvas
+};
 
-runHyperengine(custom_scene, main_canvas).catch(err => {
+runHyperengine(custom_scene).catch(err => {
   console.error(err);
   document.body.innerHTML += '<div style="color: red; padding: 20px;">Error: ' + err.message + '</div>';
 });

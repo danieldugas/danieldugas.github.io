@@ -1,7 +1,9 @@
 import { Transform4D, Vector4D } from '../hyperengine/transform4d.js';
 import { Hyperobject, createHypercube } from '../hyperengine/hyperobject.js';
 
-export async function runHyperengine(scene, canvas) {
+export async function runHyperengine(scene) {
+    let canvas = scene.mainCanvas;
+
     const VOX = 64; // Voxel grid size
 
     // Hypercamera definition
@@ -1544,83 +1546,312 @@ const stage2p3BindGroup = device.createBindGroup({
   window.addEventListener('keyup', (e) => {
       keys[e.key.toLowerCase()] = false;
   });
-  function updatePlayerControls() {
-     if (true) {
-                
-                const moveSpeed = 0.1;
-                const RELATIVE_MOVEMENT = true;
-                if (keys['w']) {
-                    hypercamera_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
-                    moved = true;
-                }
-                if (keys['s']) {
-                    hypercamera_T.translate_self_by_delta(-moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
-                    moved = true;
-                }
-                if (keys['a']) {
-                    hypercamera_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
-                    moved = true;
-                }
-                if (keys['d']) {
-                    hypercamera_T.translate_self_by_delta(0,-moveSpeed, 0, 0, RELATIVE_MOVEMENT);
-                    moved = true;
-                }
-                if (keys['q']) {
-                    hypercamera_T.translate_self_by_delta(0, 0, 0, moveSpeed, RELATIVE_MOVEMENT);
-                    moved = true;
-                }
-                if (keys['e']) {
-                    hypercamera_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
-                    moved = true;
-                }
-                if (keys['r']) {
-                    hypercamera_T.translate_self_by_delta(0, 0, moveSpeed, 0, RELATIVE_MOVEMENT);
-                    moved = true;
-                }
-                if (keys['f']) {
-                    hypercamera_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
-                    moved = true;
-                }
-                // reset camera z to 0
-                hypercamera_T.matrix[2][4] = floor_heightmap(
-                    hypercamera_T.matrix[0][4],
-                    hypercamera_T.matrix[1][4],
-                    hypercamera_T.matrix[3][4]
-                ) + hypercamera_height_above_ground;
+  function lookTowards(lookAt_in_world) {
+    // Rotates the camera to look towards the chosen point.
+    
+    // new camera x axis
+    let worldZ = new Vector4D(0, 0, 1, 0);
+    let x = lookAt_in_world.subtract(hypercamera_T.origin()).normalize();
+    let zProj = x.multiply_by_scalar(worldZ.dot(x));
+    let zPrime = worldZ.subtract(zProj);
+    let z = zPrime.normalize();
 
-                if (keys['i']) {
-                    hypercamera_T.rotate_self_by_delta('XZ', 0.05, RELATIVE_MOVEMENT);
-                    moved = true;
+    // ---- Step 2: compute w ----
+    // We want the camera w vector to be as close as possible to the world w axis
+    // Otherwise the camera feels "fragged" in the usual xyz axes
+    // let vW = new Vector4D(0, 0, 0, 1); // world w axis
+    // Or we pick the current camera w, seems more robust
+    let vW = new Vector4D(hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]);
+
+    let wPrime = vW
+        .subtract(x.multiply_by_scalar(vW.dot(x)))
+        .subtract(z.multiply_by_scalar(vW.dot(z)));
+    let w = wPrime.normalize();
+
+    // ---- Step 3: compute y ----
+    // pick a vector not colinear with x, z
+    // let vY = new Vector4D(0, 1, 0, 0);
+    // pick the current y axis of the camera
+    let vY = new Vector4D(hypercamera_T.matrix[1][0], hypercamera_T.matrix[1][1], hypercamera_T.matrix[1][2], hypercamera_T.matrix[1][3]);
+
+    let yPrime = vY
+        .subtract(x.multiply_by_scalar(vY.dot(x)))
+        .subtract(z.multiply_by_scalar(vY.dot(z)))
+        .subtract(w.multiply_by_scalar(vY.dot(w)));
+    let y = yPrime.normalize();
+
+    const PROGRESSIVE_ROTATION_TO_TARGET = true;
+
+    // matrix = [x y z w]
+    if (!PROGRESSIVE_ROTATION_TO_TARGET) {
+    hypercamera_T.matrix[0][0] = x.x; hypercamera_T.matrix[0][1] = y.x; hypercamera_T.matrix[0][2] = z.x; hypercamera_T.matrix[0][3] = w.x;
+    hypercamera_T.matrix[1][0] = x.y; hypercamera_T.matrix[1][1] = y.y; hypercamera_T.matrix[1][2] = z.y; hypercamera_T.matrix[1][3] = w.y;
+    hypercamera_T.matrix[2][0] = x.z; hypercamera_T.matrix[2][1] = y.z; hypercamera_T.matrix[2][2] = z.z; hypercamera_T.matrix[2][3] = w.z;
+    hypercamera_T.matrix[3][0] = x.w; hypercamera_T.matrix[3][1] = y.w; hypercamera_T.matrix[3][2] = z.w; hypercamera_T.matrix[3][3] = w.w;
+    }
+
+    if (PROGRESSIVE_ROTATION_TO_TARGET) {
+        // interpolate towards the solution
+
+        // Matrix operations
+        function matrixMultiply(A, B) {
+            const n = A.length;
+            const result = Array(n).fill(0).map(() => Array(n).fill(0));
+            
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    for (let k = 0; k < n; k++) {
+                        result[i][j] += A[i][k] * B[k][j];
+                    }
                 }
-                if (keys['k']) {
-                    hypercamera_T.rotate_self_by_delta('XZ', -0.05, RELATIVE_MOVEMENT);
-                    moved = true;
+            }
+            return result;
+        }
+
+        function matrixTranspose(M) {
+            const n = M.length;
+            const result = Array(n).fill(0).map(() => Array(n).fill(0));
+            
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    result[i][j] = M[j][i];
                 }
-                if (keys['j']) {
-                    hypercamera_T.rotate_self_by_delta('XY', 0.05, false);
-                    moved = true;
+            }
+            return result;
+        }
+
+        // Simple method: Linear interpolation + SVD orthogonalization
+        function interpolateRotation4D_Simple(R0, R1, t) {
+            const n = 4;
+            const R_interp = Array(n).fill(0).map(() => Array(n).fill(0));
+            
+            // Linear interpolation
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    R_interp[i][j] = (1 - t) * R0[i][j] + t * R1[i][j];
                 }
-                if (keys['l']) {
-                    hypercamera_T.rotate_self_by_delta('XY', -0.05, false);
-                    moved = true;
+            }
+            
+            // Re-orthogonalize using Gram-Schmidt
+            return gramSchmidt4D(R_interp);
+        }
+
+        // Gram-Schmidt orthogonalization for 4D matrices
+        function gramSchmidt4D(M) {
+            const result = M.map(row => [...row]);
+            
+            for (let i = 0; i < 4; i++) {
+                // Subtract projections onto previous vectors
+                for (let j = 0; j < i; j++) {
+                    const dot = dotProduct4D(result[i], result[j]);
+                    for (let k = 0; k < 4; k++) {
+                        result[i][k] -= dot * result[j][k];
+                    }
                 }
-                if (keys['u']) {
-                    hypercamera_T.rotate_self_by_delta('XW', 0.05, false);
-                    moved = true;
+                
+                // Normalize
+                const norm = Math.sqrt(dotProduct4D(result[i], result[i]));
+                for (let k = 0; k < 4; k++) {
+                    result[i][k] /= norm;
                 }
-                if (keys['o']) {
-                    hypercamera_T.rotate_self_by_delta('XW', -0.05, false);
-                    moved = true;
+            }
+            
+            return result;
+        }
+
+        function dotProduct4D(v1, v2) {
+            return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2] + v1[3]*v2[3];
+        }
+
+
+        // More accurate method using matrix logarithm (exponential map)
+        function matrixLog(M) {
+            // For rotation matrices, use series expansion
+            // log(R) = (R - R^T)/2 + higher order terms for small rotations
+            const n = 4;
+            const MT = matrixTranspose(M);
+            const skew = Array(n).fill(0).map(() => Array(n).fill(0));
+            
+            // First approximation: (M - M^T)/2
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    skew[i][j] = (M[i][j] - MT[i][j]) / 2;
                 }
-                if (keys['y']) {
-                    hypercamera_T.rotate_self_by_delta('YW', -0.05, false);
-                    moved = true;
+            }
+            
+            // For better accuracy with larger rotations, use series expansion
+            // This is a simplified version
+            return skew;
+        }
+
+        function matrixExp(M) {
+            const n = 4;
+            let result = Array(n).fill(0).map((_, i) => 
+                Array(n).fill(0).map((_, j) => i === j ? 1 : 0)
+            );
+            
+            let term = result.map(row => [...row]);
+            
+            // Series expansion: exp(M) = I + M + M^2/2! + M^3/3! + ...
+            for (let k = 1; k <= 20; k++) {
+                term = matrixMultiply(term, M);
+                const factorial = factorial_memo(k);
+                
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        result[i][j] += term[i][j] / factorial;
+                    }
                 }
-                if (keys['p']) {
-                    hypercamera_T.rotate_self_by_delta('YW', 0.05, false);
-                    moved = true;
-                }
-              }
+            }
+            
+            return result;
+        }
+
+        function factorial_memo(n) {
+            let result = 1;
+            for (let i = 2; i <= n; i++) result *= i;
+            return result;
+        }
+
+        function interpolateRotation4D_Geodesic(R0, R1, t) {
+            // Compute R1 * R0^T
+            const R0T = matrixTranspose(R0);
+            const R_rel = matrixMultiply(R1, R0T);
+            
+            // Compute log(R_rel)
+            const log_R = matrixLog(R_rel);
+            
+            // Scale by t
+            const scaled_log = log_R.map(row => row.map(val => val * t));
+            
+            // Compute exp(t * log_R)
+            const exp_tlog = matrixExp(scaled_log);
+            
+            // Multiply by R0
+            return matrixMultiply(exp_tlog, R0);
+        }
+
+        // Example usage:
+        const from_R = [
+            [hypercamera_T.matrix[0][0], hypercamera_T.matrix[0][1], hypercamera_T.matrix[0][2], hypercamera_T.matrix[0][3]],
+            [hypercamera_T.matrix[1][0], hypercamera_T.matrix[1][1], hypercamera_T.matrix[1][2], hypercamera_T.matrix[1][3]],
+            [hypercamera_T.matrix[2][0], hypercamera_T.matrix[2][1], hypercamera_T.matrix[2][2], hypercamera_T.matrix[2][3]],
+            [hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]]
+        ];
+
+        const to_R = [
+            [x.x, y.x, z.x, w.x],
+            [x.y, y.y, z.y, w.y],
+            [x.z, y.z, z.z, w.z],
+            [x.w, y.w, z.w, w.w]
+        ];
+
+        // simple method
+        const interpolated_R = interpolateRotation4D_Simple(from_R, to_R, 0.3);
+        // Geodesic method (more accurate, especially for large rotations)
+        // const interpolated_R = interpolateRotation4D_Geodesic(from_R, to_R, 0.3);
+
+        // Update hypercamera_T with interpolated rotation
+        hypercamera_T.matrix[0][0] = interpolated_R[0][0]; hypercamera_T.matrix[0][1] = interpolated_R[0][1]; hypercamera_T.matrix[0][2] = interpolated_R[0][2]; hypercamera_T.matrix[0][3] = interpolated_R[0][3];
+        hypercamera_T.matrix[1][0] = interpolated_R[1][0]; hypercamera_T.matrix[1][1] = interpolated_R[1][1]; hypercamera_T.matrix[1][2] = interpolated_R[1][2]; hypercamera_T.matrix[1][3] = interpolated_R[1][3];
+        hypercamera_T.matrix[2][0] = interpolated_R[2][0]; hypercamera_T.matrix[2][1] = interpolated_R[2][1]; hypercamera_T.matrix[2][2] = interpolated_R[2][2]; hypercamera_T.matrix[2][3] = interpolated_R[2][3];
+        hypercamera_T.matrix[3][0] = interpolated_R[3][0]; hypercamera_T.matrix[3][1] = interpolated_R[3][1]; hypercamera_T.matrix[3][2] = interpolated_R[3][2]; hypercamera_T.matrix[3][3] = interpolated_R[3][3];
+    }
+    moved=true
+  }
+  function updatePlayerControls() {
+    if (true) {
+    
+        const moveSpeed = 0.1;
+        const RELATIVE_MOVEMENT = true;
+        if (keys['w']) {
+            hypercamera_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        if (keys['s']) {
+            hypercamera_T.translate_self_by_delta(-moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        if (keys['a']) {
+            hypercamera_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        if (keys['d']) {
+            hypercamera_T.translate_self_by_delta(0,-moveSpeed, 0, 0, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        if (keys['q']) {
+            hypercamera_T.translate_self_by_delta(0, 0, 0, moveSpeed, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        if (keys['e']) {
+            hypercamera_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        if (keys['r']) {
+            hypercamera_T.translate_self_by_delta(0, 0, moveSpeed, 0, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        if (keys['f']) {
+            hypercamera_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        // reset camera z to 0
+        hypercamera_T.matrix[2][4] = floor_heightmap(
+            hypercamera_T.matrix[0][4],
+            hypercamera_T.matrix[1][4],
+            hypercamera_T.matrix[3][4]
+        ) + hypercamera_height_above_ground;
+
+        if (keys['i']) {
+            hypercamera_T.rotate_self_by_delta('XZ', 0.05, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        if (keys['k']) {
+            hypercamera_T.rotate_self_by_delta('XZ', -0.05, RELATIVE_MOVEMENT);
+            moved = true;
+        }
+        if (keys['j']) {
+            hypercamera_T.rotate_self_by_delta('XY', 0.05, false);
+            moved = true;
+        }
+        if (keys['l']) {
+            hypercamera_T.rotate_self_by_delta('XY', -0.05, false);
+            moved = true;
+        }
+        if (keys['u']) {
+            hypercamera_T.rotate_self_by_delta('XW', 0.05, false);
+            moved = true;
+        }
+        if (keys['o']) {
+            hypercamera_T.rotate_self_by_delta('XW', -0.05, false);
+            moved = true;
+        }
+        if (keys['y']) {
+            hypercamera_T.rotate_self_by_delta('YW', -0.05, false);
+            moved = true;
+        }
+        if (keys['p']) {
+            hypercamera_T.rotate_self_by_delta('YW', 0.05, false);
+            moved = true;
+        }
+
+        if (keys['1']) {
+            let idx = 0;
+            if (idx < visibleHyperobjects.length) { lookTowards(visibleHyperobjects[idx].get_com()); }
+        }
+        if (keys['2']) {
+            let idx = 1;
+            if (idx < visibleHyperobjects.length) { lookTowards(visibleHyperobjects[idx].get_com()); }
+        }
+        if (keys['3']) {
+            let idx = 2;
+            if (idx < visibleHyperobjects.length) { lookTowards(visibleHyperobjects[idx].get_com()); }
+        }
+        if (keys['0']) {
+            lookTowards(new Vector4D(0, 0, 0, 0));
+        }
+    }
   }
 
   function writeCameraPoseToGPU() {
