@@ -27,10 +27,118 @@ export async function runHyperengine(scene) {
     let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
     let hypercamera_is_unit_sensor = true;
     let hypercamera_sensor_resolution = VOX;
+
     // Floor definition
-    function floor_heightmap(x, y, w) {
-        return 0; //  + x * 0.1;
+    // Default floor: checkerboard
+    let floorShader = `
+    // add a ground plane with custom texture
+    // get camera ray origin and direction from voxel coordinates
+    // hypercamera_in_world_5x5 is passed as a uniform buffer
+    if (true) {
+    let ray_origin_in_world = hypercameraPoseBuffer.tr;
+    let ray_direction_in_hcam = vec4<f32>(1.0, u, v, l);
+    let ray_direction_in_world = vec4<f32>(
+        hypercameraPoseBuffer.r0.x * 1.0 + hypercameraPoseBuffer.r1.x * u + hypercameraPoseBuffer.r2.x * v + hypercameraPoseBuffer.r3.x * l,
+        hypercameraPoseBuffer.r0.y * 1.0 + hypercameraPoseBuffer.r1.y * u + hypercameraPoseBuffer.r2.y * v + hypercameraPoseBuffer.r3.y * l,
+        hypercameraPoseBuffer.r0.z * 1.0 + hypercameraPoseBuffer.r1.z * u + hypercameraPoseBuffer.r2.z * v + hypercameraPoseBuffer.r3.z * l,
+        hypercameraPoseBuffer.r0.w * 1.0 + hypercameraPoseBuffer.r1.w * u + hypercameraPoseBuffer.r2.w * v + hypercameraPoseBuffer.r3.w * l
+    );
+    // solve for intersection with plane z = 0 (ground plane)
+    let denominator = ray_direction_in_world.z;
+    if (abs(denominator) > 1e-6) {
+        let t = -ray_origin_in_world.z / denominator;
+        if (t > 0.0) {
+            let intersect_point = vec4<f32>(
+                ray_origin_in_world.x + t * ray_direction_in_world.x,
+                ray_origin_in_world.y + t * ray_direction_in_world.y,
+                0.0,
+                ray_origin_in_world.w + t * ray_direction_in_world.w
+            );
+            // checkerboard pattern based on intersect_point.x and intersect_point.y and intersect_point.w
+            let checker_size = 1.0;
+            let check_x = floor(intersect_point.x / checker_size);
+            let check_y = floor(intersect_point.y / checker_size);
+            let check_w = floor(intersect_point.w / checker_size);
+            let is_white = (i32(check_x) + i32(check_y) + i32(check_w)) % 2 == 0;
+            if (is_white) {
+                best_voxel.r = 1.0;
+                best_voxel.g = 1.0;
+                best_voxel.b = 1.0;
+                // white spotlight for (x^2 + y^2 + w^2) < 5^2, outside of that colors for each axis
+                let x = intersect_point.x;
+                let y = intersect_point.y;
+                let w = intersect_point.w;
+                let R = 10.0; // spotlight radius
+                if (x*x + y*y + w*w) > R*R {
+                    // decay away from white
+                    let dx = abs(x) - R;
+                    let dy = abs(y) - R;
+                    let dw = abs(w) - R;
+                    let dnorm = sqrt(dx*dx + dy*dy + dw*dw);
+                    best_voxel.r = max(0.3, 0.6 * dx / dnorm);
+                    best_voxel.g = max(0.3, 0.6 * dy / dnorm);
+                    best_voxel.b = max(0.3, 0.6 * dw / dnorm);
+                }
+            } else {
+                best_voxel.r = 0.0;
+                best_voxel.g = 0.0;
+                best_voxel.b = 0.0;
+            }
+            best_voxel.a = 0.2;
+            best_voxel.s = t; // use t as "s" value for depth comparison
+        }
     }
+    }
+    `;
+    function flat_heightmap(x, y, w) {
+        return 0;
+    }
+    let floor_heightmap = flat_heightmap;
+    // island floor
+    if (scene.floorPreset === 'island') {
+        floorShader = `
+    // add a ground plane with custom texture
+    // get camera ray origin and direction from voxel coordinates
+    // hypercamera_in_world_5x5 is passed as a uniform buffer
+    let ray_origin_in_world = hypercameraPoseBuffer.tr;
+    let ray_direction_in_hcam = vec4<f32>(1.0, u, v, l);
+    let ray_direction_in_world = vec4<f32>(
+        hypercameraPoseBuffer.r0.x * 1.0 + hypercameraPoseBuffer.r1.x * u + hypercameraPoseBuffer.r2.x * v + hypercameraPoseBuffer.r3.x * l,
+        hypercameraPoseBuffer.r0.y * 1.0 + hypercameraPoseBuffer.r1.y * u + hypercameraPoseBuffer.r2.y * v + hypercameraPoseBuffer.r3.y * l,
+        hypercameraPoseBuffer.r0.z * 1.0 + hypercameraPoseBuffer.r1.z * u + hypercameraPoseBuffer.r2.z * v + hypercameraPoseBuffer.r3.z * l,
+        hypercameraPoseBuffer.r0.w * 1.0 + hypercameraPoseBuffer.r1.w * u + hypercameraPoseBuffer.r2.w * v + hypercameraPoseBuffer.r3.w * l
+    );
+    // solve for intersection with plane z = 0 (ground plane)
+    let denominator = ray_direction_in_world.z;
+    if (abs(denominator) > 1e-6) {
+        let t = -ray_origin_in_world.z / denominator;
+        if (t > 0.0) {
+            let intersect_point = vec4<f32>(
+                ray_origin_in_world.x + t * ray_direction_in_world.x,
+                ray_origin_in_world.y + t * ray_direction_in_world.y,
+                0.0,
+                ray_origin_in_world.w + t * ray_direction_in_world.w
+            );
+            best_voxel.r = 1.0;
+            best_voxel.g = 1.0;
+            best_voxel.b = 0.7;
+            // white spotlight for (x^2 + y^2 + w^2) < 5^2, outside of that colors for each axis
+            let x = intersect_point.x;
+            let y = intersect_point.y;
+            let w = intersect_point.w;
+            let R = 10.0; // spotlight radius
+            if (x*x + y*y + w*w) > R*R {
+                best_voxel.r = 0.0;
+                best_voxel.g = 0.1;
+                best_voxel.b = 0.7;
+            }
+            best_voxel.a = 0.2;
+            best_voxel.s = t; // use t as "s" value for depth comparison
+        }
+    }
+    `;
+    }
+
 
     // Scene pre-processing and setting up static memory
     // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
@@ -711,65 +819,7 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     best_voxel.s = 100000000.0; // TODO inf
     best_voxel.a = 0.0;
 
-    // add a ground plane with custom texture
-    // get camera ray origin and direction from voxel coordinates
-    // hypercamera_in_world_5x5 is passed as a uniform buffer
-    if (true) {
-    let ray_origin_in_world = hypercameraPoseBuffer.tr;
-    let ray_direction_in_hcam = vec4<f32>(1.0, u, v, l);
-    let ray_direction_in_world = vec4<f32>(
-        hypercameraPoseBuffer.r0.x * 1.0 + hypercameraPoseBuffer.r1.x * u + hypercameraPoseBuffer.r2.x * v + hypercameraPoseBuffer.r3.x * l,
-        hypercameraPoseBuffer.r0.y * 1.0 + hypercameraPoseBuffer.r1.y * u + hypercameraPoseBuffer.r2.y * v + hypercameraPoseBuffer.r3.y * l,
-        hypercameraPoseBuffer.r0.z * 1.0 + hypercameraPoseBuffer.r1.z * u + hypercameraPoseBuffer.r2.z * v + hypercameraPoseBuffer.r3.z * l,
-        hypercameraPoseBuffer.r0.w * 1.0 + hypercameraPoseBuffer.r1.w * u + hypercameraPoseBuffer.r2.w * v + hypercameraPoseBuffer.r3.w * l
-    );
-    // solve for intersection with plane z = 0 (ground plane)
-    let denominator = ray_direction_in_world.z;
-    if (abs(denominator) > 1e-6) {
-        let t = -ray_origin_in_world.z / denominator;
-        if (t > 0.0) {
-            let intersect_point = vec4<f32>(
-                ray_origin_in_world.x + t * ray_direction_in_world.x,
-                ray_origin_in_world.y + t * ray_direction_in_world.y,
-                0.0,
-                ray_origin_in_world.w + t * ray_direction_in_world.w
-            );
-            // checkerboard pattern based on intersect_point.x and intersect_point.y and intersect_point.w
-            let checker_size = 1.0;
-            let check_x = floor(intersect_point.x / checker_size);
-            let check_y = floor(intersect_point.y / checker_size);
-            let check_w = floor(intersect_point.w / checker_size);
-            let is_white = (i32(check_x) + i32(check_y) + i32(check_w)) % 2 == 0;
-            if (is_white) {
-                best_voxel.r = 1.0;
-                best_voxel.g = 1.0;
-                best_voxel.b = 1.0;
-                // white spotlight for (x^2 + y^2 + w^2) < 5^2, outside of that colors for each axis
-                let x = intersect_point.x;
-                let y = intersect_point.y;
-                let w = intersect_point.w;
-                let R = 10.0; // spotlight radius
-                if (x*x + y*y + w*w) > R*R {
-                    // decay away from white
-                    let dx = abs(x) - R;
-                    let dy = abs(y) - R;
-                    let dw = abs(w) - R;
-                    let dnorm = sqrt(dx*dx + dy*dy + dw*dw);
-                    best_voxel.r = max(0.3, 0.6 * dx / dnorm);
-                    best_voxel.g = max(0.3, 0.6 * dy / dnorm);
-                    best_voxel.b = max(0.3, 0.6 * dw / dnorm);
-                }
-            } else {
-                best_voxel.r = 0.0;
-                best_voxel.g = 0.0;
-                best_voxel.b = 0.0;
-            }
-            best_voxel.a = 0.2;
-            best_voxel.s = t; // use t as "s" value for depth comparison
-        }
-    }
-    }
-
+    ${floorShader}
     
     for (var i = 0u; i < cell_count; i++) {
         let tetra_index = cell_tetra_indices[cell_offset + i];
