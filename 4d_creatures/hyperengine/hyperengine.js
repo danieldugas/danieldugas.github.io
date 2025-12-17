@@ -144,8 +144,8 @@ export async function runHyperengine(scene) {
                 // add waves
                 let osc01_10hz = (0.5 + 0.5 * sin(6.3 * sim_t / 10.0)); // oscillator which does a 0 to 1 loop every 10 sec
                 let wave_width = 3.0;
-                let wave_phase = osc01_10hz;
-                best_voxel.b = 0.4 + 0.2 * sin(2.0 * wave_width * x + wave_phase) * sin(2.0 * wave_width * y + wave_phase) * sin(2.0 * wave_width * w + wave_phase);
+                let wave_phase = 6.3 * sim_t / 20.0;
+                best_voxel.b = 0.4 + 0.2 * sin(2.0 * wave_width * x + wave_phase); // * sin(2.0 * wave_width * y + wave_phase) * sin(2.0 * wave_width * w + wave_phase);
                 
 
             }
