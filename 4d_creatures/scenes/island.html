@@ -79,167 +79,291 @@ import { Transform4D, Vector4D } from '../hyperengine/transform4d.js';
 import { Hyperobject, createHypercube, removeDuplicates } from '../hyperengine/hyperobject.js';
 import { runHyperengine } from '../hyperengine/hyperengine.js';
 
-// build a hypersphere surface (triangle mesh)
-const n_i = 9;
-const n_j = 5;
-const n_k = 6;
-let grid_vertices = [];
-let grid_vertices_texcoords = [];
-let grid_edges = [];
-let grid_tetras = [];
-for (let i = 0; i < n_i; i++) {
-    for (let j = 0; j < n_j; j++) {
-        for (let k = 0; k < n_k; k++) {
-            // Spherical coordinates for the points
-            // a is the circle on xy plane (9)
-            // b is the concentric rings along z (5)
-            // c is the concentric spheres along w (5)
-            let trunk_L = 10.0;
-            let trunk_R = 1.0;
-            let foliage_R = 5.0;
-            let sphere_Rs = [trunk_R, trunk_R, 0.707*foliage_R, foliage_R, 0.707*foliage_R, 0.0];
-            let sphere_R = sphere_Rs[k];
-            let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
-            let circle_R = circle_Rs[j];
-            let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
-            let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
-            let w = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j];
-            let z = [      0.0,         trunk_L,     trunk_L+(1.0-0.707)*foliage_R, trunk_L+foliage_R, trunk_L+(1.0+0.707)*foliage_R, trunk_L+2.0*foliage_R][k];
-            // let norm = Math.sqrt(x*x + y*y + z*z + w*w);
-            // console.log(norm);
+function createHypertree() {
+  // build a hypersphere surface (triangle mesh)
+  const n_i = 9;
+  const n_j = 5;
+  const n_k = 6;
+  let grid_vertices = [];
+  let grid_vertices_texcoords = [];
+  let grid_edges = [];
+  let grid_tetras = [];
+  for (let i = 0; i < n_i; i++) {
+      for (let j = 0; j < n_j; j++) {
+          for (let k = 0; k < n_k; k++) {
+              // Spherical coordinates for the points
+              // a is the circle on xy plane (9)
+              // b is the concentric rings along z (5)
+              // c is the concentric spheres along w (5)
+              let trunk_L = 10.0;
+              let trunk_R = 1.0;
+              let foliage_R = 5.0;
+              let sphere_Rs = [trunk_R, trunk_R, 0.707*foliage_R, foliage_R, 0.707*foliage_R, 0.0];
+              let sphere_R = sphere_Rs[k];
+              let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
+              let circle_R = circle_Rs[j];
+              let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
+              let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
+              let w = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j];
+              let z = [      0.0,         trunk_L,     trunk_L+(1.0-0.707)*foliage_R, trunk_L+foliage_R, trunk_L+(1.0+0.707)*foliage_R, trunk_L+2.0*foliage_R][k];
+              // let norm = Math.sqrt(x*x + y*y + z*z + w*w);
+              // console.log(norm);
 
-            grid_vertices.push(new Vector4D(x, y, z, w));
+              grid_vertices.push(new Vector4D(x, y, z, w));
 
-            // texture coordinates
-            let H = trunk_L + foliage_R;
-            let theta = i / (n_i - 1.0);
-            let phi = 0; // 0.05 * Math.cos(10 * z / H);
-            let u = 0.75 * (Math.sin(theta * 6.0 * 20 + phi) > 0.5); // * (Math.cos(6.0 * 10.0 * z / H) > 0.0)  ; // add some dark patches
-            let v = 0.75 * (z > trunk_L);
-            grid_vertices_texcoords.push(new Vector4D(u, v, 0.0, 0.0));
+              // texture coordinates
+              let H = trunk_L + foliage_R;
+              let theta = i / (n_i - 1.0);
+              let phi = 0; // 0.05 * Math.cos(10 * z / H);
+              let u = 0.75 * (Math.sin(theta * 6.0 * 20 + phi) > 0.5); // * (Math.cos(6.0 * 10.0 * z / H) > 0.0)  ; // add some dark patches
+              let v = 0.75 * (z > trunk_L);
+              grid_vertices_texcoords.push(new Vector4D(u, v, 0.0, 0.0));
 
-            // add an edge to the next vertex in x
-            if (i < n_i - 1) {
-                let next_index = grid_vertices.length + (n_j * n_k) - 1;
-                grid_edges.push([grid_vertices.length - 1, next_index]);
-            }
-            // add an edge to the next vertex in y
-            if (j < n_j - 1) {
-                let next_index = grid_vertices.length + n_k - 1;
-                grid_edges.push([grid_vertices.length - 1, next_index]);
-            }
-            // add an edge to the next vertex in w
-            if (k < n_k - 1) {
-                let next_index = grid_vertices.length;
-                grid_edges.push([grid_vertices.length - 1, next_index]);
-            }
-            // add an edge between next x and next y
-            if (i < n_i - 1 && j < n_j - 1) {
-                let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
-                let next_y_index = grid_vertices.length + n_k - 1;
-                grid_edges.push([next_x_index, next_y_index]);
-            }
-            // add an edge between next x and next w
-            if (i < n_i - 1 && k < n_k - 1) {
-                let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
-                let next_w_index = grid_vertices.length;
-                grid_edges.push([next_x_index, next_w_index]);
-            }
-            // add an edge between next y and next w
-            if (j < n_j - 1 && k < n_k - 1) {
-                let next_y_index = grid_vertices.length + n_k - 1;
-                let next_w_index = grid_vertices.length;
-                grid_edges.push([next_y_index, next_w_index]);
-            }
-            // add 5 tetras between this grid point and the next in x,y,w
-            if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
-                let nnn = i * n_j * n_k + j * n_k + k;
-                let pnn = (i + 1) * n_j * n_k + j * n_k + k;
-                let npn = i * n_j * n_k + (j + 1) * n_k + k;
-                let ppn = (i + 1) * n_j * n_k + (j + 1) * n_k + k;
-                let nnp = i * n_j * n_k + j * n_k + (k + 1);
-                let pnp = (i + 1) * n_j * n_k + j * n_k + (k + 1);
-                let npp = i * n_j * n_k + (j + 1) * n_k + (k + 1);
-                let ppp = (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
-                let cell_tetras = [
-                    [pnn, nnn, ppn, pnp], // tet at corner p n n
-                    [npn, ppn, nnn, npp], // tet at corner n p n
-                    [nnp, pnp, npp, nnn], // tet at corner n n p
-                    [ppp, npp, pnp, ppn], // tet at corner p p p
-                    [nnn, ppn, npp, pnp]  // tet at center
-                ];
-                for (let tet of cell_tetras) { grid_tetras.push(tet); }
-            }
-        }
-    }
-}
-// remove duplicates
-[grid_vertices, grid_vertices_texcoords, grid_edges, grid_tetras] = removeDuplicates(grid_vertices, grid_vertices_texcoords, grid_edges, grid_tetras, 0.001);
-// create the class
-let hypertree = new Hyperobject(
-    // vertices in object frame
-    grid_vertices,
-    // edges
-    grid_edges,
-    // tetras
-    grid_tetras,
-    // color
-    0x008800,
-    // simulate_physics
-    false,
-    // show_vertices
-    false,
-    // mass
-    1.0,
-    // pose (Transform4D)
-    new Transform4D([
-        [1, 0, 0, 0, 2],
-        [0, 1, 0, 0, 0],
-        [0, 0, 1, 0, 1],
-        [0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 1]
-    ]),
-    // name
-    "Hypertree"
-);
-// Custom tree texture
-hypertree.vertices_in_texmap = grid_vertices_texcoords;
-// Fill texture info, texcoords
-if (true) {
-    let obj = hypertree;
-    let trunkColorLight = 0x333300;
-    let trunkColorDark = 0x111100;
-    let leafColorLight = 0x009900;
-    let leafColorDark = 0x007700;
-    let USIZE = 2;
-    let VSIZE = 2;
-    let WSIZE = 1;
-    let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
-    for (let u = 0; u < USIZE; u++) {
-        for (let v = 0; v < VSIZE; v++) {
-            for (let w = 0; w < WSIZE; w++) {
-                // important to use the same indexing as in the shader!
-                let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
-                // checkerboard pattern
-                let color = 0xffffff;
-                if (u >= 1 && v >= 1) { color = leafColorLight; }
-                if (u === 0 && v >= 1) { color = leafColorDark; }
-                if (u >= 1 && v === 0) { color = trunkColorLight; }
-                if (u === 0 && v === 0) { color = trunkColorDark; }
-                // pack color into one u32 RGBA
-                let r_u8 = (color >> 16) & 0xFF;
-                let g_u8 = (color >> 8) & 0xFF;
-                let b_u8 = (color) & 0xFF;
-                let a_u8 = 255;
-                let rgba_u32 = (a_u8 << 24) | (b_u8 << 16) | (g_u8 << 8) | (r_u8);
-                object_texture[index] = rgba_u32;
-            }
-        }
-    }
-    obj.texture = object_texture; // store in object for now
-    obj.texture_info = { USIZE: USIZE, VSIZE: VSIZE, WSIZE: WSIZE };
-    // 
-}
+              // add an edge to the next vertex in x
+              if (i < n_i - 1) {
+                  let next_index = grid_vertices.length + (n_j * n_k) - 1;
+                  grid_edges.push([grid_vertices.length - 1, next_index]);
+              }
+              // add an edge to the next vertex in y
+              if (j < n_j - 1) {
+                  let next_index = grid_vertices.length + n_k - 1;
+                  grid_edges.push([grid_vertices.length - 1, next_index]);
+              }
+              // add an edge to the next vertex in w
+              if (k < n_k - 1) {
+                  let next_index = grid_vertices.length;
+                  grid_edges.push([grid_vertices.length - 1, next_index]);
+              }
+              // add an edge between next x and next y
+              if (i < n_i - 1 && j < n_j - 1) {
+                  let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                  let next_y_index = grid_vertices.length + n_k - 1;
+                  grid_edges.push([next_x_index, next_y_index]);
+              }
+              // add an edge between next x and next w
+              if (i < n_i - 1 && k < n_k - 1) {
+                  let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                  let next_w_index = grid_vertices.length;
+                  grid_edges.push([next_x_index, next_w_index]);
+              }
+              // add an edge between next y and next w
+              if (j < n_j - 1 && k < n_k - 1) {
+                  let next_y_index = grid_vertices.length + n_k - 1;
+                  let next_w_index = grid_vertices.length;
+                  grid_edges.push([next_y_index, next_w_index]);
+              }
+              // add 5 tetras between this grid point and the next in x,y,w
+              if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                  let nnn = i * n_j * n_k + j * n_k + k;
+                  let pnn = (i + 1) * n_j * n_k + j * n_k + k;
+                  let npn = i * n_j * n_k + (j + 1) * n_k + k;
+                  let ppn = (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                  let nnp = i * n_j * n_k + j * n_k + (k + 1);
+                  let pnp = (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                  let npp = i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                  let ppp = (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                  let cell_tetras = [
+                      [pnn, nnn, ppn, pnp], // tet at corner p n n
+                      [npn, ppn, nnn, npp], // tet at corner n p n
+                      [nnp, pnp, npp, nnn], // tet at corner n n p
+                      [ppp, npp, pnp, ppn], // tet at corner p p p
+                      [nnn, ppn, npp, pnp]  // tet at center
+                  ];
+                  for (let tet of cell_tetras) { grid_tetras.push(tet); }
+              }
+          }
+      }
+  }
+  // remove duplicates
+  [grid_vertices, grid_vertices_texcoords, grid_edges, grid_tetras] = removeDuplicates(grid_vertices, grid_vertices_texcoords, grid_edges, grid_tetras, 0.001);
+  // create the class
+  let hypertree = new Hyperobject(
+      // vertices in object frame
+      grid_vertices,
+      // edges
+      grid_edges,
+      // tetras
+      grid_tetras,
+      // color
+      0x008800,
+      // simulate_physics
+      false,
+      // show_vertices
+      false,
+      // mass
+      1.0,
+      // pose (Transform4D)
+      new Transform4D([
+          [1, 0, 0, 0, 0],
+          [0, 1, 0, 0, 0],
+          [0, 0, 1, 0, 0],
+          [0, 0, 0, 1, 0],
+          [0, 0, 0, 0, 1]
+      ]),
+      // name
+      "Hypertree"
+  );
+  // Custom tree texture
+  // Fill texture info, texcoords
+  hypertree.vertices_in_texmap = grid_vertices_texcoords;
+  let obj = hypertree;
+  let trunkColorLight = 0x333300;
+  let trunkColorDark = 0x111100;
+  let leafColorLight = 0x009900;
+  let leafColorDark = 0x007700;
+  let USIZE = 2;
+  let VSIZE = 2;
+  let WSIZE = 1;
+  let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
+  for (let u = 0; u < USIZE; u++) {
+      for (let v = 0; v < VSIZE; v++) {
+          for (let w = 0; w < WSIZE; w++) {
+              // important to use the same indexing as in the shader!
+              let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
+              // checkerboard pattern
+              let color = 0xffffff;
+              if (u >= 1 && v >= 1) { color = leafColorLight; }
+              if (u === 0 && v >= 1) { color = leafColorDark; }
+              if (u >= 1 && v === 0) { color = trunkColorLight; }
+              if (u === 0 && v === 0) { color = trunkColorDark; }
+              // pack color into one u32 RGBA
+              let r_u8 = (color >> 16) & 0xFF;
+              let g_u8 = (color >> 8) & 0xFF;
+              let b_u8 = (color) & 0xFF;
+              let a_u8 = 255;
+              let rgba_u32 = (a_u8 << 24) | (b_u8 << 16) | (g_u8 << 8) | (r_u8);
+              object_texture[index] = rgba_u32;
+          }
+      }
+  }
+  hypertree.texture = object_texture; // store in object for now
+  hypertree.texture_info = { USIZE: USIZE, VSIZE: VSIZE, WSIZE: WSIZE };
+  return hypertree;
+} // end function createHypertree()
+
+let hypertree1 = createHypertree();
+hypertree1.pose.translate_self_by_delta(7, 0, 0, 0);
+let hypertree2 = createHypertree();
+hypertree2.pose.translate_self_by_delta(-2, 5, 0, 3);
+
+
+
+function createHypersphere() {
+  // build a hypersphere surface (mesh)
+  const n_i = 9;
+  const n_j = 5;
+  const n_k = 5;
+  let grid_vertices = [];
+  let grid_edges = [];
+  let grid_tetras = [];
+  let grid_vertices_texcoords = [];
+  for (let i = 0; i < n_i; i++) {
+      for (let j = 0; j < n_j; j++) {
+          for (let k = 0; k < n_k; k++) {
+              // Spherical coordinates for the points
+              // a is the circle on xy plane (9)
+              // b is the concentric rings along z (5)
+              // c is the concentric spheres along w (5)
+              let R = 1.0;
+              let sphere_Rs = [0.0, 0.707*R, R, 0.707*R, 0.0];
+              let sphere_R = sphere_Rs[k];
+              let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
+              let circle_R = circle_Rs[j];
+              let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
+              let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
+              let z = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j];
+              let w = [-R,               -0.707*R,      0.0,        0.707*R,        R][k];
+              // let norm = Math.sqrt(x*x + y*y + z*z + w*w);
+              // console.log(norm);
+
+              grid_vertices.push(new Vector4D(x, y, z, w));
+              // add an edge to the next vertex in x
+              if (i < n_i - 1) {
+                  let next_index = grid_vertices.length + (n_j * n_k) - 1;
+                  grid_edges.push([grid_vertices.length - 1, next_index]);
+              }
+              // add an edge to the next vertex in y
+              if (j < n_j - 1) {
+                  let next_index = grid_vertices.length + n_k - 1;
+                  grid_edges.push([grid_vertices.length - 1, next_index]);
+              }
+              // add an edge to the next vertex in w
+              if (k < n_k - 1) {
+                  let next_index = grid_vertices.length;
+                  grid_edges.push([grid_vertices.length - 1, next_index]);
+              }
+              // add an edge between next x and next y
+              if (i < n_i - 1 && j < n_j - 1) {
+                  let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                  let next_y_index = grid_vertices.length + n_k - 1;
+                  grid_edges.push([next_x_index, next_y_index]);
+              }
+              // add an edge between next x and next w
+              if (i < n_i - 1 && k < n_k - 1) {
+                  let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                  let next_w_index = grid_vertices.length;
+                  grid_edges.push([next_x_index, next_w_index]);
+              }
+              // add an edge between next y and next w
+              if (j < n_j - 1 && k < n_k - 1) {
+                  let next_y_index = grid_vertices.length + n_k - 1;
+                  let next_w_index = grid_vertices.length;
+                  grid_edges.push([next_y_index, next_w_index]);
+              }
+              // add 5 tetras between this grid point and the next in x,y,w
+              if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                  let nnn = i * n_j * n_k + j * n_k + k;
+                  let pnn = (i + 1) * n_j * n_k + j * n_k + k;
+                  let npn = i * n_j * n_k + (j + 1) * n_k + k;
+                  let ppn = (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                  let nnp = i * n_j * n_k + j * n_k + (k + 1);
+                  let pnp = (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                  let npp = i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                  let ppp = (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                  let cell_tetras = [
+                      [pnn, nnn, ppn, pnp], // tet at corner p n n
+                      [npn, ppn, nnn, npp], // tet at corner n p n
+                      [nnp, pnp, npp, nnn], // tet at corner n n p
+                      [ppp, npp, pnp, ppn], // tet at corner p p p
+                      [nnn, ppn, npp, pnp]  // tet at center
+                  ];
+                  for (let tet of cell_tetras) { grid_tetras.push(tet); }
+              }
+          }
+      }
+  }
+  // remove duplicates
+  [grid_vertices, grid_vertices_texcoords, grid_edges, grid_tetras] = removeDuplicates(grid_vertices, null, grid_edges, grid_tetras, 0.001);
+  // create the class
+  let hypersphere = new Hyperobject(
+      // vertices in object frame
+      grid_vertices.map(v => v.multiply_by_scalar(100)),
+      // edges
+      grid_edges,
+      // tetras
+      grid_tetras,
+      // color
+      0xffff44,
+      // simulate_physics
+      false,
+      // show_vertices
+      false,
+      // mass
+      1.0,
+      // pose (Transform4D)
+      new Transform4D([
+          [1, 0, 0, 0, 0],
+          [0, 1, 0, 0, 0],
+          [0, 0, 1, 0, 1000],
+          [0, 0, 0, 1, 0],
+          [0, 0, 0, 0, 1]
+      ]),
+      // name
+      "Hypersphere"
+  );
+  return hypersphere;
+} // end function createHypersphere()
+let hypersun = createHypersphere();
 
 // Check WebGPU support
 if (!navigator.gpu) {
@@ -250,7 +374,7 @@ if (!navigator.gpu) {
 const main_canvas = document.getElementById('canvas');
 
 let custom_scene = {
-  visibleHyperobjects: [hypertree],
+  visibleHyperobjects: [hypertree1, hypertree2, hypersun],
   mainCanvas: main_canvas,
   floorPreset: 'island',
 };
