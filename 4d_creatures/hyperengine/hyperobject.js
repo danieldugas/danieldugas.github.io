@@ -205,3 +205,79 @@ export function createHypercube(pose) {
     );
     return hypercube;
 } // function createHypercube()
+
+export function removeDuplicates(vertices, vert_texcoords, edges, tetras, vertex_dist_threshold) {
+  // vertices: list of Vector4D
+  // edges: list of (vertex index, vertex index) tuples
+  // tetras: list of [idx, idx, idx, idx] tuples
+  let new_vertices = [];
+  let new_vert_texcoords = [];
+  let old_to_new_mapping = [];
+  let new_edges = [];
+  let new_tetras = [];
+  
+  // First, eliminate duplicate vertices
+  // Remap from old vertex index to new one
+  for (let i = 0; i < vertices.length; i++) {
+    let found_duplicate = false;
+    for (let j = 0; j < new_vertices.length; j++) {
+      let dist = vertices[i].subtract(new_vertices[j]).magnitude();
+      if (dist < vertex_dist_threshold) {
+        old_to_new_mapping[i] = j;
+        found_duplicate = true;
+        break;
+      }
+    }
+    if (!found_duplicate) {
+      old_to_new_mapping[i] = new_vertices.length;
+      new_vertices.push(vertices[i]);
+      if (vert_texcoords) {
+        new_vert_texcoords.push(vert_texcoords[i]);
+      }
+    }
+  }
+  
+  // Remap edges to new vertex indices
+  for (let edge of edges) {
+    let new_edge = [old_to_new_mapping[edge[0]], old_to_new_mapping[edge[1]]];
+    new_edges.push(new_edge);
+  }
+  
+  // Remap tetras to new vertex indices
+  for (let tetra of tetras) {
+    let new_tetra = tetra.map(idx => old_to_new_mapping[idx]);
+    new_tetras.push(new_tetra);
+  }
+  
+  // Remove duplicate tetras (same vertex indices, regardless of order)
+  let new_new_tetras = [];
+  let tetra_set = new Set();
+  for (let tetra of new_tetras) {
+    // Sort indices to create canonical representation
+    let sorted = [...tetra].sort((a, b) => a - b);
+    let key = sorted.join(',');
+    if (!tetra_set.has(key)) {
+      tetra_set.add(key);
+      new_new_tetras.push(tetra);
+    }
+  }
+  
+  // Remove duplicate edges (same vertex indices, regardless of order)
+  let new_new_edges = [];
+  let edge_set = new Set();
+  for (let edge of new_edges) {
+    // Sort indices to create canonical representation
+    let sorted = [...edge].sort((a, b) => a - b);
+    let key = sorted.join(',');
+    if (!edge_set.has(key)) {
+      edge_set.add(key);
+      new_new_edges.push(edge);
+    }
+  }
+
+  console.log(`Removed ${vertices.length - new_vertices.length} duplicate vertices, remaining: ${new_vertices.length}`);
+  console.log(`Removed ${tetras.length - new_new_tetras.length} duplicate tetras, remaining: ${new_new_tetras.length}`);
+  console.log(`Removed ${edges.length - new_new_edges.length} duplicate edges, remaining: ${new_new_edges.length}`);
+  
+  return [new_vertices, new_vert_texcoords,new_new_edges, new_new_tetras];
+} // function removeDuplicates()
