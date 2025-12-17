@@ -19,6 +19,15 @@ export async function runHyperengine(scene) {
     // Hypercamera definition
     let scene_bound = 10.0; // +10 means the scene goes from -10 to +10 in all dimensions
     const hypercamera_height_above_ground = 1.0;
+    // a vertical pole that is always gravity aligned, on which the camera is mounted with 1 DoF up/down swivel
+    let camstand_T = new Transform4D([
+        [1, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1]
+    ]);
+    let camstandswivel_angle = 0.0;
     let hypercamera_T = new Transform4D([
         [1, 0, 0, 0, 0],
         [0, 1, 0, 0, 0],
@@ -1563,39 +1572,70 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         keys[e.key.toLowerCase()] = false;
     });
     // Mouse interaction
-    let sensorCamRotX = 0;
-    let sensorCamRotY = 0;
+    let sensorCamRotX = -1.6    ;
+    let sensorCamRotY = 0.7;
     let sensorCamDist = 100;
-    let isDragging = false;
+    let isDraggingLeftClick = false;
     let lastX = 0;
     let lastY = 0;
+    let isDraggingRightClick = false;
+    let lastXRight = 0;
+    let lastYRight = 0;
     canvas.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        lastX = e.clientX;
-        lastY = e.clientY;
+        if (e.button === 0) {
+            isDraggingLeftClick = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        } else if (e.button === 2) {
+            isDraggingRightClick = true;
+            lastXRight = e.clientX;
+            lastYRight = e.clientY;
+        }
     });
     canvas.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        
-        const deltaX = e.clientX - lastX;
-        const deltaY = e.clientY - lastY;
+        if (isDraggingLeftClick) {
+            const deltaX = e.clientX - lastX;
+            const deltaY = e.clientY - lastY;
 
 
-        sensorCamRotY = sensorCamRotY + deltaY * 0.01;
-        sensorCamRotX += deltaX * 0.01;
-        
-        // camera.theta += -deltaX * 0.01;
-        // camera.phi = Math.max(0.1, Math.min(Math.PI - 0.1, camera.phi - deltaY * 0.01));
-        
-        lastX = e.clientX;
-        lastY = e.clientY;
+            // sensorCamRotY += deltaY * 0.01;
+            // sensorCamRotX += deltaX * 0.01;
+            
+            camstand_T.rotate_self_by_delta('XY', deltaX * 0.01, true);
+            camstand_T.rotate_self_by_delta('XW', deltaY * 0.01, true);
+            
+            lastX = e.clientX;
+            lastY = e.clientY;
+        }
+        if (isDraggingRightClick) {
+            const deltaX = e.clientX - lastXRight;
+            const deltaY = e.clientY - lastYRight;
+            camstand_T.rotate_self_by_delta('YW', deltaX * 0.01, true);
+            camstandswivel_angle += deltaY * 0.01;
+            lastXRight = e.clientX;
+            lastYRight = e.clientY;
+        }
+
+        // sine and cosine of swivel angle
+        let ss = Math.sin(camstandswivel_angle);
+        let cs = Math.cos(camstandswivel_angle);
+        let hypercam_in_camstand = new Transform4D([
+            [cs, 0, ss, 0, 0],
+            [0, 1, 0, 0, 0],
+            [-ss, 0, cs, 0, 0],
+            [0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 1]
+        ]);
+        hypercamera_T = camstand_T.transform_transform(hypercam_in_camstand);
         
     });
     canvas.addEventListener('mouseup', () => {
-        isDragging = false;
+        isDraggingLeftClick = false;
+        isDraggingRightClick = false;
     });
     canvas.addEventListener('mouseleave', () => {
-        isDragging = false;
+        isDraggingLeftClick = false;
+        isDraggingRightClick = false;
     });
     // Scrolling changes camera distance
     canvas.addEventListener('wheel', (e) => {
