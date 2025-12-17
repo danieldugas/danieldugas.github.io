@@ -1568,56 +1568,9 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         ]
     });
 
-    let sensorCamRotX = 0;
-    let sensorCamRotY = 0;
-    let sensorCamDist = 100;
-
-
-    function updateDDACamera() {
-    const rotY = sensorCamRotX;
-    const rotX = sensorCamRotY;
-    const dist = sensorCamDist;
-
-    // Camera position (orbit around center at 2,2,2)
-    const cx = VOX / 2 + Math.cos(rotY) * Math.cos(rotX) * dist;
-    const cy = VOX / 2 + Math.sin(rotX) * dist;
-    const cz = VOX / 2 + Math.sin(rotY) * Math.cos(rotX) * dist;
-
-    // Camera direction (look at center)
-    const target = [VOX / 2, VOX / 2, VOX / 2];
-    const dx = target[0] - cx;
-    const dy = target[1] - cy;
-    const dz = target[2] - cz;
-    const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
-    const dir = [dx/len, dy/len, dz/len];
-
-    // Camera up and right vectors
-    const worldUp = [0, 1, 0];
-    const right = [
-        dir[1] * worldUp[2] - dir[2] * worldUp[1],
-        dir[2] * worldUp[0] - dir[0] * worldUp[2],
-        dir[0] * worldUp[1] - dir[1] * worldUp[0],
-    ];
-    const rlen = Math.sqrt(right[0]**2 + right[1]**2 + right[2]**2);
-    right[0] /= rlen; right[1] /= rlen; right[2] /= rlen;
-
-    const up = [
-        right[1] * dir[2] - right[2] * dir[1],
-        right[2] * dir[0] - right[0] * dir[2],
-        right[0] * dir[1] - right[1] * dir[0],
-    ];
-
-    // Update uniform buffer
-    const uniforms = new Float32Array([
-        cx, cy, cz, 0,
-        dir[0], dir[1], dir[2], 0,
-        up[0], up[1], up[2], 0,
-        right[0], right[1], right[2], 0,
-        canvas.width, canvas.height, 0, 0,
-    ]);
-    device.queue.writeBuffer(stage4UniformBuffer, 0, uniforms);
-    }
-
+    // -------------------
+    // Controls 
+    // -------------------
 
     // Register Keyboard controls
     const keys = {};
@@ -1628,222 +1581,267 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     window.addEventListener('keyup', (e) => {
         keys[e.key.toLowerCase()] = false;
     });
+    // Mouse interaction
+    let sensorCamRotX = 0;
+    let sensorCamRotY = 0;
+    let sensorCamDist = 100;
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const deltaX = e.clientX - lastX;
+        const deltaY = e.clientY - lastY;
+
+
+        sensorCamRotY = sensorCamRotY + deltaY * 0.01;
+        sensorCamRotX += deltaX * 0.01;
+        
+        // camera.theta += -deltaX * 0.01;
+        // camera.phi = Math.max(0.1, Math.min(Math.PI - 0.1, camera.phi - deltaY * 0.01));
+        
+        lastX = e.clientX;
+        lastY = e.clientY;
+        
+    });
+    canvas.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+    canvas.addEventListener('mouseleave', () => {
+        isDragging = false;
+    });
+    // Scrolling changes camera distance
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        sensorCamDist += e.deltaY * 0.05;
+        // camera.distance += e.deltaY * 0.05;
+        // camera.distance = Math.max(5, Math.min(hypercamera_sensor_resolution * 4.0, camera.distance));
+
+    });
+
+
+
+
     function lookTowards(lookAt_in_world) {
-    // Rotates the camera to look towards the chosen point.
+        // Rotates the camera to look towards the chosen point.
 
-    // new camera x axis
-    let worldZ = new Vector4D(0, 0, 1, 0);
-    let x = lookAt_in_world.subtract(hypercamera_T.origin()).normalize();
-    let zProj = x.multiply_by_scalar(worldZ.dot(x));
-    let zPrime = worldZ.subtract(zProj);
-    let z = zPrime.normalize();
+        // new camera x axis
+        let worldZ = new Vector4D(0, 0, 1, 0);
+        let x = lookAt_in_world.subtract(hypercamera_T.origin()).normalize();
+        let zProj = x.multiply_by_scalar(worldZ.dot(x));
+        let zPrime = worldZ.subtract(zProj);
+        let z = zPrime.normalize();
 
-    // ---- Step 2: compute w ----
-    // We want the camera w vector to be as close as possible to the world w axis
-    // Otherwise the camera feels "fragged" in the usual xyz axes
-    // let vW = new Vector4D(0, 0, 0, 1); // world w axis
-    // Or we pick the current camera w, seems more robust
-    let vW = new Vector4D(hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]);
+        // ---- Step 2: compute w ----
+        // We want the camera w vector to be as close as possible to the world w axis
+        // Otherwise the camera feels "fragged" in the usual xyz axes
+        // let vW = new Vector4D(0, 0, 0, 1); // world w axis
+        // Or we pick the current camera w, seems more robust
+        let vW = new Vector4D(hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]);
 
-    let wPrime = vW
-        .subtract(x.multiply_by_scalar(vW.dot(x)))
-        .subtract(z.multiply_by_scalar(vW.dot(z)));
-    let w = wPrime.normalize();
+        let wPrime = vW
+            .subtract(x.multiply_by_scalar(vW.dot(x)))
+            .subtract(z.multiply_by_scalar(vW.dot(z)));
+        let w = wPrime.normalize();
 
-    // ---- Step 3: compute y ----
-    // pick a vector not colinear with x, z
-    // let vY = new Vector4D(0, 1, 0, 0);
-    // pick the current y axis of the camera
-    let vY = new Vector4D(hypercamera_T.matrix[1][0], hypercamera_T.matrix[1][1], hypercamera_T.matrix[1][2], hypercamera_T.matrix[1][3]);
+        // ---- Step 3: compute y ----
+        // pick a vector not colinear with x, z
+        // let vY = new Vector4D(0, 1, 0, 0);
+        // pick the current y axis of the camera
+        let vY = new Vector4D(hypercamera_T.matrix[1][0], hypercamera_T.matrix[1][1], hypercamera_T.matrix[1][2], hypercamera_T.matrix[1][3]);
 
-    let yPrime = vY
-        .subtract(x.multiply_by_scalar(vY.dot(x)))
-        .subtract(z.multiply_by_scalar(vY.dot(z)))
-        .subtract(w.multiply_by_scalar(vY.dot(w)));
-    let y = yPrime.normalize();
+        let yPrime = vY
+            .subtract(x.multiply_by_scalar(vY.dot(x)))
+            .subtract(z.multiply_by_scalar(vY.dot(z)))
+            .subtract(w.multiply_by_scalar(vY.dot(w)));
+        let y = yPrime.normalize();
 
-    const PROGRESSIVE_ROTATION_TO_TARGET = true;
+        const PROGRESSIVE_ROTATION_TO_TARGET = true;
 
-    // matrix = [x y z w]
-    if (!PROGRESSIVE_ROTATION_TO_TARGET) {
-    hypercamera_T.matrix[0][0] = x.x; hypercamera_T.matrix[0][1] = y.x; hypercamera_T.matrix[0][2] = z.x; hypercamera_T.matrix[0][3] = w.x;
-    hypercamera_T.matrix[1][0] = x.y; hypercamera_T.matrix[1][1] = y.y; hypercamera_T.matrix[1][2] = z.y; hypercamera_T.matrix[1][3] = w.y;
-    hypercamera_T.matrix[2][0] = x.z; hypercamera_T.matrix[2][1] = y.z; hypercamera_T.matrix[2][2] = z.z; hypercamera_T.matrix[2][3] = w.z;
-    hypercamera_T.matrix[3][0] = x.w; hypercamera_T.matrix[3][1] = y.w; hypercamera_T.matrix[3][2] = z.w; hypercamera_T.matrix[3][3] = w.w;
-    }
-
-    if (PROGRESSIVE_ROTATION_TO_TARGET) {
-        // interpolate towards the solution
-
-        // Matrix operations
-        function matrixMultiply(A, B) {
-            const n = A.length;
-            const result = Array(n).fill(0).map(() => Array(n).fill(0));
-            
-            for (let i = 0; i < n; i++) {
-                for (let j = 0; j < n; j++) {
-                    for (let k = 0; k < n; k++) {
-                        result[i][j] += A[i][k] * B[k][j];
-                    }
-                }
-            }
-            return result;
+        // matrix = [x y z w]
+        if (!PROGRESSIVE_ROTATION_TO_TARGET) {
+        hypercamera_T.matrix[0][0] = x.x; hypercamera_T.matrix[0][1] = y.x; hypercamera_T.matrix[0][2] = z.x; hypercamera_T.matrix[0][3] = w.x;
+        hypercamera_T.matrix[1][0] = x.y; hypercamera_T.matrix[1][1] = y.y; hypercamera_T.matrix[1][2] = z.y; hypercamera_T.matrix[1][3] = w.y;
+        hypercamera_T.matrix[2][0] = x.z; hypercamera_T.matrix[2][1] = y.z; hypercamera_T.matrix[2][2] = z.z; hypercamera_T.matrix[2][3] = w.z;
+        hypercamera_T.matrix[3][0] = x.w; hypercamera_T.matrix[3][1] = y.w; hypercamera_T.matrix[3][2] = z.w; hypercamera_T.matrix[3][3] = w.w;
         }
 
-        function matrixTranspose(M) {
-            const n = M.length;
-            const result = Array(n).fill(0).map(() => Array(n).fill(0));
-            
-            for (let i = 0; i < n; i++) {
-                for (let j = 0; j < n; j++) {
-                    result[i][j] = M[j][i];
-                }
-            }
-            return result;
-        }
+        if (PROGRESSIVE_ROTATION_TO_TARGET) {
+            // interpolate towards the solution
 
-        // Simple method: Linear interpolation + SVD orthogonalization
-        function interpolateRotation4D_Simple(R0, R1, t) {
-            const n = 4;
-            const R_interp = Array(n).fill(0).map(() => Array(n).fill(0));
-            
-            // Linear interpolation
-            for (let i = 0; i < n; i++) {
-                for (let j = 0; j < n; j++) {
-                    R_interp[i][j] = (1 - t) * R0[i][j] + t * R1[i][j];
-                }
-            }
-            
-            // Re-orthogonalize using Gram-Schmidt
-            return gramSchmidt4D(R_interp);
-        }
-
-        // Gram-Schmidt orthogonalization for 4D matrices
-        function gramSchmidt4D(M) {
-            const result = M.map(row => [...row]);
-            
-            for (let i = 0; i < 4; i++) {
-                // Subtract projections onto previous vectors
-                for (let j = 0; j < i; j++) {
-                    const dot = dotProduct4D(result[i], result[j]);
-                    for (let k = 0; k < 4; k++) {
-                        result[i][k] -= dot * result[j][k];
-                    }
-                }
-                
-                // Normalize
-                const norm = Math.sqrt(dotProduct4D(result[i], result[i]));
-                for (let k = 0; k < 4; k++) {
-                    result[i][k] /= norm;
-                }
-            }
-            
-            return result;
-        }
-
-        function dotProduct4D(v1, v2) {
-            return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2] + v1[3]*v2[3];
-        }
-
-
-        // More accurate method using matrix logarithm (exponential map)
-        function matrixLog(M) {
-            // For rotation matrices, use series expansion
-            // log(R) = (R - R^T)/2 + higher order terms for small rotations
-            const n = 4;
-            const MT = matrixTranspose(M);
-            const skew = Array(n).fill(0).map(() => Array(n).fill(0));
-            
-            // First approximation: (M - M^T)/2
-            for (let i = 0; i < n; i++) {
-                for (let j = 0; j < n; j++) {
-                    skew[i][j] = (M[i][j] - MT[i][j]) / 2;
-                }
-            }
-            
-            // For better accuracy with larger rotations, use series expansion
-            // This is a simplified version
-            return skew;
-        }
-
-        function matrixExp(M) {
-            const n = 4;
-            let result = Array(n).fill(0).map((_, i) => 
-                Array(n).fill(0).map((_, j) => i === j ? 1 : 0)
-            );
-            
-            let term = result.map(row => [...row]);
-            
-            // Series expansion: exp(M) = I + M + M^2/2! + M^3/3! + ...
-            for (let k = 1; k <= 20; k++) {
-                term = matrixMultiply(term, M);
-                const factorial = factorial_memo(k);
+            // Matrix operations
+            function matrixMultiply(A, B) {
+                const n = A.length;
+                const result = Array(n).fill(0).map(() => Array(n).fill(0));
                 
                 for (let i = 0; i < n; i++) {
                     for (let j = 0; j < n; j++) {
-                        result[i][j] += term[i][j] / factorial;
+                        for (let k = 0; k < n; k++) {
+                            result[i][j] += A[i][k] * B[k][j];
+                        }
                     }
                 }
+                return result;
             }
-            
-            return result;
+
+            function matrixTranspose(M) {
+                const n = M.length;
+                const result = Array(n).fill(0).map(() => Array(n).fill(0));
+                
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        result[i][j] = M[j][i];
+                    }
+                }
+                return result;
+            }
+
+            // Simple method: Linear interpolation + SVD orthogonalization
+            function interpolateRotation4D_Simple(R0, R1, t) {
+                const n = 4;
+                const R_interp = Array(n).fill(0).map(() => Array(n).fill(0));
+                
+                // Linear interpolation
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        R_interp[i][j] = (1 - t) * R0[i][j] + t * R1[i][j];
+                    }
+                }
+                
+                // Re-orthogonalize using Gram-Schmidt
+                return gramSchmidt4D(R_interp);
+            }
+
+            // Gram-Schmidt orthogonalization for 4D matrices
+            function gramSchmidt4D(M) {
+                const result = M.map(row => [...row]);
+                
+                for (let i = 0; i < 4; i++) {
+                    // Subtract projections onto previous vectors
+                    for (let j = 0; j < i; j++) {
+                        const dot = dotProduct4D(result[i], result[j]);
+                        for (let k = 0; k < 4; k++) {
+                            result[i][k] -= dot * result[j][k];
+                        }
+                    }
+                    
+                    // Normalize
+                    const norm = Math.sqrt(dotProduct4D(result[i], result[i]));
+                    for (let k = 0; k < 4; k++) {
+                        result[i][k] /= norm;
+                    }
+                }
+                
+                return result;
+            }
+
+            function dotProduct4D(v1, v2) {
+                return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2] + v1[3]*v2[3];
+            }
+
+
+            // More accurate method using matrix logarithm (exponential map)
+            function matrixLog(M) {
+                // For rotation matrices, use series expansion
+                // log(R) = (R - R^T)/2 + higher order terms for small rotations
+                const n = 4;
+                const MT = matrixTranspose(M);
+                const skew = Array(n).fill(0).map(() => Array(n).fill(0));
+                
+                // First approximation: (M - M^T)/2
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        skew[i][j] = (M[i][j] - MT[i][j]) / 2;
+                    }
+                }
+                
+                // For better accuracy with larger rotations, use series expansion
+                // This is a simplified version
+                return skew;
+            }
+
+            function matrixExp(M) {
+                const n = 4;
+                let result = Array(n).fill(0).map((_, i) => 
+                    Array(n).fill(0).map((_, j) => i === j ? 1 : 0)
+                );
+                
+                let term = result.map(row => [...row]);
+                
+                // Series expansion: exp(M) = I + M + M^2/2! + M^3/3! + ...
+                for (let k = 1; k <= 20; k++) {
+                    term = matrixMultiply(term, M);
+                    const factorial = factorial_memo(k);
+                    
+                    for (let i = 0; i < n; i++) {
+                        for (let j = 0; j < n; j++) {
+                            result[i][j] += term[i][j] / factorial;
+                        }
+                    }
+                }
+                
+                return result;
+            }
+
+            function factorial_memo(n) {
+                let result = 1;
+                for (let i = 2; i <= n; i++) result *= i;
+                return result;
+            }
+
+            function interpolateRotation4D_Geodesic(R0, R1, t) {
+                // Compute R1 * R0^T
+                const R0T = matrixTranspose(R0);
+                const R_rel = matrixMultiply(R1, R0T);
+                
+                // Compute log(R_rel)
+                const log_R = matrixLog(R_rel);
+                
+                // Scale by t
+                const scaled_log = log_R.map(row => row.map(val => val * t));
+                
+                // Compute exp(t * log_R)
+                const exp_tlog = matrixExp(scaled_log);
+                
+                // Multiply by R0
+                return matrixMultiply(exp_tlog, R0);
+            }
+
+            // Example usage:
+            const from_R = [
+                [hypercamera_T.matrix[0][0], hypercamera_T.matrix[0][1], hypercamera_T.matrix[0][2], hypercamera_T.matrix[0][3]],
+                [hypercamera_T.matrix[1][0], hypercamera_T.matrix[1][1], hypercamera_T.matrix[1][2], hypercamera_T.matrix[1][3]],
+                [hypercamera_T.matrix[2][0], hypercamera_T.matrix[2][1], hypercamera_T.matrix[2][2], hypercamera_T.matrix[2][3]],
+                [hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]]
+            ];
+
+            const to_R = [
+                [x.x, y.x, z.x, w.x],
+                [x.y, y.y, z.y, w.y],
+                [x.z, y.z, z.z, w.z],
+                [x.w, y.w, z.w, w.w]
+            ];
+
+            // simple method
+            const interpolated_R = interpolateRotation4D_Simple(from_R, to_R, 0.3);
+            // Geodesic method (more accurate, especially for large rotations)
+            // const interpolated_R = interpolateRotation4D_Geodesic(from_R, to_R, 0.3);
+
+            // Update hypercamera_T with interpolated rotation
+            hypercamera_T.matrix[0][0] = interpolated_R[0][0]; hypercamera_T.matrix[0][1] = interpolated_R[0][1]; hypercamera_T.matrix[0][2] = interpolated_R[0][2]; hypercamera_T.matrix[0][3] = interpolated_R[0][3];
+            hypercamera_T.matrix[1][0] = interpolated_R[1][0]; hypercamera_T.matrix[1][1] = interpolated_R[1][1]; hypercamera_T.matrix[1][2] = interpolated_R[1][2]; hypercamera_T.matrix[1][3] = interpolated_R[1][3];
+            hypercamera_T.matrix[2][0] = interpolated_R[2][0]; hypercamera_T.matrix[2][1] = interpolated_R[2][1]; hypercamera_T.matrix[2][2] = interpolated_R[2][2]; hypercamera_T.matrix[2][3] = interpolated_R[2][3];
+            hypercamera_T.matrix[3][0] = interpolated_R[3][0]; hypercamera_T.matrix[3][1] = interpolated_R[3][1]; hypercamera_T.matrix[3][2] = interpolated_R[3][2]; hypercamera_T.matrix[3][3] = interpolated_R[3][3];
         }
-
-        function factorial_memo(n) {
-            let result = 1;
-            for (let i = 2; i <= n; i++) result *= i;
-            return result;
-        }
-
-        function interpolateRotation4D_Geodesic(R0, R1, t) {
-            // Compute R1 * R0^T
-            const R0T = matrixTranspose(R0);
-            const R_rel = matrixMultiply(R1, R0T);
-            
-            // Compute log(R_rel)
-            const log_R = matrixLog(R_rel);
-            
-            // Scale by t
-            const scaled_log = log_R.map(row => row.map(val => val * t));
-            
-            // Compute exp(t * log_R)
-            const exp_tlog = matrixExp(scaled_log);
-            
-            // Multiply by R0
-            return matrixMultiply(exp_tlog, R0);
-        }
-
-        // Example usage:
-        const from_R = [
-            [hypercamera_T.matrix[0][0], hypercamera_T.matrix[0][1], hypercamera_T.matrix[0][2], hypercamera_T.matrix[0][3]],
-            [hypercamera_T.matrix[1][0], hypercamera_T.matrix[1][1], hypercamera_T.matrix[1][2], hypercamera_T.matrix[1][3]],
-            [hypercamera_T.matrix[2][0], hypercamera_T.matrix[2][1], hypercamera_T.matrix[2][2], hypercamera_T.matrix[2][3]],
-            [hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]]
-        ];
-
-        const to_R = [
-            [x.x, y.x, z.x, w.x],
-            [x.y, y.y, z.y, w.y],
-            [x.z, y.z, z.z, w.z],
-            [x.w, y.w, z.w, w.w]
-        ];
-
-        // simple method
-        const interpolated_R = interpolateRotation4D_Simple(from_R, to_R, 0.3);
-        // Geodesic method (more accurate, especially for large rotations)
-        // const interpolated_R = interpolateRotation4D_Geodesic(from_R, to_R, 0.3);
-
-        // Update hypercamera_T with interpolated rotation
-        hypercamera_T.matrix[0][0] = interpolated_R[0][0]; hypercamera_T.matrix[0][1] = interpolated_R[0][1]; hypercamera_T.matrix[0][2] = interpolated_R[0][2]; hypercamera_T.matrix[0][3] = interpolated_R[0][3];
-        hypercamera_T.matrix[1][0] = interpolated_R[1][0]; hypercamera_T.matrix[1][1] = interpolated_R[1][1]; hypercamera_T.matrix[1][2] = interpolated_R[1][2]; hypercamera_T.matrix[1][3] = interpolated_R[1][3];
-        hypercamera_T.matrix[2][0] = interpolated_R[2][0]; hypercamera_T.matrix[2][1] = interpolated_R[2][1]; hypercamera_T.matrix[2][2] = interpolated_R[2][2]; hypercamera_T.matrix[2][3] = interpolated_R[2][3];
-        hypercamera_T.matrix[3][0] = interpolated_R[3][0]; hypercamera_T.matrix[3][1] = interpolated_R[3][1]; hypercamera_T.matrix[3][2] = interpolated_R[3][2]; hypercamera_T.matrix[3][3] = interpolated_R[3][3];
-    }
-    moved=true
+        moved=true
     }
     function updatePlayerControls() {
-    if (true) {
-
         const moveSpeed = 0.1;
         const RELATIVE_MOVEMENT = true;
         if (keys['w']) {
@@ -1954,26 +1952,69 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             lookTowards(new Vector4D(0, 0, 0, 0));
         }
     }
-    }
 
     function writeCameraPoseToGPU() {
-    let hypercamera_inv_pose_data = new Float32Array(5 * 5);
-    let hc_pose = hypercamera_T.inverse().matrix;
-    for (let i = 0; i < 5; i++) {
-        for (let j = 0; j < 5; j++) {
-            hypercamera_inv_pose_data[i * 5 + j] = hc_pose[i][j];
+        let hypercamera_inv_pose_data = new Float32Array(5 * 5);
+        let hc_pose = hypercamera_T.inverse().matrix;
+        for (let i = 0; i < 5; i++) {
+            for (let j = 0; j < 5; j++) {
+                hypercamera_inv_pose_data[i * 5 + j] = hc_pose[i][j];
+            }
         }
+        device.queue.writeBuffer(hypercameraInvPoseBuffer, 0, hypercamera_inv_pose_data);
+        // uniform buffer for hypercamera pose (so we only pass the first 4 rows of each vector)
+        let hypercamera_pose_data = new Float32Array(5 * 4);
+        for (let i = 0; i < 5; i++) {
+            hypercamera_pose_data[i * 4 + 0] = hypercamera_T.matrix[0][i];
+            hypercamera_pose_data[i * 4 + 1] = hypercamera_T.matrix[1][i];
+            hypercamera_pose_data[i * 4 + 2] = hypercamera_T.matrix[2][i];
+            hypercamera_pose_data[i * 4 + 3] = hypercamera_T.matrix[3][i];
+        }
+        device.queue.writeBuffer(hypercameraPoseBuffer, 0, hypercamera_pose_data);
     }
-    device.queue.writeBuffer(hypercameraInvPoseBuffer, 0, hypercamera_inv_pose_data);
-    // uniform buffer for hypercamera pose (so we only pass the first 4 rows of each vector)
-    let hypercamera_pose_data = new Float32Array(5 * 4);
-    for (let i = 0; i < 5; i++) {
-        hypercamera_pose_data[i * 4 + 0] = hypercamera_T.matrix[0][i];
-        hypercamera_pose_data[i * 4 + 1] = hypercamera_T.matrix[1][i];
-        hypercamera_pose_data[i * 4 + 2] = hypercamera_T.matrix[2][i];
-        hypercamera_pose_data[i * 4 + 3] = hypercamera_T.matrix[3][i];
-    }
-    device.queue.writeBuffer(hypercameraPoseBuffer, 0, hypercamera_pose_data);
+    function writeDDACameraPoseToGPU() {
+        const rotY = sensorCamRotX;
+        const rotX = sensorCamRotY;
+        const dist = sensorCamDist;
+
+        // Camera position (orbit around center at 2,2,2)
+        const cx = VOX / 2 + Math.cos(rotY) * Math.cos(rotX) * dist;
+        const cy = VOX / 2 + Math.sin(rotX) * dist;
+        const cz = VOX / 2 + Math.sin(rotY) * Math.cos(rotX) * dist;
+
+        // Camera direction (look at center)
+        const target = [VOX / 2, VOX / 2, VOX / 2];
+        const dx = target[0] - cx;
+        const dy = target[1] - cy;
+        const dz = target[2] - cz;
+        const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        const dir = [dx/len, dy/len, dz/len];
+
+        // Camera up and right vectors
+        const worldUp = [0, 1, 0];
+        const right = [
+            dir[1] * worldUp[2] - dir[2] * worldUp[1],
+            dir[2] * worldUp[0] - dir[0] * worldUp[2],
+            dir[0] * worldUp[1] - dir[1] * worldUp[0],
+        ];
+        const rlen = Math.sqrt(right[0]**2 + right[1]**2 + right[2]**2);
+        right[0] /= rlen; right[1] /= rlen; right[2] /= rlen;
+
+        const up = [
+            right[1] * dir[2] - right[2] * dir[1],
+            right[2] * dir[0] - right[0] * dir[2],
+            right[0] * dir[1] - right[1] * dir[0],
+        ];
+
+        // Update uniform buffer
+        const uniforms = new Float32Array([
+            cx, cy, cz, 0,
+            dir[0], dir[1], dir[2], 0,
+            up[0], up[1], up[2], 0,
+            right[0], right[1], right[2], 0,
+            canvas.width, canvas.height, 0, 0,
+        ]);
+        device.queue.writeBuffer(stage4UniformBuffer, 0, uniforms);
     }
 
     function physicsStepCPU() {
@@ -2180,258 +2221,217 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     } // end function physicsStepCPU()
 
     function writeObjectPosesToGPU() {
-    let new_object_poses_data = new Float32Array(visibleHyperobjects.length * 5 * 5);
-    for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
-        let obj = visibleHyperobjects[obj_index];
-        // basic physics - move cube up and down 
-        let time = performance.now() * 0.001;
-        // DEBUG - rotate the hypercube
-        // if (obj_index === 0) {
-        //     obj.pose.rotate_self_by_delta('ZW', 0.01, false)
-        // }
-        // object poses
-        let pose = obj.pose.matrix;
-        for (let i = 0; i < 5; i++) {
-            for (let j = 0; j < 5; j++) {
-                new_object_poses_data[obj_index * 5 * 5 + i * 5 + j] = pose[i][j];
+        let new_object_poses_data = new Float32Array(visibleHyperobjects.length * 5 * 5);
+        for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
+            let obj = visibleHyperobjects[obj_index];
+            // basic physics - move cube up and down 
+            let time = performance.now() * 0.001;
+            // DEBUG - rotate the hypercube
+            // if (obj_index === 0) {
+            //     obj.pose.rotate_self_by_delta('ZW', 0.01, false)
+            // }
+            // object poses
+            let pose = obj.pose.matrix;
+            for (let i = 0; i < 5; i++) {
+                for (let j = 0; j < 5; j++) {
+                    new_object_poses_data[obj_index * 5 * 5 + i * 5 + j] = pose[i][j];
+                }
             }
         }
-    }
-    device.queue.writeBuffer(objectPosesBuffer, 0, new_object_poses_data);
+        device.queue.writeBuffer(objectPosesBuffer, 0, new_object_poses_data);
     }
 
     function render() {
-    // update DDA camera
-    updateDDACamera();
-    // update hypercamera
-    updatePlayerControls();
-    writeCameraPoseToGPU();
-    // update physics
-    physicsStepCPU();
-    writeObjectPosesToGPU();
-    device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0])); // write sim time to GPU
+        // update DDA camera
+        writeDDACameraPoseToGPU();
+        // update hypercamera
+        updatePlayerControls();
+        writeCameraPoseToGPU();
+        // update physics
+        physicsStepCPU();
+        writeObjectPosesToGPU();
+        device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0])); // write sim time to GPU
 
-    const commandEncoder = device.createCommandEncoder();
-    const textureView = context.getCurrentTexture().createView();
+        const commandEncoder = device.createCommandEncoder();
+        const textureView = context.getCurrentTexture().createView();
 
-    // Stage 1: Vertex Shader
-    if (true) {
-        const computePass = commandEncoder.beginComputePass();
-        computePass.setPipeline(stage1Pipeline);
-        computePass.setBindGroup(0, stage1BindGroup);
-        computePass.setBindGroup(1, stage1ParamsBindGroup);
-        const workgroupCount = Math.ceil(all_vertices_in_object_data.length / 64);
-        computePass.dispatchWorkgroups(workgroupCount);
-        computePass.end();
-    }
-
-    // Stage 2: Cull tetras, + add clipped tetras if needed
-    // TODO
-
-    // Stage 2.0: Clear Counters (Use Compute Shader, NOT writeBuffer for proper sync) ---
-    const clearPass = commandEncoder.beginComputePass();
-    clearPass.setPipeline(clearPipeline);
-    // Clear cell_counts
-    clearPass.setBindGroup(0, clearCountsBG);
-    clearPass.dispatchWorkgroups(Math.ceil(accelStructureCountsData.length * 2 / 256));
-    // Clear cell_write_counters
-    clearPass.setBindGroup(0, clearWriteCountsBG);
-    clearPass.dispatchWorkgroups(Math.ceil(accelStructureCountsData.length / 256));
-    clearPass.end();
-
-    // Stage 2.1: Accel structure counts
-    if (true) {
-        const computePass = commandEncoder.beginComputePass();
-        computePass.setPipeline(stage2p1Pipeline);
-        computePass.setBindGroup(0, stage2p1BindGroup);
-        computePass.setBindGroup(1, stage2p1ParamsBindGroup);
-        const workgroupCount = Math.ceil(tetras.length / 64);
-        computePass.dispatchWorkgroups(workgroupCount);
-        computePass.end();
-    }
-
-    function computePrefixSum(commandEncoder, numElements) {
-        const numLevels = Math.ceil(Math.log2(numElements));
-        
-        // --- 1. Prepare Data CPU Side ---
-        // We calculate all parameters needed for every pass and put them in one array
-        const ALIGNED_SIZE = 256;
-        // Total steps: Init(1) + Up(numLevels) + Clear(1) + Down(numLevels) + Finalize(1)
-        const totalSteps = 1 + numLevels + 1 + numLevels + 1;
-        
-        // Use a DataView or typed array to write into the buffer
-        const uniformData = new Uint8Array(totalSteps * ALIGNED_SIZE);
-        const view = new DataView(uniformData.buffer);
-
-        let stepIndex = 0;
-        
-        // Helper to write params (num_elements, level, 0, 0)
-        function addParams(n, l) {
-            const offset = stepIndex * ALIGNED_SIZE;
-            view.setUint32(offset + 0, n, true); // Little endian
-            view.setUint32(offset + 4, l, true);
-            view.setUint32(offset + 8, 0, true);
-            view.setUint32(offset + 12, 0, true);
-            stepIndex++;
-            return offset;
+        // Stage 1: Vertex Shader
+        if (true) {
+            const computePass = commandEncoder.beginComputePass();
+            computePass.setPipeline(stage1Pipeline);
+            computePass.setBindGroup(0, stage1BindGroup);
+            computePass.setBindGroup(1, stage1ParamsBindGroup);
+            const workgroupCount = Math.ceil(all_vertices_in_object_data.length / 64);
+            computePass.dispatchWorkgroups(workgroupCount);
+            computePass.end();
         }
 
-        // Generate Offsets
-        const offsetInit = addParams(numElements, 0);
-        
-        const offsetsUp = [];
-        for (let level = 0; level < numLevels; level++) {
-            offsetsUp.push(addParams(numElements, level));
-        }
-        
-        const offsetClear = addParams(numElements, 0); // params.x used for bounds check
-        
-        const offsetsDown = [];
-        for (let level = numLevels - 1; level >= 0; level--) {
-            offsetsDown.push(addParams(numElements, level));
-        }
-        
-        const offsetFinalize = addParams(numElements, 0);
+        // Stage 2: Cull tetras, + add clipped tetras if needed
+        // TODO
 
-        // --- 2. Upload Data to GPU ---
-        // Write the entire sequence of parameters once
-        device.queue.writeBuffer(prefixSumParamsBuffer, 0, uniformData);
+        // Stage 2.0: Clear Counters (Use Compute Shader, NOT writeBuffer for proper sync) ---
+        const clearPass = commandEncoder.beginComputePass();
+        clearPass.setPipeline(clearPipeline);
+        // Clear cell_counts
+        clearPass.setBindGroup(0, clearCountsBG);
+        clearPass.dispatchWorkgroups(Math.ceil(accelStructureCountsData.length * 2 / 256));
+        // Clear cell_write_counters
+        clearPass.setBindGroup(0, clearWriteCountsBG);
+        clearPass.dispatchWorkgroups(Math.ceil(accelStructureCountsData.length / 256));
+        clearPass.end();
 
-        // --- 3. Record Commands with Dynamic Offsets ---
-        
-        // Init
-        let pass = commandEncoder.beginComputePass();
-        pass.setPipeline(initPipeline);
-        pass.setBindGroup(0, prefixSumBindGroup);
-        pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetInit]); // Pass offset here
-        pass.dispatchWorkgroups(Math.ceil(numElements / 256));
-        pass.end();
-        
-        // Up-sweep
-        for (let i = 0; i < numLevels; i++) {
-            const level = i;
-            pass = commandEncoder.beginComputePass();
-            pass.setPipeline(upsweepPipeline);
+        // Stage 2.1: Accel structure counts
+        if (true) {
+            const computePass = commandEncoder.beginComputePass();
+            computePass.setPipeline(stage2p1Pipeline);
+            computePass.setBindGroup(0, stage2p1BindGroup);
+            computePass.setBindGroup(1, stage2p1ParamsBindGroup);
+            const workgroupCount = Math.ceil(tetras.length / 64);
+            computePass.dispatchWorkgroups(workgroupCount);
+            computePass.end();
+        }
+
+        function computePrefixSum(commandEncoder, numElements) {
+            const numLevels = Math.ceil(Math.log2(numElements));
+            
+            // --- 1. Prepare Data CPU Side ---
+            // We calculate all parameters needed for every pass and put them in one array
+            const ALIGNED_SIZE = 256;
+            // Total steps: Init(1) + Up(numLevels) + Clear(1) + Down(numLevels) + Finalize(1)
+            const totalSteps = 1 + numLevels + 1 + numLevels + 1;
+            
+            // Use a DataView or typed array to write into the buffer
+            const uniformData = new Uint8Array(totalSteps * ALIGNED_SIZE);
+            const view = new DataView(uniformData.buffer);
+
+            let stepIndex = 0;
+            
+            // Helper to write params (num_elements, level, 0, 0)
+            function addParams(n, l) {
+                const offset = stepIndex * ALIGNED_SIZE;
+                view.setUint32(offset + 0, n, true); // Little endian
+                view.setUint32(offset + 4, l, true);
+                view.setUint32(offset + 8, 0, true);
+                view.setUint32(offset + 12, 0, true);
+                stepIndex++;
+                return offset;
+            }
+
+            // Generate Offsets
+            const offsetInit = addParams(numElements, 0);
+            
+            const offsetsUp = [];
+            for (let level = 0; level < numLevels; level++) {
+                offsetsUp.push(addParams(numElements, level));
+            }
+            
+            const offsetClear = addParams(numElements, 0); // params.x used for bounds check
+            
+            const offsetsDown = [];
+            for (let level = numLevels - 1; level >= 0; level--) {
+                offsetsDown.push(addParams(numElements, level));
+            }
+            
+            const offsetFinalize = addParams(numElements, 0);
+
+            // --- 2. Upload Data to GPU ---
+            // Write the entire sequence of parameters once
+            device.queue.writeBuffer(prefixSumParamsBuffer, 0, uniformData);
+
+            // --- 3. Record Commands with Dynamic Offsets ---
+            
+            // Init
+            let pass = commandEncoder.beginComputePass();
+            pass.setPipeline(initPipeline);
             pass.setBindGroup(0, prefixSumBindGroup);
-            pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetsUp[i]]);
-            const workgroups = Math.ceil(numElements / (256 * (1 << (level + 1))));
-            pass.dispatchWorkgroups(Math.max(1, workgroups));
+            pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetInit]); // Pass offset here
+            pass.dispatchWorkgroups(Math.ceil(numElements / 256));
+            pass.end();
+            
+            // Up-sweep
+            for (let i = 0; i < numLevels; i++) {
+                const level = i;
+                pass = commandEncoder.beginComputePass();
+                pass.setPipeline(upsweepPipeline);
+                pass.setBindGroup(0, prefixSumBindGroup);
+                pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetsUp[i]]);
+                const workgroups = Math.ceil(numElements / (256 * (1 << (level + 1))));
+                pass.dispatchWorkgroups(Math.max(1, workgroups));
+                pass.end();
+            }
+            
+            // Clear Root (GPU side)
+            pass = commandEncoder.beginComputePass();
+            pass.setPipeline(clearRootPipeline);
+            pass.setBindGroup(0, prefixSumBindGroup);
+            pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetClear]);
+            pass.dispatchWorkgroups(1);
+            pass.end();
+            
+            // Down-sweep
+            for (let i = 0; i < numLevels; i++) {
+                const level = numLevels - 1 - i;
+                pass = commandEncoder.beginComputePass();
+                pass.setPipeline(downsweepPipeline);
+                pass.setBindGroup(0, prefixSumBindGroup);
+                pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetsDown[i]]);
+                const workgroups = Math.ceil(numElements / (256 * (1 << (level + 1))));
+                pass.dispatchWorkgroups(Math.max(1, workgroups));
+                pass.end();
+            }
+            
+            // Finalize
+            pass = commandEncoder.beginComputePass();
+            pass.setPipeline(finalizePipeline);
+            pass.setBindGroup(0, prefixSumBindGroup);
+            pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetFinalize]);
+            pass.dispatchWorkgroups(Math.ceil(numElements / 256));
             pass.end();
         }
-        
-        // Clear Root (GPU side)
-        pass = commandEncoder.beginComputePass();
-        pass.setPipeline(clearRootPipeline);
-        pass.setBindGroup(0, prefixSumBindGroup);
-        pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetClear]);
-        pass.dispatchWorkgroups(1);
-        pass.end();
-        
-        // Down-sweep
-        for (let i = 0; i < numLevels; i++) {
-            const level = numLevels - 1 - i;
-            pass = commandEncoder.beginComputePass();
-            pass.setPipeline(downsweepPipeline);
-            pass.setBindGroup(0, prefixSumBindGroup);
-            pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetsDown[i]]);
-            const workgroups = Math.ceil(numElements / (256 * (1 << (level + 1))));
-            pass.dispatchWorkgroups(Math.max(1, workgroups));
-            pass.end();
+
+        // Stage 2.2: Prefix sum to compute cell offsets
+        if (true) {
+            computePrefixSum(commandEncoder, TILE_RES * TILE_RES * TILE_RES);
         }
-        
-        // Finalize
-        pass = commandEncoder.beginComputePass();
-        pass.setPipeline(finalizePipeline);
-        pass.setBindGroup(0, prefixSumBindGroup);
-        pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetFinalize]);
-        pass.dispatchWorkgroups(Math.ceil(numElements / 256));
-        pass.end();
+
+        // Stage 2.3 (Binning - Write Indices) ---
+        // populates cellTetraIndicesBuffer with the current frame's data
+        const pass3 = commandEncoder.beginComputePass();
+        pass3.setPipeline(stage2p3Pipeline);
+        pass3.setBindGroup(0, stage2p3BindGroup);
+        pass3.setBindGroup(1, stage2p1ParamsBindGroup); // Reusing params
+        pass3.dispatchWorkgroups(Math.ceil(tetras.length / 64));
+        pass3.end();
+
+        // Stage 3: Intersection tests compute pass to update voxel data
+        if (true) {
+            const computePass = commandEncoder.beginComputePass();
+            computePass.setPipeline(stage3Pipeline);
+            computePass.setBindGroup(0, stage3BindGroup);
+            computePass.setBindGroup(1, stage3ParamsBindGroup);
+            const workgroupCount = Math.ceil(VOX / 4);
+            computePass.dispatchWorkgroups(workgroupCount, workgroupCount, workgroupCount);
+            computePass.end();
+        }
+
+
+        // Stage 4: DDA Render pass
+        const stage4Pass = commandEncoder.beginRenderPass({
+            colorAttachments: [{
+            view: textureView,
+            clearValue: { r: 0, g: 0, b: 0, a: 1 },
+            loadOp: 'clear',
+            storeOp: 'store',
+            }],
+        });
+        stage4Pass.setPipeline(stage4Pipeline);
+        stage4Pass.setBindGroup(0, stage4BindGroup);
+        stage4Pass.draw(6);
+        stage4Pass.end();
+
+        device.queue.submit([commandEncoder.finish()]);
+        requestAnimationFrame(render);
     }
-
-    // Stage 2.2: Prefix sum to compute cell offsets
-    if (true) {
-        computePrefixSum(commandEncoder, TILE_RES * TILE_RES * TILE_RES);
-    }
-
-    // Stage 2.3 (Binning - Write Indices) ---
-    // populates cellTetraIndicesBuffer with the current frame's data
-    const pass3 = commandEncoder.beginComputePass();
-    pass3.setPipeline(stage2p3Pipeline);
-    pass3.setBindGroup(0, stage2p3BindGroup);
-    pass3.setBindGroup(1, stage2p1ParamsBindGroup); // Reusing params
-    pass3.dispatchWorkgroups(Math.ceil(tetras.length / 64));
-    pass3.end();
-
-    // Stage 3: Intersection tests compute pass to update voxel data
-    if (true) {
-        const computePass = commandEncoder.beginComputePass();
-        computePass.setPipeline(stage3Pipeline);
-        computePass.setBindGroup(0, stage3BindGroup);
-        computePass.setBindGroup(1, stage3ParamsBindGroup);
-        const workgroupCount = Math.ceil(VOX / 4);
-        computePass.dispatchWorkgroups(workgroupCount, workgroupCount, workgroupCount);
-        computePass.end();
-    }
-
-
-    // Stage 4: DDA Render pass
-    const stage4Pass = commandEncoder.beginRenderPass({
-        colorAttachments: [{
-        view: textureView,
-        clearValue: { r: 0, g: 0, b: 0, a: 1 },
-        loadOp: 'clear',
-        storeOp: 'store',
-        }],
-    });
-    stage4Pass.setPipeline(stage4Pipeline);
-    stage4Pass.setBindGroup(0, stage4BindGroup);
-    stage4Pass.draw(6);
-    stage4Pass.end();
-
-    device.queue.submit([commandEncoder.finish()]);
-    requestAnimationFrame(render);
-    }
-
-    // Mouse interaction
-    let isDragging = false;
-    let lastX = 0;
-    let lastY = 0;
-    canvas.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        lastX = e.clientX;
-        lastY = e.clientY;
-    });
-    canvas.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        
-        const deltaX = e.clientX - lastX;
-        const deltaY = e.clientY - lastY;
-
-
-        sensorCamRotY = sensorCamRotY + deltaY * 0.01;
-        sensorCamRotX += deltaX * 0.01;
-        
-        // camera.theta += -deltaX * 0.01;
-        // camera.phi = Math.max(0.1, Math.min(Math.PI - 0.1, camera.phi - deltaY * 0.01));
-        
-        lastX = e.clientX;
-        lastY = e.clientY;
-        
-    });
-    canvas.addEventListener('mouseup', () => {
-        isDragging = false;
-    });
-    canvas.addEventListener('mouseleave', () => {
-        isDragging = false;
-    });
-    // Scrolling changes camera distance
-    canvas.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        sensorCamDist += e.deltaY * 0.05;
-        // camera.distance += e.deltaY * 0.05;
-        // camera.distance = Math.max(5, Math.min(hypercamera_sensor_resolution * 4.0, camera.distance));
-
-    });
   
     render();
 } // end of function runHyperengine()
