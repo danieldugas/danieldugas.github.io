@@ -1606,9 +1606,6 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
     });
 
-
-
-
     function lookTowards(lookAt_in_world) {
         // Rotates the camera to look towards the chosen point.
 
@@ -2221,6 +2218,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         }
         device.queue.writeBuffer(objectPosesBuffer, 0, new_object_poses_data);
     }
+    
+    function writePhysicsTimeToGPU() {
+        device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0])); // write sim time to GPU
+    }
 
     function render() {
         // update DDA camera
@@ -2231,8 +2232,9 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // update physics
         physicsStepCPU();
         writeObjectPosesToGPU();
-        device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0])); // write sim time to GPU
+        writePhysicsTimeToGPU();
 
+        // Run all Stages
         const commandEncoder = device.createCommandEncoder();
         const textureView = context.getCurrentTexture().createView();
 
@@ -2247,7 +2249,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             computePass.end();
         }
 
-        // Stage 2: Cull tetras, + add clipped tetras if needed
+        // Stage 2.a: Cull tetras, + add clipped tetras if needed
         // TODO
 
         // Stage 2.0: Clear Counters (Use Compute Shader, NOT writeBuffer for proper sync) ---
@@ -2411,6 +2413,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         stage4Pass.end();
 
         device.queue.submit([commandEncoder.finish()]);
+
+        // Schedule next frame
         requestAnimationFrame(render);
     }
   
