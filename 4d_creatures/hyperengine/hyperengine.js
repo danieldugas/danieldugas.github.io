@@ -1580,12 +1580,15 @@ const stage2p3BindGroup = device.createBindGroup({
     device.queue.writeBuffer(stage4UniformBuffer, 0, uniforms);
   }
 
+  // game variables
   let STEP_PHYSICS_ONCE = false;
   let DEBUG_PHYSICS = false;
   let physics_time_s = 0;
   let accumulated_animation_time_s = 0;
   let moved = false;
   let user_has_pushed_object = false;
+  let player_is_jumping = false;
+  let last_player_jump_time = 0;
   
   // Register Keyboard controls
   const keys = {};
@@ -1846,12 +1849,32 @@ const stage2p3BindGroup = device.createBindGroup({
             hypercamera_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
             moved = true;
         }
+        // space to jump
+        if (keys[' ']) {
+            if (!player_is_jumping) {
+                last_player_jump_time = physics_time_s;
+                player_is_jumping = true;
+            }
+        }
         // reset camera z to 0
+        let jump_z = 0;
+        const jump_height = 1;
+        if (player_is_jumping) {
+            // jump height is a parabola
+            const tend = 4; // jump duration
+            let dt = physics_time_s - last_player_jump_time;
+            let jp01 = dt / tend; // jump progress from 0 to 1
+            if (dt > tend) {
+                player_is_jumping = false;
+            } else {
+                jump_z = jump_height * (1.0 - (2.0 * jp01 - 1.0) ** 2);
+            }
+        }
         hypercamera_T.matrix[2][4] = floor_heightmap(
             hypercamera_T.matrix[0][4],
             hypercamera_T.matrix[1][4],
             hypercamera_T.matrix[3][4]
-        ) + hypercamera_height_above_ground;
+        ) + hypercamera_height_above_ground + jump_z;
 
         if (keys['i']) {
             hypercamera_T.rotate_self_by_delta('XZ', 0.05, RELATIVE_MOVEMENT);
