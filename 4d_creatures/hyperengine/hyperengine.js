@@ -5,6 +5,16 @@ export async function runHyperengine(scene) {
     let canvas = scene.mainCanvas;
 
     const VOX = 64; // Voxel grid size
+    
+  // game variables
+  let STEP_PHYSICS_ONCE = false;
+  let DEBUG_PHYSICS = false;
+  let physics_time_s = 0;
+  let accumulated_animation_time_s = 0;
+  let moved = false;
+  let user_has_pushed_object = false;
+  let player_is_jumping = false;
+  let last_player_jump_time = 0;
 
     // Hypercamera definition
     let scene_bound = 10.0; // +10 means the scene goes from -10 to +10 in all dimensions
@@ -131,6 +141,13 @@ export async function runHyperengine(scene) {
                 best_voxel.r = 0.0;
                 best_voxel.g = 0.1;
                 best_voxel.b = 0.7;
+                // add waves
+                let osc01_10hz = (0.5 + 0.5 * sin(6.3 * sim_t / 10.0)); // oscillator which does a 0 to 1 loop every 10 sec
+                let wave_width = 3.0;
+                let wave_phase = osc01_10hz;
+                best_voxel.b = 0.4 + 0.2 * sin(2.0 * wave_width * x + wave_phase) * sin(2.0 * wave_width * y + wave_phase) * sin(2.0 * wave_width * w + wave_phase);
+                
+
             }
             best_voxel.a = 0.2;
             best_voxel.s = t; // use t as "s" value for depth comparison
@@ -715,6 +732,7 @@ struct UniformPose4D {
 
 @group(1) @binding(0) var<uniform> params: vec4<u32>; // RES, TILE_RES, TILE_SZ, unused
 @group(1) @binding(1) var<uniform> hypercameraPoseBuffer: UniformPose4D; // 5x5 matrix
+@group(1) @binding(2) var<uniform> simtimeBuffer: vec4<f32>; // 5x5 matrix
 
 fn signedVolume(a: vec3<f32>, b: vec3<f32>, c: vec3<f32>, d: vec3<f32>) -> f32 {
     let ab = b - a;
@@ -779,6 +797,7 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let RES = params.x;
     let TILE_RES = params.y;
     let TILE_SZ = params.z;
+    let sim_t = simtimeBuffer.x;
     
     let U = global_id.x;
     let V = global_id.y;
@@ -1199,6 +1218,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
   });
   device.queue.writeBuffer(stage1ParamsBuffer, 0, new Uint32Array([all_vertices_in_object_data.length, 0, 0, 0]));
 
+  const simtimeBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+  });
+  device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0]));
+
   // textures
   const textureHeaderBuffer = device.createBuffer({
     size: object_texture_header_data.byteLength,
@@ -1495,7 +1520,8 @@ const stage2p3BindGroup = device.createBindGroup({
   const stage3ParamsBindGroupLayout = device.createBindGroupLayout({
       entries: [
           { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+          { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
       ]
   });
   const stage3PipelineLayout = device.createPipelineLayout({
@@ -1526,7 +1552,8 @@ const stage2p3BindGroup = device.createBindGroup({
       layout: stage3ParamsBindGroupLayout,
       entries: [
           { binding: 0, resource: { buffer: rasterParamsBuffer } },
-          { binding: 1, resource: { buffer: hypercameraPoseBuffer } }
+          { binding: 1, resource: { buffer: hypercameraPoseBuffer } },
+          { binding: 2, resource: { buffer: simtimeBuffer } }
       ]
   });
 
@@ -1580,15 +1607,6 @@ const stage2p3BindGroup = device.createBindGroup({
     device.queue.writeBuffer(stage4UniformBuffer, 0, uniforms);
   }
 
-  // game variables
-  let STEP_PHYSICS_ONCE = false;
-  let DEBUG_PHYSICS = false;
-  let physics_time_s = 0;
-  let accumulated_animation_time_s = 0;
-  let moved = false;
-  let user_has_pushed_object = false;
-  let player_is_jumping = false;
-  let last_player_jump_time = 0;
   
   // Register Keyboard controls
   const keys = {};
@@ -2180,6 +2198,7 @@ const stage2p3BindGroup = device.createBindGroup({
     // update physics
     physicsStepCPU();
     writeObjectPosesToGPU();
+    device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0])); // write sim time to GPU
     
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();

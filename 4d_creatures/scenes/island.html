@@ -76,7 +76,7 @@ input[type="range"] {
 <script type="module">
 
 import { Transform4D, Vector4D } from '../hyperengine/transform4d.js';
-import { Hyperobject, createHypercube } from '../hyperengine/hyperobject.js';
+import { Hyperobject, createHypercube, removeDuplicates } from '../hyperengine/hyperobject.js';
 import { runHyperengine } from '../hyperengine/hyperengine.js';
 
 // build a hypersphere surface (triangle mesh)
@@ -173,6 +173,8 @@ for (let i = 0; i < n_i; i++) {
         }
     }
 }
+// remove duplicates
+[grid_vertices, grid_vertices_texcoords, grid_edges, grid_tetras] = removeDuplicates(grid_vertices, grid_vertices_texcoords, grid_edges, grid_tetras, 0.001);
 // create the class
 let hypertree = new Hyperobject(
     // vertices in object frame
