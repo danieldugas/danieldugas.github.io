@@ -6,15 +6,15 @@ export async function runHyperengine(scene) {
 
     const VOX = 64; // Voxel grid size
     
-  // game variables
-  let STEP_PHYSICS_ONCE = false;
-  let DEBUG_PHYSICS = false;
-  let physics_time_s = 0;
-  let accumulated_animation_time_s = 0;
-  let moved = false;
-  let user_has_pushed_object = false;
-  let player_is_jumping = false;
-  let last_player_jump_time = 0;
+    // game variables
+    let STEP_PHYSICS_ONCE = false;
+    let DEBUG_PHYSICS = false;
+    let physics_time_s = 0;
+    let accumulated_animation_time_s = 0;
+    let moved = false;
+    let user_has_pushed_object = false;
+    let player_is_jumping = false;
+    let last_player_jump_time = 0;
 
     // Hypercamera definition
     let scene_bound = 10.0; // +10 means the scene goes from -10 to +10 in all dimensions
@@ -1101,71 +1101,70 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 }
 `;
   
-  // Create shader module
-  const stage4ShaderModule = device.createShaderModule({
+    // Create shader module
+    const stage4ShaderModule = device.createShaderModule({
     code: stage4ShaderCode,
-  });
+    });
 
-  // ----------------------
-  
-  // Create uniform buffer
-  // 4 vec4s (camera pos, dir, up, right) + 1 vec2 (resolution) + padding = 80 bytes
-  const stage4UniformBuffer = device.createBuffer({
+    // ----------------------
+
+    // Create uniform buffer
+    // 4 vec4s (camera pos, dir, up, right) + 1 vec2 (resolution) + padding = 80 bytes
+    const stage4UniformBuffer = device.createBuffer({
     size: 80,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  
-  // Create voxel storage buffer
-  const voxelBuffer = device.createBuffer({
+    });
+
+    // Create voxel storage buffer
+    const voxelBuffer = device.createBuffer({
     size: voxelData.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  
-  // Create bind group layout
-  const stage4BindGroupLayout = device.createBindGroupLayout({
+    });
+
+    // Create bind group layout
+    const stage4BindGroupLayout = device.createBindGroupLayout({
     entries: [
-      {
+        {
         binding: 0,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: 'uniform' },
-      },
-      {
+        },
+        {
         binding: 1,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: 'read-only-storage' },
-      },
+        },
     ],
-  });
+    });
   
-  const stage4BindGroup = device.createBindGroup({
+    const stage4BindGroup = device.createBindGroup({
     layout: stage4BindGroupLayout,
     entries: [
-      { binding: 0, resource: { buffer: stage4UniformBuffer } },
-      { binding: 1, resource: { buffer: voxelBuffer } },
+        { binding: 0, resource: { buffer: stage4UniformBuffer } },
+        { binding: 1, resource: { buffer: voxelBuffer } },
     ],
-  });
+    });
   
-  // Create pipeline
-  const stage4Pipeline = device.createRenderPipeline({
+    // Create pipeline
+    const stage4Pipeline = device.createRenderPipeline({
     layout: device.createPipelineLayout({
-      bindGroupLayouts: [stage4BindGroupLayout],
+        bindGroupLayouts: [stage4BindGroupLayout],
     }),
     vertex: {
-      module: stage4ShaderModule,
-      entryPoint: 'vs_main',
+        module: stage4ShaderModule,
+        entryPoint: 'vs_main',
     },
     fragment: {
-      module: stage4ShaderModule,
-      entryPoint: 'fs_main',
-      targets: [{ format }],
+        module: stage4ShaderModule,
+        entryPoint: 'fs_main',
+        targets: [{ format }],
     },
     primitive: {
-      topology: 'triangle-list',
+        topology: 'triangle-list',
     },
-  });
+    });
 
-  // Stage 1 Buffers and Pipeline
-    
+    // Stage 1 Buffers and Pipeline
     const tetraBuffer = device.createBuffer({
         size: tetraData.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
@@ -1183,112 +1182,112 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     });
     device.queue.writeBuffer(vertices1uvlstexBuffer, 0, vertices1uvlstexData);
-    
-  const allVerticesInObjectBuffer = device.createBuffer({
+
+    const allVerticesInObjectBuffer = device.createBuffer({
     size: all_vertices_in_object_data.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  });
-  device.queue.writeBuffer(allVerticesInObjectBuffer, 0, all_vertices_in_object_data);
+    });
+    device.queue.writeBuffer(allVerticesInObjectBuffer, 0, all_vertices_in_object_data);
 
-  const objectPosesBuffer = device.createBuffer({
+    const objectPosesBuffer = device.createBuffer({
     size: all_object_poses_data.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  });
-  device.queue.writeBuffer(objectPosesBuffer, 0, all_object_poses_data);
+    });
+    device.queue.writeBuffer(objectPosesBuffer, 0, all_object_poses_data);
 
-  const vertexObjectIndicesBuffer = device.createBuffer({
+    const vertexObjectIndicesBuffer = device.createBuffer({
     size: vertex_object_indices_data.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  });
-  device.queue.writeBuffer(vertexObjectIndicesBuffer, 0, vertex_object_indices_data);
+    });
+    device.queue.writeBuffer(vertexObjectIndicesBuffer, 0, vertex_object_indices_data);
 
-  const hypercameraInvPoseBuffer = device.createBuffer({
+    const hypercameraInvPoseBuffer = device.createBuffer({
     size: hypercamera_inv_pose_data.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  });
+    });
 
-  const hypercameraPoseBuffer = device.createBuffer({ // useful for tracing rays from camera (e.g. ground plane)
+    const hypercameraPoseBuffer = device.createBuffer({ // useful for tracing rays from camera (e.g. ground plane)
     size: hypercamera_pose_data.byteLength,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-  });
+    });
 
-  const stage1ParamsBuffer = device.createBuffer({
+    const stage1ParamsBuffer = device.createBuffer({
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-  });
-  device.queue.writeBuffer(stage1ParamsBuffer, 0, new Uint32Array([all_vertices_in_object_data.length, 0, 0, 0]));
+    });
+    device.queue.writeBuffer(stage1ParamsBuffer, 0, new Uint32Array([all_vertices_in_object_data.length, 0, 0, 0]));
 
-  const simtimeBuffer = device.createBuffer({
+    const simtimeBuffer = device.createBuffer({
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-  });
-  device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0]));
+    });
+    device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0]));
 
-  // textures
-  const textureHeaderBuffer = device.createBuffer({
+    // textures
+    const textureHeaderBuffer = device.createBuffer({
     size: object_texture_header_data.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  });
-  device.queue.writeBuffer(textureHeaderBuffer, 0, object_texture_header_data);
+    });
+    device.queue.writeBuffer(textureHeaderBuffer, 0, object_texture_header_data);
 
-  const textureBuffer = device.createBuffer({
+    const textureBuffer = device.createBuffer({
     size: global_texture_data.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  });
-  device.queue.writeBuffer(textureBuffer, 0, global_texture_data);
- 
-  const verticesTexcoordBuffer = device.createBuffer({
+    });
+    device.queue.writeBuffer(textureBuffer, 0, global_texture_data);
+
+    const verticesTexcoordBuffer = device.createBuffer({
     size: vertices_texcoords_data.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  });
-  device.queue.writeBuffer(verticesTexcoordBuffer, 0, vertices_texcoords_data);  
+    });
+    device.queue.writeBuffer(verticesTexcoordBuffer, 0, vertices_texcoords_data);  
 
-  // Layout and pipeline
-  const stage1BindGroupLayout = device.createBindGroupLayout({
+    // Layout and pipeline
+    const stage1BindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
     ]
-  });
-  const stage1ParamsBindGroupLayout = device.createBindGroupLayout({
+    });
+    const stage1ParamsBindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
     ]
-  });
-  const stage1PipelineLayout = device.createPipelineLayout({
+    });
+    const stage1PipelineLayout = device.createPipelineLayout({
     bindGroupLayouts: [stage1BindGroupLayout, stage1ParamsBindGroupLayout]
-  });
-  const stage1Pipeline = device.createComputePipeline({
+    });
+    const stage1Pipeline = device.createComputePipeline({
     layout: stage1PipelineLayout,
     compute: {
-      module: stage1ShaderModule,
-      entryPoint: 'main'
+        module: stage1ShaderModule,
+        entryPoint: 'main'
     }
-  });
-  const stage1BindGroup = device.createBindGroup({
+    });
+    const stage1BindGroup = device.createBindGroup({
     layout: stage1BindGroupLayout,
     entries: [
-      { binding: 0, resource: { buffer: allVerticesInObjectBuffer } },
-      { binding: 1, resource: { buffer: objectPosesBuffer } },
-      { binding: 2, resource: { buffer: vertexObjectIndicesBuffer } },
-      { binding: 3, resource: { buffer: hypercameraInvPoseBuffer } },
-      { binding: 4, resource: { buffer: vertices1uvlstexBuffer } }
+        { binding: 0, resource: { buffer: allVerticesInObjectBuffer } },
+        { binding: 1, resource: { buffer: objectPosesBuffer } },
+        { binding: 2, resource: { buffer: vertexObjectIndicesBuffer } },
+        { binding: 3, resource: { buffer: hypercameraInvPoseBuffer } },
+        { binding: 4, resource: { buffer: vertices1uvlstexBuffer } }
     ]
-  });
-  const stage1ParamsBindGroup = device.createBindGroup({
+    });
+    const stage1ParamsBindGroup = device.createBindGroup({
     layout: stage1ParamsBindGroupLayout,
     entries: [
-      { binding: 0, resource: { buffer: stage1ParamsBuffer } }
+        { binding: 0, resource: { buffer: stage1ParamsBuffer } }
     ]
-  });
+    });
 
 
 
-  // Stage 3 Bind Groups ----
-  // Create buffers
+    // Stage 3 Bind Groups ----
+    // Create buffers
 
     // consolidate into one buffer to reduce bind groups
     const cellCountsAndOffsetsBuffer = device.createBuffer({
@@ -1302,276 +1301,276 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     });
     device.queue.writeBuffer(cellTetraIndicesBuffer, 0, accelStructureTetraIndicesData);
 
-  // Stage 2p2 - Buffers
-  // Create temp buffer for scan algorithm
-  const tempBuffer = device.createBuffer({
-      size: accelStructureCountsData.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC // NOCOMMIT DEBUG
-  });
+    // Stage 2p2 - Buffers
+    // Create temp buffer for scan algorithm
+    const tempBuffer = device.createBuffer({
+        size: accelStructureCountsData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC // NOCOMMIT DEBUG
+    });
 
-  //  Create a larger buffer for parameters
-  // We need space for ~40 passes. 256 bytes alignment is standard.
-  const ALIGNED_SIZE = 256; 
-  const MAX_PASSES = 100; // Enough for Init + Up(18) + Clear + Down(18) + Finalize
-  const prefixSumParamsBuffer = device.createBuffer({
-      size: MAX_PASSES * ALIGNED_SIZE, 
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-  });
+    //  Create a larger buffer for parameters
+    // We need space for ~40 passes. 256 bytes alignment is standard.
+    const ALIGNED_SIZE = 256; 
+    const MAX_PASSES = 100; // Enough for Init + Up(18) + Clear + Down(18) + Finalize
+    const prefixSumParamsBuffer = device.createBuffer({
+        size: MAX_PASSES * ALIGNED_SIZE, 
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
 
-  // Stage 2p3 - Buffers
-  // Buffer for temporary write counts during binning
-  const cellWriteCountsBuffer = device.createBuffer({
-      size: accelStructureCountsData.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  });
+    // Stage 2p3 - Buffers
+    // Buffer for temporary write counts during binning
+    const cellWriteCountsBuffer = device.createBuffer({
+        size: accelStructureCountsData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
 
-  // Update params for rasterization
-  const rasterParamsData = new Uint32Array([VOX, TILE_RES, TILE_SZ, 0]);
-  const rasterParamsBuffer = device.createBuffer({
-      size: 16,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-  });
-  device.queue.writeBuffer(rasterParamsBuffer, 0, rasterParamsData);
+    // Update params for rasterization
+    const rasterParamsData = new Uint32Array([VOX, TILE_RES, TILE_SZ, 0]);
+    const rasterParamsBuffer = device.createBuffer({
+        size: 16,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(rasterParamsBuffer, 0, rasterParamsData);
 
-  const stage2p1BindGroupLayout = device.createBindGroupLayout({
-      entries: [
-          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
-      ]
-  });
-  const stage2p1ParamsBindGroupLayout = device.createBindGroupLayout({
-      entries: [
-          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
-      ]
-  });
-  const stage2p1PipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [stage2p1BindGroupLayout, stage2p1ParamsBindGroupLayout]
-  });
-  const stage2p1Pipeline = device.createComputePipeline({
-      layout: stage2p1PipelineLayout,
-      compute: {
-          module: stage2p1ShaderModule,
-          entryPoint: 'main'
-      }
-  });
-  const stage2p1BindGroup = device.createBindGroup({
-      layout: stage2p1BindGroupLayout,
-      entries: [
-          { binding: 0, resource: { buffer: tetraBuffer } },
-          { binding: 1, resource: { buffer: vertices1uvlstexBuffer } },
-          { binding: 2, resource: { buffer: cellCountsAndOffsetsBuffer } }
-      ]
-  });
-  const stage2p1ParamsBindGroup = device.createBindGroup({
-      layout: stage2p1ParamsBindGroupLayout,
-      entries: [
-          { binding: 0, resource: { buffer: rasterParamsBuffer } },
-          { binding: 1, resource: { buffer: tetraCountsBuffer } }
-      ]
-  });
+    const stage2p1BindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        ]
+    });
+    const stage2p1ParamsBindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+        ]
+    });
+    const stage2p1PipelineLayout = device.createPipelineLayout({
+        bindGroupLayouts: [stage2p1BindGroupLayout, stage2p1ParamsBindGroupLayout]
+    });
+    const stage2p1Pipeline = device.createComputePipeline({
+        layout: stage2p1PipelineLayout,
+        compute: {
+            module: stage2p1ShaderModule,
+            entryPoint: 'main'
+        }
+    });
+    const stage2p1BindGroup = device.createBindGroup({
+        layout: stage2p1BindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: tetraBuffer } },
+            { binding: 1, resource: { buffer: vertices1uvlstexBuffer } },
+            { binding: 2, resource: { buffer: cellCountsAndOffsetsBuffer } }
+        ]
+    });
+    const stage2p1ParamsBindGroup = device.createBindGroup({
+        layout: stage2p1ParamsBindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: rasterParamsBuffer } },
+            { binding: 1, resource: { buffer: tetraCountsBuffer } }
+        ]
+    });
 
-  // 2p2
+    // 2p2
 
     const prefixSumBindGroupLayout = device.createBindGroupLayout({
-      entries: [
-          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
-      ]
-  });
-   const prefixSumParamsLayout = device.createBindGroupLayout({
-      entries: [
-          { 
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        ]
+    });
+    const prefixSumParamsLayout = device.createBindGroupLayout({
+        entries: [
+            { 
             binding: 0, 
             visibility: GPUShaderStage.COMPUTE, 
             buffer: { type: 'uniform', hasDynamicOffset: true } // Changed to true
-          }
-      ]
-  });
-  const prefixSumBindGroup = device.createBindGroup({
-      layout: prefixSumBindGroupLayout,
-      entries: [
-          { binding: 0, resource: { buffer: cellCountsAndOffsetsBuffer } },
-          { binding: 1, resource: { buffer: tempBuffer } }
-      ]
-  });
+            }
+        ]
+    });
+    const prefixSumBindGroup = device.createBindGroup({
+        layout: prefixSumBindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: cellCountsAndOffsetsBuffer } },
+            { binding: 1, resource: { buffer: tempBuffer } }
+        ]
+    });
 
     const prefixSumParamsBindGroup = device.createBindGroup({
-      layout: prefixSumParamsLayout,
-      entries: [
-          { 
+        layout: prefixSumParamsLayout,
+        entries: [
+            { 
             binding: 0, 
             resource: { 
                 buffer: prefixSumParamsBuffer,
                 size: 16 // Shader only needs a vec4<u32> (16 bytes)
             } 
-          }
-      ]
-  });
-  const prefixSumPipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [prefixSumBindGroupLayout, prefixSumParamsLayout]
-  });
+            }
+        ]
+    });
+    const prefixSumPipelineLayout = device.createPipelineLayout({
+        bindGroupLayouts: [prefixSumBindGroupLayout, prefixSumParamsLayout]
+    });
 
     // Create pipelines for each stage
-  const initPipeline = device.createComputePipeline({
+    const initPipeline = device.createComputePipeline({
     layout: prefixSumPipelineLayout,
     compute: {
-      module: stage2p2ShaderModule,
-      entryPoint: 'init'
+        module: stage2p2ShaderModule,
+        entryPoint: 'init'
     }
-  });
-  const upsweepPipeline = device.createComputePipeline({
+    });
+    const upsweepPipeline = device.createComputePipeline({
     layout: prefixSumPipelineLayout,
     compute: {
-      module: stage2p2ShaderModule,
-      entryPoint: 'upsweep'
+        module: stage2p2ShaderModule,
+        entryPoint: 'upsweep'
     }
-  });
-  const clearRootPipeline = device.createComputePipeline({
+    });
+    const clearRootPipeline = device.createComputePipeline({
     layout: prefixSumPipelineLayout,
     compute: {
-      module: stage2p2ShaderModule,
-      entryPoint: 'clear_root'
+        module: stage2p2ShaderModule,
+        entryPoint: 'clear_root'
     }
-  });
-  const downsweepPipeline = device.createComputePipeline({
+    });
+    const downsweepPipeline = device.createComputePipeline({
     layout: prefixSumPipelineLayout,
     compute: {
-      module: stage2p2ShaderModule,
-      entryPoint: 'downsweep'
+        module: stage2p2ShaderModule,
+        entryPoint: 'downsweep'
     }
-  });
-  const finalizePipeline = device.createComputePipeline({
+    });
+    const finalizePipeline = device.createComputePipeline({
     layout: prefixSumPipelineLayout,
     compute: {
-      module: stage2p2ShaderModule,
-      entryPoint: 'finalize'
+        module: stage2p2ShaderModule,
+        entryPoint: 'finalize'
     }
-  });
+    });
 
-  // 2p3
+    // 2p3
 
-  
-// 1. Setup Clear Pipeline
-const clearShaderModule = device.createShaderModule({ code: clearBufferShaderCode });
-const clearBindGroupLayout = device.createBindGroupLayout({
-    entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }]
-});
-const clearPipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [clearBindGroupLayout] });
-const clearPipeline = device.createComputePipeline({
-    layout: clearPipelineLayout,
-    compute: { module: clearShaderModule, entryPoint: 'main' }
-});
-// Create bind groups for clearing specific buffers
-const clearCountsBG = device.createBindGroup({
-    layout: clearBindGroupLayout,
-    entries: [{ binding: 0, resource: { buffer: cellCountsAndOffsetsBuffer } }]
-});
-const clearWriteCountsBG = device.createBindGroup({
-    layout: clearBindGroupLayout,
-    entries: [{ binding: 0, resource: { buffer: cellWriteCountsBuffer } }]
-});
 
-// 2. Setup Stage 2.3 (Binning) Pipeline
-const stage2p3ShaderModule = device.createShaderModule({ code: stage2p3ShaderCode });
-const stage2p3BindGroupLayout = device.createBindGroupLayout({
-    entries: [
-        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // Offsets
-        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },           // Write Counters (Atomic)
-        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }            // Tetra Indices (Output)
-    ]
-});
-const stage2p3PipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [stage2p3BindGroupLayout, stage2p1ParamsBindGroupLayout] // Reuse params layout
-});
-const stage2p3Pipeline = device.createComputePipeline({
-    layout: stage2p3PipelineLayout,
-    compute: { module: stage2p3ShaderModule, entryPoint: 'main' }
-});
-const stage2p3BindGroup = device.createBindGroup({
-    layout: stage2p3BindGroupLayout,
-    entries: [
-        { binding: 0, resource: { buffer: tetraBuffer } },
-        { binding: 1, resource: { buffer: vertices1uvlstexBuffer } },
-        { binding: 2, resource: { buffer: cellCountsAndOffsetsBuffer } },
-        { binding: 3, resource: { buffer: cellWriteCountsBuffer } },
-        { binding: 4, resource: { buffer: cellTetraIndicesBuffer } }
-    ]
-});
+    // 1. Setup Clear Pipeline
+    const clearShaderModule = device.createShaderModule({ code: clearBufferShaderCode });
+    const clearBindGroupLayout = device.createBindGroupLayout({
+        entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }]
+    });
+    const clearPipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [clearBindGroupLayout] });
+    const clearPipeline = device.createComputePipeline({
+        layout: clearPipelineLayout,
+        compute: { module: clearShaderModule, entryPoint: 'main' }
+    });
+    // Create bind groups for clearing specific buffers
+    const clearCountsBG = device.createBindGroup({
+        layout: clearBindGroupLayout,
+        entries: [{ binding: 0, resource: { buffer: cellCountsAndOffsetsBuffer } }]
+    });
+    const clearWriteCountsBG = device.createBindGroup({
+        layout: clearBindGroupLayout,
+        entries: [{ binding: 0, resource: { buffer: cellWriteCountsBuffer } }]
+    });
+
+    // 2. Setup Stage 2.3 (Binning) Pipeline
+    const stage2p3ShaderModule = device.createShaderModule({ code: stage2p3ShaderCode });
+    const stage2p3BindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // Offsets
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },           // Write Counters (Atomic)
+            { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }            // Tetra Indices (Output)
+        ]
+    });
+    const stage2p3PipelineLayout = device.createPipelineLayout({
+        bindGroupLayouts: [stage2p3BindGroupLayout, stage2p1ParamsBindGroupLayout] // Reuse params layout
+    });
+    const stage2p3Pipeline = device.createComputePipeline({
+        layout: stage2p3PipelineLayout,
+        compute: { module: stage2p3ShaderModule, entryPoint: 'main' }
+    });
+    const stage2p3BindGroup = device.createBindGroup({
+        layout: stage2p3BindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: tetraBuffer } },
+            { binding: 1, resource: { buffer: vertices1uvlstexBuffer } },
+            { binding: 2, resource: { buffer: cellCountsAndOffsetsBuffer } },
+            { binding: 3, resource: { buffer: cellWriteCountsBuffer } },
+            { binding: 4, resource: { buffer: cellTetraIndicesBuffer } }
+        ]
+    });
 
   // 3
 
-  const stage3BindGroupLayout = device.createBindGroupLayout({
-      entries: [
-          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+    const stage3BindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+            { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
         //   { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
-      ]
-  });
-  const stage3ParamsBindGroupLayout = device.createBindGroupLayout({
-      entries: [
-          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-          { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
-      ]
-  });
-  const stage3PipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [stage3BindGroupLayout, stage3ParamsBindGroupLayout]
-  });
-  const stage3Pipeline = device.createComputePipeline({
-      layout: stage3PipelineLayout,
-      compute: {
-          module: stage3ShaderModule,
-          entryPoint: 'cs_main'
-      }
-  });
-  const stage3BindGroup = device.createBindGroup({
-      layout: stage3BindGroupLayout,
-      entries: [
-          { binding: 0, resource: { buffer: tetraBuffer } },
-          { binding: 1, resource: { buffer: vertices1uvlstexBuffer } },
-          { binding: 2, resource: { buffer: cellCountsAndOffsetsBuffer } },
-          { binding: 3, resource: { buffer: cellTetraIndicesBuffer } },
-          { binding: 4, resource: { buffer: vertexObjectIndicesBuffer } },
-          { binding: 5, resource: { buffer: textureHeaderBuffer } },
-          { binding: 6, resource: { buffer: textureBuffer } },
-          { binding: 7, resource: { buffer: voxelBuffer } }
+        ]
+    });
+    const stage3ParamsBindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+        ]
+    });
+    const stage3PipelineLayout = device.createPipelineLayout({
+        bindGroupLayouts: [stage3BindGroupLayout, stage3ParamsBindGroupLayout]
+    });
+    const stage3Pipeline = device.createComputePipeline({
+        layout: stage3PipelineLayout,
+        compute: {
+            module: stage3ShaderModule,
+            entryPoint: 'cs_main'
+        }
+    });
+    const stage3BindGroup = device.createBindGroup({
+        layout: stage3BindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: tetraBuffer } },
+            { binding: 1, resource: { buffer: vertices1uvlstexBuffer } },
+            { binding: 2, resource: { buffer: cellCountsAndOffsetsBuffer } },
+            { binding: 3, resource: { buffer: cellTetraIndicesBuffer } },
+            { binding: 4, resource: { buffer: vertexObjectIndicesBuffer } },
+            { binding: 5, resource: { buffer: textureHeaderBuffer } },
+            { binding: 6, resource: { buffer: textureBuffer } },
+            { binding: 7, resource: { buffer: voxelBuffer } }
             // { binding: 4, resource: { buffer: voxelBuffer } }
-      ]
-  });
-  const stage3ParamsBindGroup = device.createBindGroup({
-      layout: stage3ParamsBindGroupLayout,
-      entries: [
-          { binding: 0, resource: { buffer: rasterParamsBuffer } },
-          { binding: 1, resource: { buffer: hypercameraPoseBuffer } },
-          { binding: 2, resource: { buffer: simtimeBuffer } }
-      ]
-  });
+        ]
+    });
+    const stage3ParamsBindGroup = device.createBindGroup({
+        layout: stage3ParamsBindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: rasterParamsBuffer } },
+            { binding: 1, resource: { buffer: hypercameraPoseBuffer } },
+            { binding: 2, resource: { buffer: simtimeBuffer } }
+        ]
+    });
 
-  let sensorCamRotX = 0;
-  let sensorCamRotY = 0;
-  let sensorCamDist = 100;
-  
-  
-  function updateDDACamera() {
+    let sensorCamRotX = 0;
+    let sensorCamRotY = 0;
+    let sensorCamDist = 100;
+
+
+    function updateDDACamera() {
     const rotY = sensorCamRotX;
     const rotX = sensorCamRotY;
     const dist = sensorCamDist;
-    
+
     // Camera position (orbit around center at 2,2,2)
     const cx = VOX / 2 + Math.cos(rotY) * Math.cos(rotX) * dist;
     const cy = VOX / 2 + Math.sin(rotX) * dist;
     const cz = VOX / 2 + Math.sin(rotY) * Math.cos(rotX) * dist;
-    
+
     // Camera direction (look at center)
     const target = [VOX / 2, VOX / 2, VOX / 2];
     const dx = target[0] - cx;
@@ -1579,47 +1578,47 @@ const stage2p3BindGroup = device.createBindGroup({
     const dz = target[2] - cz;
     const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
     const dir = [dx/len, dy/len, dz/len];
-    
+
     // Camera up and right vectors
     const worldUp = [0, 1, 0];
     const right = [
-      dir[1] * worldUp[2] - dir[2] * worldUp[1],
-      dir[2] * worldUp[0] - dir[0] * worldUp[2],
-      dir[0] * worldUp[1] - dir[1] * worldUp[0],
+        dir[1] * worldUp[2] - dir[2] * worldUp[1],
+        dir[2] * worldUp[0] - dir[0] * worldUp[2],
+        dir[0] * worldUp[1] - dir[1] * worldUp[0],
     ];
     const rlen = Math.sqrt(right[0]**2 + right[1]**2 + right[2]**2);
     right[0] /= rlen; right[1] /= rlen; right[2] /= rlen;
-    
+
     const up = [
-      right[1] * dir[2] - right[2] * dir[1],
-      right[2] * dir[0] - right[0] * dir[2],
-      right[0] * dir[1] - right[1] * dir[0],
+        right[1] * dir[2] - right[2] * dir[1],
+        right[2] * dir[0] - right[0] * dir[2],
+        right[0] * dir[1] - right[1] * dir[0],
     ];
-    
+
     // Update uniform buffer
     const uniforms = new Float32Array([
-      cx, cy, cz, 0,
-      dir[0], dir[1], dir[2], 0,
-      up[0], up[1], up[2], 0,
-      right[0], right[1], right[2], 0,
-      canvas.width, canvas.height, 0, 0,
+        cx, cy, cz, 0,
+        dir[0], dir[1], dir[2], 0,
+        up[0], up[1], up[2], 0,
+        right[0], right[1], right[2], 0,
+        canvas.width, canvas.height, 0, 0,
     ]);
     device.queue.writeBuffer(stage4UniformBuffer, 0, uniforms);
-  }
+    }
 
-  
-  // Register Keyboard controls
-  const keys = {};
-  window.addEventListener('keydown', (e) => {
-      keys[e.key.toLowerCase()] = true;
-  });
 
-  window.addEventListener('keyup', (e) => {
-      keys[e.key.toLowerCase()] = false;
-  });
-  function lookTowards(lookAt_in_world) {
+    // Register Keyboard controls
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+        keys[e.key.toLowerCase()] = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+        keys[e.key.toLowerCase()] = false;
+    });
+    function lookTowards(lookAt_in_world) {
     // Rotates the camera to look towards the chosen point.
-    
+
     // new camera x axis
     let worldZ = new Vector4D(0, 0, 1, 0);
     let x = lookAt_in_world.subtract(hypercamera_T.origin()).normalize();
@@ -1829,10 +1828,10 @@ const stage2p3BindGroup = device.createBindGroup({
         hypercamera_T.matrix[3][0] = interpolated_R[3][0]; hypercamera_T.matrix[3][1] = interpolated_R[3][1]; hypercamera_T.matrix[3][2] = interpolated_R[3][2]; hypercamera_T.matrix[3][3] = interpolated_R[3][3];
     }
     moved=true
-  }
-  function updatePlayerControls() {
+    }
+    function updatePlayerControls() {
     if (true) {
-    
+
         const moveSpeed = 0.1;
         const RELATIVE_MOVEMENT = true;
         if (keys['w']) {
@@ -1943,9 +1942,9 @@ const stage2p3BindGroup = device.createBindGroup({
             lookTowards(new Vector4D(0, 0, 0, 0));
         }
     }
-  }
+    }
 
-  function writeCameraPoseToGPU() {
+    function writeCameraPoseToGPU() {
     let hypercamera_inv_pose_data = new Float32Array(5 * 5);
     let hc_pose = hypercamera_T.inverse().matrix;
     for (let i = 0; i < 5; i++) {
@@ -1963,9 +1962,9 @@ const stage2p3BindGroup = device.createBindGroup({
         hypercamera_pose_data[i * 4 + 3] = hypercamera_T.matrix[3][i];
     }
     device.queue.writeBuffer(hypercameraPoseBuffer, 0, hypercamera_pose_data);
-  }
+    }
 
-  function physicsStepCPU() {
+    function physicsStepCPU() {
         // Simulate physics
         const SIMULATE_PHYSICS = true;
         for (let n = 0; n < 4; n++) { // substeps for stability
@@ -2168,7 +2167,7 @@ const stage2p3BindGroup = device.createBindGroup({
         } // end of substeps
     } // end function physicsStepCPU()
 
-  function writeObjectPosesToGPU() {
+    function writeObjectPosesToGPU() {
     let new_object_poses_data = new Float32Array(visibleHyperobjects.length * 5 * 5);
     for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
         let obj = visibleHyperobjects[obj_index];
@@ -2187,9 +2186,9 @@ const stage2p3BindGroup = device.createBindGroup({
         }
     }
     device.queue.writeBuffer(objectPosesBuffer, 0, new_object_poses_data);
-  }
+    }
 
-  function render() {
+    function render() {
     // update DDA camera
     updateDDACamera();
     // update hypercamera
@@ -2199,19 +2198,19 @@ const stage2p3BindGroup = device.createBindGroup({
     physicsStepCPU();
     writeObjectPosesToGPU();
     device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0])); // write sim time to GPU
-    
+
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
 
     // Stage 1: Vertex Shader
     if (true) {
-      const computePass = commandEncoder.beginComputePass();
-      computePass.setPipeline(stage1Pipeline);
-      computePass.setBindGroup(0, stage1BindGroup);
-      computePass.setBindGroup(1, stage1ParamsBindGroup);
-      const workgroupCount = Math.ceil(all_vertices_in_object_data.length / 64);
-      computePass.dispatchWorkgroups(workgroupCount);
-      computePass.end();
+        const computePass = commandEncoder.beginComputePass();
+        computePass.setPipeline(stage1Pipeline);
+        computePass.setBindGroup(0, stage1BindGroup);
+        computePass.setBindGroup(1, stage1ParamsBindGroup);
+        const workgroupCount = Math.ceil(all_vertices_in_object_data.length / 64);
+        computePass.dispatchWorkgroups(workgroupCount);
+        computePass.end();
     }
 
     // Stage 2: Cull tetras, + add clipped tetras if needed
@@ -2230,13 +2229,13 @@ const stage2p3BindGroup = device.createBindGroup({
 
     // Stage 2.1: Accel structure counts
     if (true) {
-      const computePass = commandEncoder.beginComputePass();
-      computePass.setPipeline(stage2p1Pipeline);
-      computePass.setBindGroup(0, stage2p1BindGroup);
-      computePass.setBindGroup(1, stage2p1ParamsBindGroup);
-      const workgroupCount = Math.ceil(tetras.length / 64);
-      computePass.dispatchWorkgroups(workgroupCount);
-      computePass.end();
+        const computePass = commandEncoder.beginComputePass();
+        computePass.setPipeline(stage2p1Pipeline);
+        computePass.setBindGroup(0, stage2p1BindGroup);
+        computePass.setBindGroup(1, stage2p1ParamsBindGroup);
+        const workgroupCount = Math.ceil(tetras.length / 64);
+        computePass.dispatchWorkgroups(workgroupCount);
+        computePass.end();
     }
 
     function computePrefixSum(commandEncoder, numElements) {
@@ -2339,7 +2338,7 @@ const stage2p3BindGroup = device.createBindGroup({
 
     // Stage 2.2: Prefix sum to compute cell offsets
     if (true) {
-      computePrefixSum(commandEncoder, TILE_RES * TILE_RES * TILE_RES);
+        computePrefixSum(commandEncoder, TILE_RES * TILE_RES * TILE_RES);
     }
 
     // Stage 2.3 (Binning - Write Indices) ---
@@ -2353,74 +2352,74 @@ const stage2p3BindGroup = device.createBindGroup({
 
     // Stage 3: Intersection tests compute pass to update voxel data
     if (true) {
-      const computePass = commandEncoder.beginComputePass();
-      computePass.setPipeline(stage3Pipeline);
-      computePass.setBindGroup(0, stage3BindGroup);
-      computePass.setBindGroup(1, stage3ParamsBindGroup);
-      const workgroupCount = Math.ceil(VOX / 4);
-      computePass.dispatchWorkgroups(workgroupCount, workgroupCount, workgroupCount);
-      computePass.end();
+        const computePass = commandEncoder.beginComputePass();
+        computePass.setPipeline(stage3Pipeline);
+        computePass.setBindGroup(0, stage3BindGroup);
+        computePass.setBindGroup(1, stage3ParamsBindGroup);
+        const workgroupCount = Math.ceil(VOX / 4);
+        computePass.dispatchWorkgroups(workgroupCount, workgroupCount, workgroupCount);
+        computePass.end();
     }
 
 
     // Stage 4: DDA Render pass
     const stage4Pass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
+        colorAttachments: [{
         view: textureView,
         clearValue: { r: 0, g: 0, b: 0, a: 1 },
         loadOp: 'clear',
         storeOp: 'store',
-      }],
+        }],
     });
     stage4Pass.setPipeline(stage4Pipeline);
     stage4Pass.setBindGroup(0, stage4BindGroup);
     stage4Pass.draw(6);
     stage4Pass.end();
-    
+
     device.queue.submit([commandEncoder.finish()]);
     requestAnimationFrame(render);
-  }
+    }
 
-  // Mouse interaction
-  let isDragging = false;
-  let lastX = 0;
-  let lastY = 0;
-  canvas.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      lastX = e.clientX;
-      lastY = e.clientY;
-  });
-  canvas.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      
-      const deltaX = e.clientX - lastX;
-      const deltaY = e.clientY - lastY;
+    // Mouse interaction
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const deltaX = e.clientX - lastX;
+        const deltaY = e.clientY - lastY;
 
 
-      sensorCamRotY = sensorCamRotY + deltaY * 0.01;
-      sensorCamRotX += deltaX * 0.01;
-      
-      // camera.theta += -deltaX * 0.01;
-      // camera.phi = Math.max(0.1, Math.min(Math.PI - 0.1, camera.phi - deltaY * 0.01));
-      
-      lastX = e.clientX;
-      lastY = e.clientY;
-      
-  });
-  canvas.addEventListener('mouseup', () => {
-      isDragging = false;
-  });
-  canvas.addEventListener('mouseleave', () => {
-      isDragging = false;
-  });
-  // Scrolling changes camera distance
-  canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      sensorCamDist += e.deltaY * 0.05;
-      // camera.distance += e.deltaY * 0.05;
-      // camera.distance = Math.max(5, Math.min(hypercamera_sensor_resolution * 4.0, camera.distance));
+        sensorCamRotY = sensorCamRotY + deltaY * 0.01;
+        sensorCamRotX += deltaX * 0.01;
+        
+        // camera.theta += -deltaX * 0.01;
+        // camera.phi = Math.max(0.1, Math.min(Math.PI - 0.1, camera.phi - deltaY * 0.01));
+        
+        lastX = e.clientX;
+        lastY = e.clientY;
+        
+    });
+    canvas.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+    canvas.addEventListener('mouseleave', () => {
+        isDragging = false;
+    });
+    // Scrolling changes camera distance
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        sensorCamDist += e.deltaY * 0.05;
+        // camera.distance += e.deltaY * 0.05;
+        // camera.distance = Math.max(5, Math.min(hypercamera_sensor_resolution * 4.0, camera.distance));
 
-  });
+    });
   
-  render();
+    render();
 } // end of function runHyperengine()
