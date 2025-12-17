@@ -354,7 +354,7 @@ function createHypersphere() {
       new Transform4D([
           [1, 0, 0, 0, 0],
           [0, 1, 0, 0, 0],
-          [0, 0, 1, 0, 1000],
+          [0, 0, 1, 0, 0],
           [0, 0, 0, 1, 0],
           [0, 0, 0, 0, 1]
       ]),
@@ -364,6 +364,8 @@ function createHypersphere() {
   return hypersphere;
 } // end function createHypersphere()
 let hypersun = createHypersphere();
+hypersun.pose.translate_self_by_delta(1000, 1000, 1000, 0);
+
 
 // Check WebGPU support
 if (!navigator.gpu) {
