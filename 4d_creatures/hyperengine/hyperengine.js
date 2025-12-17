@@ -156,6 +156,17 @@ export async function runHyperengine(scene) {
     `;
     }
 
+    // Sensor cutout
+    let sensorCutoutShaderSnippet =``;
+    if (false) {
+        sensorCutoutShaderSnippet = `
+  // add sensor cutout
+  if (pos.x > iVOX / 2 && pos.z > iVOX / 2) {
+    return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
+  }
+  `;
+    }
+
 
     // Scene pre-processing and setting up static memory
     // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
@@ -941,6 +952,7 @@ fn getVoxel(pos: vec3i) -> Voxel {
   if (pos.x < 0 || pos.x >= iVOX || pos.y < 0 || pos.y >= iVOX || pos.z < 0 || pos.z >= iVOX) {
     return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
   }
+  ${sensorCutoutShaderSnippet}
   let idx = pos.x + pos.y * iVOX + pos.z * iVOX * iVOX;
   return voxelGrid[idx];
 }
