@@ -106,9 +106,9 @@ function createHypersphere() {
               let z = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j];
               let w = [-0.5,      0.0,        0.5][k];
               grid_vertices.push(new Vector4D(x, y, z, w));
-              let theta = i * 2 * Math.PI / (n_i-1);
-              let phi = j * 2 * Math.PI / (n_j-1);
-              grid_vertices_texcoords.push(new Vector4D(theta + phi, 0.75, 0, 0));
+              let theta = i / (n_i-1);
+              let phi = j / (n_j-1);
+              grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0));
               // add an edge to the next vertex in x
               if (i < n_i - 1) {
                   let next_index = grid_vertices.length + (n_j * n_k) - 1;
@@ -183,10 +183,9 @@ function createHypersphere() {
               let z = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j];
               let w = [-0.5,      0.0,        0.5][k];
               grid_vertices.push(new Vector4D(x, y, z, w));
-              let theta = i * 2 * Math.PI / (n_i-1);
-              let phi = j * 2 * Math.PI / (n_j-1);
-              let isDark = (Math.sin(theta * 100) > 0) * (Math.sin(phi * 100) > 0);
-              grid_vertices_texcoords.push(new Vector4D(theta + phi, 0.25, 0, 0));
+              let theta = i / (n_i-1);
+              let phi = j / (n_j-1);
+              grid_vertices_texcoords.push(new Vector4D(0.25, theta, phi, 0));
               // add an edge to the next vertex in x
               if (i < n_i - 1) {
                   let next_index = grid_vertices.length + (n_j * n_k) - 1;
@@ -277,12 +276,12 @@ function createHypersphere() {
   if (true) {
       let obj = hypersphere;
       let insideColorLight = 0x000099;
-      let insideColorDark = 0x000066;
+      let insideColorDark = 0x880000;
       let outsideColorLight = 0xcccccc;
       let outsideColorDark = 0x888888;
       let USIZE = 2;
-      let VSIZE = 2;
-      let WSIZE = 1;
+      let VSIZE = 64;
+      let WSIZE = 64;
       let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
       for (let u = 0; u < USIZE; u++) {
           for (let v = 0; v < VSIZE; v++) {
@@ -291,10 +290,14 @@ function createHypersphere() {
                   let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
                   // checkerboard pattern
                   let color = 0xffffff;
-                  if (u >= 1 && v >= 1) { color = outsideColorLight; }
-                  if (u === 0 && v >= 1) { color = outsideColorDark; }
-                  if (u >= 1 && v === 0) { color = insideColorLight; }
-                  if (u === 0 && v === 0) { color = insideColorDark; }
+                  let isCheck = (v % 8 === 0) || (w % 8 === 0);
+                  if (u >= 1) { // outside
+                    if (isCheck) { color = outsideColorDark; }
+                    else { color = outsideColorLight; }
+                  } else { // inside
+                    if (isCheck) { color = insideColorDark; }
+                    else { color = insideColorLight; }
+                  }
                   // pack color into one u32 RGBA
                   let r_u8 = (color >> 16) & 0xFF;
                   let g_u8 = (color >> 8) & 0xFF;

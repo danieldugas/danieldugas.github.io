@@ -207,10 +207,10 @@ export async function runHyperengine(scene) {
 
     // Sensor cutout
     let sensorCutoutShaderSnippet =``;
-    if (false) {
+    if (true) {
         sensorCutoutShaderSnippet = `
         // add sensor cutout
-        if (pos.x > iVOX / 2 && pos.z > iVOX / 2) {
+        if (pos.x < iVOX / 2 && pos.z < iVOX / 2) {
             return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
         }`;
     }
@@ -311,7 +311,7 @@ export async function runHyperengine(scene) {
             // just map the object coordinates to the texture coordinates directly for now
             vertices_texcoords_data[vertex_counter * 3 + 0] = v_tex.x;
             vertices_texcoords_data[vertex_counter * 3 + 1] = v_tex.y;
-            vertices_texcoords_data[vertex_counter * 3 + 2] = v_tex.w;
+            vertices_texcoords_data[vertex_counter * 3 + 2] = v_tex.z;
             // increment counter
             vertex_counter++;
         }
