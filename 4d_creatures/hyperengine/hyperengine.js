@@ -58,7 +58,7 @@ export async function runHyperengine(scene) {
 
     // Hypercamera definition
     let scene_bound = 10.0; // +10 means the scene goes from -10 to +10 in all dimensions
-    const camstand_height = 1.0;
+    const camstand_height = 2.0;
     // a vertical pole that is always gravity aligned, on which the camera is mounted with 1 DoF up/down swivel
     let camstand_T = new Transform4D([
         [1, 0, 0, 0, 0],
