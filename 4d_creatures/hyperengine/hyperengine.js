@@ -9,6 +9,41 @@ export async function runHyperengine(scene) {
     e.preventDefault();
   });
 
+    if (scene.floorPreset === 'island') {
+        // Create floating div at top level of the page, absolute bottom left position, with some text
+        let info_div = document.createElement("div");
+        info_div.style.position = "absolute";
+        info_div.style.left = "20px";
+        info_div.style.bottom = "20px";
+        info_div.style.width = "300px";
+        info_div.style.height = "400px";
+        info_div.style.textAlign = "left";
+        info_div.style.padding = "10px";
+        info_div.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+        info_div.style.color = "white";
+        info_div.style.fontFamily = "monospace";
+        info_div.style.fontSize = "12px";
+        info_div.style.zIndex = 1000;
+        document.body.appendChild(info_div);
+        // Write text
+        const text = `
+        HYPERION OS v0.17.1<br>
+        -------------------<br>
+        Booting Up Emergency Assistance System ...<br>
+        <br>
+        [ ^_^] < Hi there, I'm Hyperion, your autonomous assistant.<br>
+        <br>
+        [ -_-] < If I've been activated, it's very likely that your spaceship has crashed into a celestial object.<br>
+        <br>
+        ['-.-] < Bummer <br>
+        <br>
+        [ ^.^] < But let's focus on the good: You've got me, and I'm here to help! First, let's see what we're dealing with<br>
+        <br>
+        [ #_#] < Analyzing...<br>
+        `;
+        info_div.innerHTML = text;
+    }
+
     const VOX = 64; // Voxel grid size
     
     // game variables
@@ -1591,6 +1626,9 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let isDraggingRightClick = false;
     let lastXRight = 0;
     let lastYRight = 0;
+    let isDraggingMiddleClick = false;
+    let lastXMiddle = 0;
+    let lastYMiddle = 0;
     canvas.addEventListener('mousedown', (e) => {
         if (e.button === 0) {
             isDraggingLeftClick = true;
@@ -1600,6 +1638,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             isDraggingRightClick = true;
             lastXRight = e.clientX;
             lastYRight = e.clientY;
+        } else if (e.button === 1) {
+            isDraggingMiddleClick = true;
+            lastXMiddle = e.clientX;
+            lastYMiddle = e.clientY;
         }
     });
     canvas.addEventListener('mousemove', (e) => {
@@ -1625,16 +1667,24 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             lastXRight = e.clientX;
             lastYRight = e.clientY;
         }
-
-        
+        if (isDraggingMiddleClick) {
+            const deltaX = e.clientX - lastXMiddle;
+            const deltaY = e.clientY - lastYMiddle;
+            sensorCamRotY += deltaY * 0.01;
+            sensorCamRotX += deltaX * 0.01;
+            lastXMiddle = e.clientX;
+            lastYMiddle = e.clientY;
+        }
     });
     canvas.addEventListener('mouseup', () => {
         isDraggingLeftClick = false;
         isDraggingRightClick = false;
+        isDraggingMiddleClick = false;
     });
     canvas.addEventListener('mouseleave', () => {
         isDraggingLeftClick = false;
         isDraggingRightClick = false;
+        isDraggingMiddleClick = false;
     });
     // Scrolling changes camera distance
     canvas.addEventListener('wheel', (e) => {
