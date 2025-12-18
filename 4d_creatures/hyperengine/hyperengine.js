@@ -4,6 +4,11 @@ import { Hyperobject, createHypercube } from '../hyperengine/hyperobject.js';
 export async function runHyperengine(scene) {
     let canvas = scene.mainCanvas;
 
+    // remove right click from canvas
+    canvas.addEventListener("contextmenu", function (e) {
+    e.preventDefault();
+  });
+
     const VOX = 64; // Voxel grid size
     
     // game variables
@@ -18,7 +23,7 @@ export async function runHyperengine(scene) {
 
     // Hypercamera definition
     let scene_bound = 10.0; // +10 means the scene goes from -10 to +10 in all dimensions
-    const hypercamera_height_above_ground = 1.0;
+    const camstand_height = 1.0;
     // a vertical pole that is always gravity aligned, on which the camera is mounted with 1 DoF up/down swivel
     let camstand_T = new Transform4D([
         [1, 0, 0, 0, 0],
@@ -169,13 +174,18 @@ export async function runHyperengine(scene) {
     let sensorCutoutShaderSnippet =``;
     if (false) {
         sensorCutoutShaderSnippet = `
-  // add sensor cutout
-  if (pos.x > iVOX / 2 && pos.z > iVOX / 2) {
-    return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
-  }
-  `;
+        // add sensor cutout
+        if (pos.x > iVOX / 2 && pos.z > iVOX / 2) {
+            return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
+        }`;
     }
-
+    if (false) {
+        sensorCutoutShaderSnippet = `
+        //   add sensor cutout
+        if (pos.z < 32 || pos.z > 32) {
+            return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
+        }`;
+    }
 
     // Scene pre-processing and setting up static memory
     // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
@@ -1616,17 +1626,6 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             lastYRight = e.clientY;
         }
 
-        // sine and cosine of swivel angle
-        let ss = Math.sin(camstandswivel_angle);
-        let cs = Math.cos(camstandswivel_angle);
-        let hypercam_in_camstand = new Transform4D([
-            [cs, 0, ss, 0, 0],
-            [0, 1, 0, 0, 0],
-            [-ss, 0, cs, 0, 0],
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 1]
-        ]);
-        hypercamera_T = camstand_T.transform_transform(hypercam_in_camstand);
         
     });
     canvas.addEventListener('mouseup', () => {
@@ -1651,7 +1650,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
         // new camera x axis
         let worldZ = new Vector4D(0, 0, 1, 0);
-        let x = lookAt_in_world.subtract(hypercamera_T.origin()).normalize();
+        let x = lookAt_in_world.subtract(camstand_T.origin()).normalize();
         let zProj = x.multiply_by_scalar(worldZ.dot(x));
         let zPrime = worldZ.subtract(zProj);
         let z = zPrime.normalize();
@@ -1661,7 +1660,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // Otherwise the camera feels "fragged" in the usual xyz axes
         // let vW = new Vector4D(0, 0, 0, 1); // world w axis
         // Or we pick the current camera w, seems more robust
-        let vW = new Vector4D(hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]);
+        let vW = new Vector4D(camstand_T.matrix[3][0], camstand_T.matrix[3][1], camstand_T.matrix[3][2], camstand_T.matrix[3][3]);
 
         let wPrime = vW
             .subtract(x.multiply_by_scalar(vW.dot(x)))
@@ -1672,7 +1671,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // pick a vector not colinear with x, z
         // let vY = new Vector4D(0, 1, 0, 0);
         // pick the current y axis of the camera
-        let vY = new Vector4D(hypercamera_T.matrix[1][0], hypercamera_T.matrix[1][1], hypercamera_T.matrix[1][2], hypercamera_T.matrix[1][3]);
+        let vY = new Vector4D(camstand_T.matrix[1][0], camstand_T.matrix[1][1], camstand_T.matrix[1][2], camstand_T.matrix[1][3]);
 
         let yPrime = vY
             .subtract(x.multiply_by_scalar(vY.dot(x)))
@@ -1684,10 +1683,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
         // matrix = [x y z w]
         if (!PROGRESSIVE_ROTATION_TO_TARGET) {
-        hypercamera_T.matrix[0][0] = x.x; hypercamera_T.matrix[0][1] = y.x; hypercamera_T.matrix[0][2] = z.x; hypercamera_T.matrix[0][3] = w.x;
-        hypercamera_T.matrix[1][0] = x.y; hypercamera_T.matrix[1][1] = y.y; hypercamera_T.matrix[1][2] = z.y; hypercamera_T.matrix[1][3] = w.y;
-        hypercamera_T.matrix[2][0] = x.z; hypercamera_T.matrix[2][1] = y.z; hypercamera_T.matrix[2][2] = z.z; hypercamera_T.matrix[2][3] = w.z;
-        hypercamera_T.matrix[3][0] = x.w; hypercamera_T.matrix[3][1] = y.w; hypercamera_T.matrix[3][2] = z.w; hypercamera_T.matrix[3][3] = w.w;
+        camstand_T.matrix[0][0] = x.x; camstand_T.matrix[0][1] = y.x; camstand_T.matrix[0][2] = z.x; camstand_T.matrix[0][3] = w.x;
+        camstand_T.matrix[1][0] = x.y; camstand_T.matrix[1][1] = y.y; camstand_T.matrix[1][2] = z.y; camstand_T.matrix[1][3] = w.y;
+        camstand_T.matrix[2][0] = x.z; camstand_T.matrix[2][1] = y.z; camstand_T.matrix[2][2] = z.z; camstand_T.matrix[2][3] = w.z;
+        camstand_T.matrix[3][0] = x.w; camstand_T.matrix[3][1] = y.w; camstand_T.matrix[3][2] = z.w; camstand_T.matrix[3][3] = w.w;
         }
 
         if (PROGRESSIVE_ROTATION_TO_TARGET) {
@@ -1833,10 +1832,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
             // Example usage:
             const from_R = [
-                [hypercamera_T.matrix[0][0], hypercamera_T.matrix[0][1], hypercamera_T.matrix[0][2], hypercamera_T.matrix[0][3]],
-                [hypercamera_T.matrix[1][0], hypercamera_T.matrix[1][1], hypercamera_T.matrix[1][2], hypercamera_T.matrix[1][3]],
-                [hypercamera_T.matrix[2][0], hypercamera_T.matrix[2][1], hypercamera_T.matrix[2][2], hypercamera_T.matrix[2][3]],
-                [hypercamera_T.matrix[3][0], hypercamera_T.matrix[3][1], hypercamera_T.matrix[3][2], hypercamera_T.matrix[3][3]]
+                [camstand_T.matrix[0][0], camstand_T.matrix[0][1], camstand_T.matrix[0][2], camstand_T.matrix[0][3]],
+                [camstand_T.matrix[1][0], camstand_T.matrix[1][1], camstand_T.matrix[1][2], camstand_T.matrix[1][3]],
+                [camstand_T.matrix[2][0], camstand_T.matrix[2][1], camstand_T.matrix[2][2], camstand_T.matrix[2][3]],
+                [camstand_T.matrix[3][0], camstand_T.matrix[3][1], camstand_T.matrix[3][2], camstand_T.matrix[3][3]]
             ];
 
             const to_R = [
@@ -1851,11 +1850,11 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             // Geodesic method (more accurate, especially for large rotations)
             // const interpolated_R = interpolateRotation4D_Geodesic(from_R, to_R, 0.3);
 
-            // Update hypercamera_T with interpolated rotation
-            hypercamera_T.matrix[0][0] = interpolated_R[0][0]; hypercamera_T.matrix[0][1] = interpolated_R[0][1]; hypercamera_T.matrix[0][2] = interpolated_R[0][2]; hypercamera_T.matrix[0][3] = interpolated_R[0][3];
-            hypercamera_T.matrix[1][0] = interpolated_R[1][0]; hypercamera_T.matrix[1][1] = interpolated_R[1][1]; hypercamera_T.matrix[1][2] = interpolated_R[1][2]; hypercamera_T.matrix[1][3] = interpolated_R[1][3];
-            hypercamera_T.matrix[2][0] = interpolated_R[2][0]; hypercamera_T.matrix[2][1] = interpolated_R[2][1]; hypercamera_T.matrix[2][2] = interpolated_R[2][2]; hypercamera_T.matrix[2][3] = interpolated_R[2][3];
-            hypercamera_T.matrix[3][0] = interpolated_R[3][0]; hypercamera_T.matrix[3][1] = interpolated_R[3][1]; hypercamera_T.matrix[3][2] = interpolated_R[3][2]; hypercamera_T.matrix[3][3] = interpolated_R[3][3];
+            // Update camstand_T with interpolated rotation
+            camstand_T.matrix[0][0] = interpolated_R[0][0]; camstand_T.matrix[0][1] = interpolated_R[0][1]; camstand_T.matrix[0][2] = interpolated_R[0][2]; camstand_T.matrix[0][3] = interpolated_R[0][3];
+            camstand_T.matrix[1][0] = interpolated_R[1][0]; camstand_T.matrix[1][1] = interpolated_R[1][1]; camstand_T.matrix[1][2] = interpolated_R[1][2]; camstand_T.matrix[1][3] = interpolated_R[1][3];
+            camstand_T.matrix[2][0] = interpolated_R[2][0]; camstand_T.matrix[2][1] = interpolated_R[2][1]; camstand_T.matrix[2][2] = interpolated_R[2][2]; camstand_T.matrix[2][3] = interpolated_R[2][3];
+            camstand_T.matrix[3][0] = interpolated_R[3][0]; camstand_T.matrix[3][1] = interpolated_R[3][1]; camstand_T.matrix[3][2] = interpolated_R[3][2]; camstand_T.matrix[3][3] = interpolated_R[3][3];
         }
         moved=true
     }
@@ -1863,35 +1862,35 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         const moveSpeed = 0.1;
         const RELATIVE_MOVEMENT = true;
         if (keys['w']) {
-            hypercamera_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
             moved = true;
         }
         if (keys['s']) {
-            hypercamera_T.translate_self_by_delta(-moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(-moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
             moved = true;
         }
         if (keys['a']) {
-            hypercamera_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
             moved = true;
         }
         if (keys['d']) {
-            hypercamera_T.translate_self_by_delta(0,-moveSpeed, 0, 0, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(0,-moveSpeed, 0, 0, RELATIVE_MOVEMENT);
             moved = true;
         }
         if (keys['q']) {
-            hypercamera_T.translate_self_by_delta(0, 0, 0, moveSpeed, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(0, 0, 0, moveSpeed, RELATIVE_MOVEMENT);
             moved = true;
         }
         if (keys['e']) {
-            hypercamera_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
             moved = true;
         }
         if (keys['r']) {
-            hypercamera_T.translate_self_by_delta(0, 0, moveSpeed, 0, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(0, 0, moveSpeed, 0, RELATIVE_MOVEMENT);
             moved = true;
         }
         if (keys['f']) {
-            hypercamera_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
             moved = true;
         }
         // space to jump
@@ -1901,56 +1900,38 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 player_is_jumping = true;
             }
         }
-        // reset camera z to 0
-        let jump_z = 0;
-        const jump_height = 1;
-        if (player_is_jumping) {
-            // jump height is a parabola
-            const tend = 4; // jump duration
-            let dt = physics_time_s - last_player_jump_time;
-            let jp01 = dt / tend; // jump progress from 0 to 1
-            if (dt > tend) {
-                player_is_jumping = false;
-            } else {
-                jump_z = jump_height * (1.0 - (2.0 * jp01 - 1.0) ** 2);
-            }
-        }
-        hypercamera_T.matrix[2][4] = floor_heightmap(
-            hypercamera_T.matrix[0][4],
-            hypercamera_T.matrix[1][4],
-            hypercamera_T.matrix[3][4]
-        ) + hypercamera_height_above_ground + jump_z;
+
 
         if (keys['i']) {
-            hypercamera_T.rotate_self_by_delta('XZ', 0.05, RELATIVE_MOVEMENT);
+            camstandswivel_angle -= 0.05;
             moved = true;
         }
         if (keys['k']) {
-            hypercamera_T.rotate_self_by_delta('XZ', -0.05, RELATIVE_MOVEMENT);
+            camstandswivel_angle += 0.05;
             moved = true;
         }
         if (keys['j']) {
-            hypercamera_T.rotate_self_by_delta('XY', 0.05, false);
+            camstand_T.rotate_self_by_delta('XY', 0.05, true);
             moved = true;
         }
         if (keys['l']) {
-            hypercamera_T.rotate_self_by_delta('XY', -0.05, false);
+            camstand_T.rotate_self_by_delta('XY', -0.05, true);
             moved = true;
         }
         if (keys['u']) {
-            hypercamera_T.rotate_self_by_delta('XW', 0.05, false);
+            camstand_T.rotate_self_by_delta('XW', 0.05, true);
             moved = true;
         }
         if (keys['o']) {
-            hypercamera_T.rotate_self_by_delta('XW', -0.05, false);
+            camstand_T.rotate_self_by_delta('XW', -0.05, true);
             moved = true;
         }
         if (keys['y']) {
-            hypercamera_T.rotate_self_by_delta('YW', -0.05, false);
+            camstand_T.rotate_self_by_delta('YW', -0.05, true);
             moved = true;
         }
         if (keys['p']) {
-            hypercamera_T.rotate_self_by_delta('YW', 0.05, false);
+            camstand_T.rotate_self_by_delta('YW', 0.05, true);
             moved = true;
         }
 
@@ -1969,6 +1950,39 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         if (keys['0']) {
             lookTowards(new Vector4D(0, 0, 0, 0));
         }
+
+        // Compute final camera transform from intermediate poses
+        // reset camera z to 0
+        let jump_z = 0;
+        const jump_height = 1;
+        if (player_is_jumping) {
+            // jump height is a parabola
+            const tend = 4; // jump duration
+            let dt = physics_time_s - last_player_jump_time;
+            let jp01 = dt / tend; // jump progress from 0 to 1
+            if (dt > tend) {
+                player_is_jumping = false;
+            } else {
+                jump_z = jump_height * (1.0 - (2.0 * jp01 - 1.0) ** 2);
+            }
+        }
+        camstand_T.matrix[2][4] = floor_heightmap(
+            camstand_T.matrix[0][4],
+            camstand_T.matrix[1][4],
+            camstand_T.matrix[3][4]
+        ) + jump_z;
+        // sine and cosine of swivel angle
+        let ss = Math.sin(camstandswivel_angle);
+        let cs = Math.cos(camstandswivel_angle);
+        let h = camstand_height;
+        let hypercam_in_camstand = new Transform4D([
+            [cs, 0, ss, 0, 0],
+            [0, 1, 0, 0, 0],
+            [-ss, 0, cs, 0, h],
+            [0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 1]
+        ]);
+        hypercamera_T = camstand_T.transform_transform(hypercam_in_camstand);
     }
 
     function writeCameraPoseToGPU() {
