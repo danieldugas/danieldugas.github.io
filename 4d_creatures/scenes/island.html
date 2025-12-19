@@ -80,21 +80,17 @@ import { Hyperobject, createHypercube, removeDuplicates } from '../hyperengine/h
 import { runHyperengine } from '../hyperengine/hyperengine.js';
 import { createPalmTree } from '../models/palm_tree.js';
 import { createHypersphere } from '../models/hypersphere.js';
+import { createEscapePod } from '../models/escape_pod.js';
 
 
 let hypertree1 = createPalmTree();
 hypertree1.pose.translate_self_by_delta(7, 0, 0, 0);
 let hypertree2 = createPalmTree();
 hypertree2.pose.translate_self_by_delta(-2, 5, 0, 3);
-
-
-
 let hypersun = createHypersphere(100, 0xffff44);
 hypersun.pose.translate_self_by_delta(1000, 1000, 1000, 0);
-
-let hypership = createHypersphere(3, 0xffffff);
+let hypership = createEscapePod();
 hypership.pose.translate_self_by_delta(0, -5, 2, 2);
-
 
 let bigIsland = new Hyperobject(
     // vertices in object frame
