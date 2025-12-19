@@ -1928,11 +1928,11 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             moved = true;
         }
         if (keys['q']) {
-            camstand_T.translate_self_by_delta(0, 0, 0, moveSpeed, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
             moved = true;
         }
         if (keys['e']) {
-            camstand_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
+            camstand_T.translate_self_by_delta(0, 0, 0, +moveSpeed, RELATIVE_MOVEMENT);
             moved = true;
         }
         if (keys['r']) {
