@@ -44,7 +44,7 @@ export async function runHyperengine(scene) {
         info_div.innerHTML = text;
     }
 
-    const VOX = 64; // Voxel grid size
+    const VOX = 96; // Voxel grid size
     
     // game variables
     let STEP_PHYSICS_ONCE = false;
@@ -346,7 +346,7 @@ export async function runHyperengine(scene) {
     // initialize bvh
     const TILE_SZ = 2;
     const TILE_RES = VOX / TILE_SZ;
-    const MAX_ACCEL_STRUCTURE_DEPTH = 400;
+    const MAX_ACCEL_STRUCTURE_DEPTH = 200;
     const MAX_ACCEL_STRUCTURE_SIZE = TILE_RES*TILE_RES*TILE_RES*MAX_ACCEL_STRUCTURE_DEPTH;
     const accelStructureOffsetsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
     const accelStructureCountsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
@@ -954,7 +954,7 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 // best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u) / 256.0;
                 // best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u) / 256.0;
                 // best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u) / 256.0;
-                best_voxel.a = 0.2;
+                best_voxel.a = 1.0;
                 best_voxel.s = s;
             }
         }
@@ -985,8 +985,8 @@ struct Voxel {
     _pad3: u32,
 }
 
-const fVOX: f32 = 64.0;
-const iVOX: i32 = 64;
+const fVOX: f32 = ${VOX}.0;
+const iVOX: i32 = ${VOX};
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 @group(0) @binding(1) var<storage, read> voxelGrid: array<Voxel>;

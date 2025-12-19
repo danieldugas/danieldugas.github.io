@@ -197,37 +197,82 @@ function createHypercrab() {
         grid_tetras.push([vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3, vertex_index_offset + 4]);
     }
     // Legs
-    let legDirections = [
-        new Vector4D(1, 1, 0, 0),
-        new Vector4D(-1, 1, 0, 0),
-        new Vector4D(1, -1, 0, 0),
-        new Vector4D(-1, -1, 0, 0)
+       // face directions (6)
+    let Xp = new Vector4D(1.0, 0.0, 0.0, 0.0);
+    let Xn = new Vector4D(-1.0, 0.0, 0.0, 0.0);
+    let Yp = new Vector4D(0.0, 1.0, 0.0, 0.0);
+    let Yn = new Vector4D(0.0, -1.0, 0.0, 0.0);
+    let Zp = new Vector4D(0.0, 0.0, 1.0, 0.0);
+    let Zn = new Vector4D(0.0, 0.0, -1.0, 0.0);
+    let Wp = new Vector4D(0.0, 0.0, 0.0, 1.0);
+    let Wn = new Vector4D(0.0, 0.0, 0.0, -1.0);
+    // edge directions (12)
+    let XpYp = Xp.add(Yp).normalize();
+    let XpYn = Xp.add(Yn).normalize();
+    let XnYp = Xn.add(Yp).normalize();
+    let XnYn = Xn.add(Yn).normalize();
+    let XpWp = Xp.add(Wp).normalize();
+    let XpWn = Xp.add(Wn).normalize();
+    let XnWp = Xn.add(Wp).normalize();
+    let XnWn = Xn.add(Wn).normalize();
+    let YpWp = Yp.add(Wp).normalize();
+    let YpWn = Yp.add(Wn).normalize();
+    let YnWp = Yn.add(Wp).normalize();
+    let YnWn = Yn.add(Wn).normalize();
+    // corner directions (8)
+    let XpYpWp = Xp.add(Yp).add(Wp).normalize();
+    let XpYpWn = Xp.add(Yp).add(Wn).normalize();
+    let XpYnWp = Xp.add(Yn).add(Wp).normalize();
+    let XpYnWn = Xp.add(Yn).add(Wn).normalize();
+    let XnYpWp = Xn.add(Yp).add(Wp).normalize();
+    let XnYpWn = Xn.add(Yp).add(Wn).normalize();
+    let XnYnWp = Xn.add(Yn).add(Wp).normalize();
+    let XnYnWn = Xn.add(Yn).add(Wn).normalize();
+    // Make leaves
+    let legDirs = [ // leaf_dir, leaf_A_dir, leaf_B_dir
+        // [Xp, Zp, Yp, Wp],
+        // [Xn, Zp, Yn, Wn],
+        // [Yp, Zp, Wp, Xp],
+        // [Yn, Zp, Wn, Xn],
+        // [Wp, Zp, Xp, Yp],
+        // [Wn, Zp, Xn, Yn],
+        // -- edges --
+        [XpYp, Zp, Wp, XpYn],
+        [XnYn, Zp, Wn, XnYp],
+        [XpYn, Zp, Wn, XpYp],
+        [XnYp, Zp, Wp, XnYn],
+        [XpWp, Zp, Yp, XpWn],
+        [XnWn, Zp, Yn, XnWp],
+        [XpWn, Zp, Yn, XpWp],
+        [XnWp, Zp, Yp, XnWn],
+        [YpWp, Zp, Xp, YpWn],
+        [YnWn, Zp, Xn, YnWp],
+        [YpWn, Zp, Xn, YpWp],
+        [YnWp, Zp, Xp, YnWn],
+        // // -- corners --
+        [XpYpWp, Zp, XpYnWp, XpYpWn],
+        [XpYpWn, Zp, XpYnWn, XpYnWp],
+        [XpYnWp, Zp, XpYpWn, XpYnWn],
+        [XpYnWn, Zp, XpYpWp, XpYpWn],
+        [XnYpWp, Zp, XnYnWp, XnYpWn],
+        [XnYpWn, Zp, XnYnWn, XnYnWp],
+        [XnYnWp, Zp, XnYpWn, XnYnWn],
+        [XnYnWn, Zp, XnYpWp, XnYpWn],
+
     ];
-    let legADirs = [
-        new Vector4D(0, 0, 0, 1),
-        new Vector4D(0, 0, 0, 1),
-        new Vector4D(0, 0, 0, 1),
-        new Vector4D(0, 0, 0, 1),
-    ];
-    let legBDirs = [
-        new Vector4D(1, -1, 0, 0),
-        new Vector4D(-1, -1, 0, 0),
-        new Vector4D(1, 1, 0, 0),
-        new Vector4D(-1, 1, 0, 0)
-    ];
-    let legL = 1.0;
-    let legT = 0.2;
+    let legL = 2.0;
+    let legT = 0.4;
     for (let i = 0; i < 4; i++) {
-        let dir = legDirections[i];
-        let dirA = legADirs[i];
-        let dirB = legBDirs[i];
+        let dir = legDirs[i][0];
+        let dirA = legDirs[i][1];
+        let dirB = legDirs[i][2];
         let stem = dir.multiply_by_scalar(legL/4.0);
         let leg_mid = stem.add(dir.multiply_by_scalar(legL/2.0));
-        leg_mid.z -= 0.5;
         let leg_A = leg_mid.add(dirA.multiply_by_scalar(legT));
         let leg_B = leg_mid.add(dirB.multiply_by_scalar(legT));
         let leg_C = leg_mid.add(dirB.multiply_by_scalar(-legT));
-        let tip = leg_mid.add(dir.multiply_by_scalar(legL));
+        let tip = stem.add(dir.multiply_by_scalar(legL));
+        leg_mid.z += 0.5;
         tip.z -= 1.0;
         // create two tetras, [stem, A, B, C] and [tip, A, B, C]
         let vertex_index_offset = grid_vertices.length;
