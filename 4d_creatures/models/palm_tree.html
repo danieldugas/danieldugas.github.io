@@ -78,67 +78,20 @@ input[type="range"] {
 import { Transform4D, Vector4D } from '../hyperengine/transform4d.js';
 import { Hyperobject, createHypercube, removeDuplicates } from '../hyperengine/hyperobject.js';
 import { runHyperengine } from '../hyperengine/hyperengine.js';
-import { createPalmTree } from '../models/palm_tree.js';
-import { createHypersphere } from '../models/hypersphere.js';
+import { createPalmTree } from './palm_tree.js';
 
 
-let hypertree1 = createPalmTree();
-hypertree1.pose.translate_self_by_delta(7, 0, 0, 0);
-let hypertree2 = createPalmTree();
-hypertree2.pose.translate_self_by_delta(-2, 5, 0, 3);
+let hypertree = createPalmTree();
+hypertree.pose.translate_self_by_delta(8, 0, 0, 0);
 
-
-
-let hypersun = createHypersphere(100, 0xffff44);
-hypersun.pose.translate_self_by_delta(1000, 1000, 1000, 0);
-
-let hypership = createHypersphere(3, 0xffffff);
-hypership.pose.translate_self_by_delta(0, -5, 2, 2);
-
-
-let bigIsland = new Hyperobject(
-    // vertices in object frame
-    [
-        new Vector4D(0, 0, 1, 0),
-        new Vector4D(1, 1, -1, 1),
-        new Vector4D(1, -1, -1, -1),
-        new Vector4D(-1, 1, -1, -1),
-        new Vector4D(-1, -1, -1, 1)
-    ].map(v => new Vector4D(v.x * 100, v.y * 100, v.z * 30, v.w * 100)),
-    // edges
-    [
-        [0,1],[0,2],[0,3],[0,4],
-        [1,2],[1,3],[1,4],
-        [2,3],[2,4],
-        [3,4]
-    ],
-    // tetras
-    [
-        [0,1,2,3],
-        [0,1,2,4],
-        [0,1,3,4],
-        [0,2,3,4],
-        [1,2,3,4]
-    ],
-    // color
-    0x005500,
-    // simulate_physics
-    false,
-    // show_vertices
-    true,
-    // mass
-    1.0,
-    // pose (Transform4D)
-    new Transform4D([
-        [1, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0],
-        [0, 0, 1, 0, 0],
-        [0, 0, 0, 1, -200],
-        [0, 0, 0, 0, 1]
-    ]),
-    // name
-    "BigIsland"
-);
+// define a hypercube object
+let hypercube = createHypercube(new Transform4D([
+    [1, 0, 0, 0, 0],
+    [0, 1, 0, 0, 4],
+    [0, 0, 1, 0, 3],
+    [0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 1]
+]));
 
 // Check WebGPU support
 if (!navigator.gpu) {
@@ -149,9 +102,8 @@ if (!navigator.gpu) {
 const main_canvas = document.getElementById('canvas');
 
 let custom_scene = {
-  visibleHyperobjects: [hypership, hypertree1, hypertree2, hypersun, bigIsland],
-  mainCanvas: main_canvas,
-  floorPreset: 'island',
+  visibleHyperobjects: [hypercube, hypertree],
+  mainCanvas: main_canvas
 };
 
 runHyperengine(custom_scene).catch(err => {
