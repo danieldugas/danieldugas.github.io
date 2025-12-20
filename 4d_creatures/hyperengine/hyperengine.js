@@ -45,7 +45,7 @@ export async function runHyperengine(scene) {
          <br>
         [ o.o] < It looks like your escape pod has landed on a 4-Dimensional planet.<br>
         <br>
-        [ -.-] < Ok. No need to panic, let's do some basic movement together. This will be a little disorienting.<br>
+        [ -.-] < Ok. No need to panic, let's do some basic movement together. This may be a little disorienting at first.<br>
         `;
         info_div.innerHTML = text;
     }
