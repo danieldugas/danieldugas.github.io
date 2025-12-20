@@ -11,6 +11,7 @@ export class Hyperobject {
         this.mass = mass;
         this.pose = pose; // Transform4D from object frame to world frame
         this.name = name;
+        this.is_animated = false;
         // texture info
         // default checkerboard texture
         this.vertices_in_texmap = vertices_in_object;

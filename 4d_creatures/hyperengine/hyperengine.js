@@ -299,6 +299,7 @@ export async function runHyperengine(scene) {
             }
         }
         // vertices
+        obj.object_vertex_start_index = vertex_counter;
         for (let i_v = 0; i_v < obj.vertices_in_object.length; i_v++) {
             let v = obj.vertices_in_object[i_v];
             let v_tex = obj.vertices_in_texmap[i_v];
@@ -2333,10 +2334,35 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // update hypercamera
         updatePlayerControls();
         writeCameraPoseToGPU();
+        // Animate objects
+        let isObjectVertPosDataChanged = false;
+        for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
+            let obj = visibleHyperobjects[obj_index];
+            if (obj.is_animated) {
+                obj.animateFunction(obj, physics_time_s);
+                isObjectVertPosDataChanged = true;
+                // Write vertices to pre-buffer
+                let vertex_counter = obj.object_vertex_start_index;
+                for (let i_v = 0; i_v < obj.vertices_in_object.length; i_v++) {
+                    let v = obj.vertices_in_object[i_v];
+                    console.log(i_v);
+                    all_vertices_in_object_data[vertex_counter * 4 + 0] = v.x;
+                    all_vertices_in_object_data[vertex_counter * 4 + 1] = v.y;
+                    all_vertices_in_object_data[vertex_counter * 4 + 2] = v.z;
+                    all_vertices_in_object_data[vertex_counter * 4 + 3] = v.w;
+                    // increment counter
+                    vertex_counter++;
+                }
+            }
+        }
+        if (isObjectVertPosDataChanged) {
+            device.queue.writeBuffer(allVerticesInObjectBuffer, 0, all_vertices_in_object_data);
+        }
         // update physics
         physicsStepCPU();
         writeObjectPosesToGPU();
         writePhysicsTimeToGPU();
+
 
         // Run all Stages
         const commandEncoder = device.createCommandEncoder();
