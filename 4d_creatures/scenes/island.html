@@ -81,7 +81,7 @@ import { runHyperengine } from '../hyperengine/hyperengine.js';
 import { createPalmTree } from '../models/palm_tree.js';
 import { createHypersphere } from '../models/hypersphere.js';
 import { createEscapePod } from '../models/escape_pod.js';
-
+import { createHypercrab } from '../models/hypercrab.js';
 
 let hypertree1 = createPalmTree();
 hypertree1.pose.translate_self_by_delta(7, 0, 0, 0);
@@ -91,6 +91,8 @@ let hypersun = createHypersphere(100, 0xffff44);
 hypersun.pose.translate_self_by_delta(1000, 1000, 1000, 0);
 let hypership = createEscapePod();
 hypership.pose.translate_self_by_delta(0, -5, 2, 2);
+let hypercrab = createHypercrab();
+hypercrab.pose.translate_self_by_delta(0, 0, 2, -4);
 
 let bigIsland = new Hyperobject(
     // vertices in object frame
@@ -145,7 +147,7 @@ if (!navigator.gpu) {
 const main_canvas = document.getElementById('canvas');
 
 let custom_scene = {
-  visibleHyperobjects: [hypership, hypertree1, hypertree2, hypersun, bigIsland],
+  visibleHyperobjects: [hypership, hypertree1, hypertree2, hypercrab, hypersun, bigIsland],
   mainCanvas: main_canvas,
   floorPreset: 'island',
 };
