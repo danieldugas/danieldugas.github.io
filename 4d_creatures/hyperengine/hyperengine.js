@@ -2328,13 +2328,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0])); // write sim time to GPU
     }
 
-    function render() {
-        // update DDA camera
-        writeDDACameraPoseToGPU();
-        // update hypercamera
-        updatePlayerControls();
-        writeCameraPoseToGPU();
-        // Animate objects
+    function animateObjects() {
         let isObjectVertPosDataChanged = false;
         for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
             let obj = visibleHyperobjects[obj_index];
@@ -2345,7 +2339,6 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 let vertex_counter = obj.object_vertex_start_index;
                 for (let i_v = 0; i_v < obj.vertices_in_object.length; i_v++) {
                     let v = obj.vertices_in_object[i_v];
-                    console.log(i_v);
                     all_vertices_in_object_data[vertex_counter * 4 + 0] = v.x;
                     all_vertices_in_object_data[vertex_counter * 4 + 1] = v.y;
                     all_vertices_in_object_data[vertex_counter * 4 + 2] = v.z;
@@ -2355,9 +2348,22 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 }
             }
         }
-        if (isObjectVertPosDataChanged) {
-            device.queue.writeBuffer(allVerticesInObjectBuffer, 0, all_vertices_in_object_data);
-        }
+        return isObjectVertPosDataChanged;
+    }
+
+    function writeObjectVerticesToGPU() {
+        device.queue.writeBuffer(allVerticesInObjectBuffer, 0, all_vertices_in_object_data);
+    }
+
+    function render() {
+        // update DDA camera
+        writeDDACameraPoseToGPU();
+        // update hypercamera
+        updatePlayerControls();
+        writeCameraPoseToGPU();
+        // Animate objects
+        let isObjectVertPosDataChanged = animateObjects();
+        if (isObjectVertPosDataChanged) { writeObjectVerticesToGPU(); }
         // update physics
         physicsStepCPU();
         writeObjectPosesToGPU();
