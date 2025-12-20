@@ -93,6 +93,9 @@ let hypership = createEscapePod();
 hypership.pose.translate_self_by_delta(0, -5, 2, 2);
 let hypercrab = createHypercrab();
 hypercrab.pose.translate_self_by_delta(0, 0, 2, -4);
+let hypercloud = createHypersphere(1, 0xffffff);
+hypercloud.vertices_in_object = hypercloud.vertices_in_object.map(v => new Vector4D(v.x * 100, v.y * 100, v.z * 5, v.w * 5));
+hypercloud.pose.translate_self_by_delta(0, 0, 50, -200);
 
 let bigIsland = new Hyperobject(
     // vertices in object frame
@@ -147,7 +150,7 @@ if (!navigator.gpu) {
 const main_canvas = document.getElementById('canvas');
 
 let custom_scene = {
-  visibleHyperobjects: [hypership, hypertree1, hypertree2, hypercrab, hypersun, bigIsland],
+  visibleHyperobjects: [hypership, hypertree1, hypertree2, hypercrab, hypersun, bigIsland, hypercloud],
   mainCanvas: main_canvas,
   floorPreset: 'island',
 };

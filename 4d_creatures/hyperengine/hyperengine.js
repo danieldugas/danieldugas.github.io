@@ -40,6 +40,12 @@ export async function runHyperengine(scene) {
         [ ^.^] < But let's focus on the good: You've got me, and I'm here to help! First, let's see what we're dealing with<br>
         <br>
         [ #_#] < Analyzing...<br>
+        <br>
+        [ o_o] < oh.<br>
+         <br>
+        [ o.o] < It looks like your escape pod has landed on a 4-Dimensional planet.<br>
+        <br>
+        [ -.-] < Ok. No need to panic, let's do some basic movement together. This will be a little disorienting.<br>
         `;
         info_div.innerHTML = text;
     }
@@ -185,8 +191,8 @@ export async function runHyperengine(scene) {
             let x = intersect_point.x;
             let y = intersect_point.y;
             let w = intersect_point.w;
-            let R = 10.0; // spotlight radius
-            if (x*x + y*y + w*w) > R*R {
+            let islandR = 20.0; // spotlight radius
+            if (x*x + y*y + w*w) > islandR*islandR {
                 best_voxel.r = 0.0;
                 best_voxel.g = 0.1;
                 best_voxel.b = 0.7;
@@ -2002,7 +2008,21 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             lookTowards(new Vector4D(0, 0, 0, 0));
         }
 
+        // Don't let player off the island
+        if (scene.floorPreset === 'island') {
+            const islandR = 20.0;
+            var playerPosXYW = camstand_T.origin();
+            playerPosXYW.z = 0.0;
+            if (playerPosXYW.magnitude() > islandR) {
+                playerPosXYW = playerPosXYW.normalize().multiply_by_scalar(islandR);
+                camstand_T.matrix[0][4] = playerPosXYW.x;
+                camstand_T.matrix[1][4] = playerPosXYW.y;
+                camstand_T.matrix[3][4] = playerPosXYW.w;
+            }
+
+        }
         // Compute final camera transform from intermediate poses
+        // Jump and camera height
         // reset camera z to 0
         let jump_z = 0;
         const jump_height = 1;

@@ -309,7 +309,7 @@ export function createHypercrab() {
             }
         }
         // Update pose
-        const islandR = 10.0;
+        const islandR = 20.0;
         obj.pose.translate_self_by_delta(0, 0, 0, 0.01, true);
         // Start sinking if crab is in the water
         const crabPos = obj.pose.origin();
