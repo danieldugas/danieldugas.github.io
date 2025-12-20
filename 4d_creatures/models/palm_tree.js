@@ -184,11 +184,11 @@ export function createPalmTree() {
         grid_vertices.push(mid_B);
         grid_vertices.push(mid_C);
         grid_vertices.push(tip);
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.75, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.75, 0.75, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.75, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.75, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.75, 0.25, 0.0, 0.0));
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         grid_tetras.push([vertex_index_offset + 4, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
     }
@@ -241,12 +241,13 @@ export function createPalmTree() {
                     let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
                     // checkerboard pattern
                     let color = 0xffffff;
-                    let isCheck = (u % 2 ===0) || (v % 2 === 0) || (w === 0);
                     if (u >= USIZE / 2) { // leaves
-                        if (isCheck) { color = leafColorDark; }
+                        let isDark = (v === 0);
+                        if (isDark) { color = leafColorDark; }
                         else { color = leafColorLight; }
                     } else { // trunk
-                        if (isCheck) { color = trunkColorDark; }
+                        let isDark = (u % 2 ===0) || (v % 2 === 0) || (w === 0);
+                        if (isDark) { color = trunkColorDark; }
                         else { color = trunkColorLight; }
                     }
                     // pack color into one u32 RGBA

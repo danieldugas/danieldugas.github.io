@@ -175,17 +175,17 @@ function createHypercrab() {
         let eyeR = 0.3;
         let eyeCenter = new Vector4D(R, 0.6*R, R*shellThickness, R);
         if (i === 1) { eyeCenter.y = -eyeCenter.y; }
-        let eyeA = eyeCenter.add(new Vector4D(0, 0, -eyeR, 0));
-        let eyeB = eyeCenter.add(new Vector4D(eyeR, eyeR, eyeR, eyeR));
-        let eyeC = eyeCenter.add(new Vector4D(eyeR, -eyeR, eyeR, -eyeR));
-        let eyeD = eyeCenter.add(new Vector4D(-eyeR, eyeR, eyeR, -eyeR));
-        let eyeE = eyeCenter.add(new Vector4D(-eyeR, -eyeR, eyeR, eyeR));
+        let eyeA = eyeCenter.add(new Vector4D(0, 0, eyeR, 0));
+        let eyeB = eyeCenter.add(new Vector4D(eyeR, eyeR, -eyeR, eyeR));
+        let eyeC = eyeCenter.add(new Vector4D(eyeR, -eyeR, -eyeR, -eyeR));
+        let eyeD = eyeCenter.add(new Vector4D(-eyeR, eyeR, -eyeR, -eyeR));
+        let eyeE = eyeCenter.add(new Vector4D(-eyeR, -eyeR, -eyeR, eyeR));
         grid_vertices.push(eyeA);
         grid_vertices.push(eyeB);
         grid_vertices.push(eyeC);
         grid_vertices.push(eyeD);
         grid_vertices.push(eyeE);
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.25, 0.75, 0, 0));
         grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
         grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
         grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
@@ -237,14 +237,14 @@ function createHypercrab() {
         // [Wp, Zp, Xp, Yp],
         // [Wn, Zp, Xn, Yn],
         // -- edges --
-        [XpYp, Zp, Wp, XpYn],
-        [XnYn, Zp, Wn, XnYp],
-        [XpYn, Zp, Wn, XpYp],
-        [XnYp, Zp, Wp, XnYn],
-        [XpWp, Zp, Yp, XpWn],
-        [XnWn, Zp, Yn, XnWp],
-        [XpWn, Zp, Yn, XpWp],
-        [XnWp, Zp, Yp, XnWn],
+        // [XpYp, Zp, Wp, XpYn],
+        // [XnYn, Zp, Wn, XnYp],
+        // [XpYn, Zp, Wn, XpYp],
+        // [XnYp, Zp, Wp, XnYn],
+        // [XpWp, Zp, Yp, XpWn],
+        // [XnWn, Zp, Yn, XnWp],
+        // [XpWn, Zp, Yn, XpWp],
+        // [XnWp, Zp, Yp, XnWn],
         [YpWp, Zp, Xp, YpWn],
         [YnWn, Zp, Xn, YnWp],
         [YpWn, Zp, Xn, YpWp],
