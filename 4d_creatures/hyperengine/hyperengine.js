@@ -9,6 +9,52 @@ export async function runHyperengine(scene) {
     e.preventDefault();
   });
 
+    // Add Controls Div
+    let SENSOR_MODE = "full";
+    let help_div = document.createElement("div");
+    help_div.style.position = "fixed";
+    help_div.style.top = "10px";
+    help_div.style.left = "10px";
+    help_div.style.backgroundColor = "rgba(0,0,0,0.5)";
+    help_div.style.padding = "10px";
+    help_div.style.borderRadius = "5px";
+    help_div.style.fontSize = "12px";
+    help_div.style.color = "#ccc";
+    help_div.style.maxWidth = "300px";
+    document.body.appendChild(help_div);
+    let help_html =
+    `
+    <div id="help-controls" style="color:rgb(156, 156, 156);">
+    WASD: Move hypercamera forwards, sideways<br>
+    Q/E: Move hypercamera in ana, kata directions<br>
+    IJKL: Rotate hypercamera up/down, left/right<br>
+    U/O: Rotate hypercamera in wx plane<br>
+    Y/P: Rotate hypercamera in wy plane<br>
+    Mouse drag: Rotate sensor view<br>
+    Mouse wheel: Zoom<br>
+
+    <!-- dropdown menu for sensor mode (slice, cutout, full) -->
+    <div id="sensor-mode-dropdown" style="color:rgb(156, 156, 156);">
+    <label for="sensor-mode">Sensor Mode:</label>
+    <select id="sensor-mode">
+        <option value="slice">Slice</option>
+        <option value="cutout">Cutout</option>
+        <option value="full" selected>Full</option>
+    </select>
+    </div>
+
+    </div>
+    <br>
+    This is the GPU version of <a href="../4d_camera.html">Hypercamera</a>
+    `;
+    help_div.innerHTML = help_html;
+    // update sensor mode
+    document.getElementById("sensor-mode").addEventListener("change", function() {
+        SENSOR_MODE = this.value;
+        console.log(SENSOR_MODE);
+    });
+
+    // Add PDA
     if (scene.floorPreset === 'island') {
         // Create floating div at top level of the page, absolute bottom left position, with some text
         let info_div = document.createElement("div");
@@ -50,7 +96,7 @@ export async function runHyperengine(scene) {
         info_div.innerHTML = text;
     }
 
-    const VOX = 96; // Voxel grid size
+    const VOX = 64 // 96; // Voxel grid size
     
     // game variables
     let STEP_PHYSICS_ONCE = false;
@@ -209,23 +255,6 @@ export async function runHyperengine(scene) {
         }
     }
     `;
-    }
-
-    // Sensor cutout
-    let sensorCutoutShaderSnippet =``;
-    if (true) {
-        sensorCutoutShaderSnippet = `
-        // add sensor cutout
-        if (pos.x < iVOX / 2 && pos.z < iVOX / 2) {
-            return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
-        }`;
-    }
-    if (false) {
-        sensorCutoutShaderSnippet = `
-        //   add sensor cutout
-        if (pos.z < 32 || pos.z > 32) {
-            return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
-        }`;
     }
 
     // Scene pre-processing and setting up static memory
@@ -978,7 +1007,7 @@ struct Uniforms {
   cameraDir: vec3f,
   cameraUp: vec3f,
   cameraRight: vec3f,
-  resolution: vec2f,
+  resolution: vec3f,
 }
 
 struct Voxel {
@@ -1002,7 +1031,15 @@ fn getVoxel(pos: vec3i) -> Voxel {
   if (pos.x < 0 || pos.x >= iVOX || pos.y < 0 || pos.y >= iVOX || pos.z < 0 || pos.z >= iVOX) {
     return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
   }
-  ${sensorCutoutShaderSnippet}
+
+  // sensormodefloat
+  if (uniforms.resolution.z == 0.0) { // slice
+    if (pos.z == 32) {} else { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
+  }
+  if (uniforms.resolution.z == 1.0) { // cutout
+    if (pos.x < iVOX / 2 && pos.z < iVOX / 2) { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
+  }
+
   let idx = pos.x + pos.y * iVOX + pos.z * iVOX * iVOX;
   return voxelGrid[idx];
 }
@@ -1149,7 +1186,7 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f 
 
 @fragment
 fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-  let uv = (fragCoord.xy / uniforms.resolution) * 2.0 - 1.0;
+  let uv = (fragCoord.xy / uniforms.resolution.xy) * 2.0 - 1.0;
   let aspect = uniforms.resolution.x / uniforms.resolution.y;
   
   // Construct ray direction
@@ -1626,7 +1663,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // Mouse interaction
     let sensorCamRotX = -1.6    ;
     let sensorCamRotY = 0.7;
-    let sensorCamDist = 100;
+    let sensorCamDist = 70;
     let isDraggingLeftClick = false;
     let lastX = 0;
     let lastY = 0;
@@ -2076,9 +2113,27 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         device.queue.writeBuffer(hypercameraPoseBuffer, 0, hypercamera_pose_data);
     }
     function writeDDACameraPoseToGPU() {
-        const rotY = sensorCamRotX;
-        const rotX = sensorCamRotY;
-        const dist = sensorCamDist;
+        let rotY = sensorCamRotX;
+        let rotX = sensorCamRotY;
+        let dist = sensorCamDist;
+
+        // Sensor modes
+        let sensormodefloat = 0.0;
+        if (SENSOR_MODE === "slice") {
+            sensormodefloat = 0.0;
+            rotY = -Math.PI / 2.0;
+            rotX = 0.;
+            dist = 50.0;  
+        } else if (SENSOR_MODE === "cutout") {
+            sensormodefloat = 1.0;
+        } else if (SENSOR_MODE === "full") {
+            sensormodefloat = 2.0;
+        } else {
+            console.log("unknown sensor mode");
+            sensormodefloat = 0.0;
+        }
+
+
 
         // Camera position (orbit around center at 2,2,2)
         const cx = VOX / 2 + Math.cos(rotY) * Math.cos(rotX) * dist;
@@ -2109,13 +2164,15 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             right[0] * dir[1] - right[1] * dir[0],
         ];
 
+
+
         // Update uniform buffer
         const uniforms = new Float32Array([
             cx, cy, cz, 0,
             dir[0], dir[1], dir[2], 0,
             up[0], up[1], up[2], 0,
             right[0], right[1], right[2], 0,
-            canvas.width, canvas.height, 0, 0,
+            canvas.width, canvas.height, sensormodefloat, 0,
         ]);
         device.queue.writeBuffer(stage4UniformBuffer, 0, uniforms);
     }

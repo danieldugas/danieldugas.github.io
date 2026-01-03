@@ -44,35 +44,11 @@ input[type="range"] {
   color: #888;
   text-align: center;
 }
-.help {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  background: rgba(0,0,0,0.5);
-  padding: 10px;
-  border-radius: 5px;
-  font-size: 12px;
-  color: #ccc;
-  max-width: 300px;
-}
 </style>
 </head>
 <body>
 <canvas id="canvas" width="600" height="600"></canvas>
 <div class="info">WebGPU Hypercamera Renderer</div>
-<div class="help">
-    <div id="help-controls" style="color:rgb(156, 156, 156);">
-    WASD: Move hypercamera forwards, sideways<br>
-    Q/E: Move hypercamera in ana, kata directions<br>
-    IJKL: Rotate hypercamera up/down, left/right<br>
-    U/O: Rotate hypercamera in wx plane<br>
-    Y/P: Rotate hypercamera in wy plane<br>
-    Mouse drag: Rotate sensor view<br>
-    Mouse wheel: Zoom<br>
-    </div>
-    <br>
-    This is the GPU version of <a href="../4d_camera.html">Hypercamera</a>
-</div>
 <script type="module">
 
 import { Transform4D, Vector4D } from '../hyperengine/transform4d.js';
