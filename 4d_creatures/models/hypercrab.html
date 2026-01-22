@@ -94,7 +94,8 @@ if (!navigator.gpu) {
 const main_canvas = document.getElementById('canvas');
 let custom_scene = {
     visibleHyperobjects: [hypercrab],
-    mainCanvas: main_canvas
+    mainCanvas: main_canvas,
+    floorPreset: 'island'
 };
 
 runHyperengine(custom_scene).catch(err => {
