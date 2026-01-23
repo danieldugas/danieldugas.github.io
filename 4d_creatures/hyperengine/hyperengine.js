@@ -11,6 +11,8 @@ export async function runHyperengine(scene) {
 
     // Add Controls Div
     let SENSOR_MODE = "full";
+    let DEBUG_TETRA_COLORS = false;
+    let SENSOR_ALPHA = 1.0;
     let help_div = document.createElement("div");
     help_div.style.position = "fixed";
     help_div.style.top = "10px";
@@ -43,6 +45,18 @@ export async function runHyperengine(scene) {
     </select>
     </div>
 
+    <!-- Slider for sensor transparency -->
+    <div id="sensor-transparency-slider" style="color:rgb(156, 156, 156);">
+    <label for="sensor-transparency">Sensor Transparency:</label>
+    <input type="range" id="sensor-transparency" name="sensor-transparency" min="0" max="1" step="0.01" value="1.0">
+    </div>
+
+    <!-- Checkbox for debugging tetras -->
+    <div id="debug-tetras-checkbox" style="color:rgb(156, 156, 156);">
+    <label for="debug-tetras">Debug Tetras:</label>
+    <input type="checkbox" id="debug-tetras" name="debug-tetras">
+    </div>
+
     </div>
     <br>
     This is the GPU version of <a href="../4d_camera.html">Hypercamera</a>
@@ -52,6 +66,16 @@ export async function runHyperengine(scene) {
     document.getElementById("sensor-mode").addEventListener("change", function() {
         SENSOR_MODE = this.value;
         console.log(SENSOR_MODE);
+    });
+    // update sensor transparency
+    document.getElementById("sensor-transparency").addEventListener("input", function() {
+        SENSOR_ALPHA = parseFloat(this.value);
+        console.log(SENSOR_ALPHA);
+    });
+    // update debug tetras
+    document.getElementById("debug-tetras").addEventListener("change", function() {
+        DEBUG_TETRA_COLORS = this.checked;
+        console.log("DEBUG_TETRA_COLORS:", DEBUG_TETRA_COLORS);
     });
 
     // Add PDA
@@ -208,131 +232,129 @@ export async function runHyperengine(scene) {
     // island floor
     if (scene.floorPreset === 'island') {
         floorShader = `
-    // add a ground plane with custom texture
-    // get camera ray origin and direction from voxel coordinates
-    // hypercamera_in_world_5x5 is passed as a uniform buffer
-    let ray_origin_in_world = hypercameraPoseBuffer.tr;
-    let ray_direction_in_hcam = vec4<f32>(1.0, u, v, l);
-    let ray_direction_in_world = vec4<f32>(
-        hypercameraPoseBuffer.r0.x * 1.0 + hypercameraPoseBuffer.r1.x * u + hypercameraPoseBuffer.r2.x * v + hypercameraPoseBuffer.r3.x * l,
-        hypercameraPoseBuffer.r0.y * 1.0 + hypercameraPoseBuffer.r1.y * u + hypercameraPoseBuffer.r2.y * v + hypercameraPoseBuffer.r3.y * l,
-        hypercameraPoseBuffer.r0.z * 1.0 + hypercameraPoseBuffer.r1.z * u + hypercameraPoseBuffer.r2.z * v + hypercameraPoseBuffer.r3.z * l,
-        hypercameraPoseBuffer.r0.w * 1.0 + hypercameraPoseBuffer.r1.w * u + hypercameraPoseBuffer.r2.w * v + hypercameraPoseBuffer.r3.w * l
-    );
-    // solve for intersection with plane z = 0 (ground plane)
-    let denominator = ray_direction_in_world.z;
-    if (abs(denominator) > 1e-6) {
-        let t = -ray_origin_in_world.z / denominator;
-        if (t > 0.0) {
-            let intersect_point = vec4<f32>(
-                ray_origin_in_world.x + t * ray_direction_in_world.x,
-                ray_origin_in_world.y + t * ray_direction_in_world.y,
-                0.0,
-                ray_origin_in_world.w + t * ray_direction_in_world.w
-            );
-            best_voxel.r = 1.0;
-            best_voxel.g = 1.0;
-            best_voxel.b = 0.7;
-            // white spotlight for (x^2 + y^2 + w^2) < 5^2, outside of that colors for each axis
-            let x = intersect_point.x;
-            let y = intersect_point.y;
-            let w = intersect_point.w;
-            let islandR = 20.0; // spotlight radius
-            if (x*x + y*y + w*w) > islandR*islandR {
-                best_voxel.r = 0.0;
-                best_voxel.g = 0.1;
+    if (stage3DebugBuffer.x < 0.5) {
+        // add a ground plane with custom texture
+        // get camera ray origin and direction from voxel coordinates
+        // hypercamera_in_world_5x5 is passed as a uniform buffer
+        let ray_origin_in_world = hypercameraPoseBuffer.tr;
+        let ray_direction_in_hcam = vec4<f32>(1.0, u, v, l);
+        let ray_direction_in_world = vec4<f32>(
+            hypercameraPoseBuffer.r0.x * 1.0 + hypercameraPoseBuffer.r1.x * u + hypercameraPoseBuffer.r2.x * v + hypercameraPoseBuffer.r3.x * l,
+            hypercameraPoseBuffer.r0.y * 1.0 + hypercameraPoseBuffer.r1.y * u + hypercameraPoseBuffer.r2.y * v + hypercameraPoseBuffer.r3.y * l,
+            hypercameraPoseBuffer.r0.z * 1.0 + hypercameraPoseBuffer.r1.z * u + hypercameraPoseBuffer.r2.z * v + hypercameraPoseBuffer.r3.z * l,
+            hypercameraPoseBuffer.r0.w * 1.0 + hypercameraPoseBuffer.r1.w * u + hypercameraPoseBuffer.r2.w * v + hypercameraPoseBuffer.r3.w * l
+        );
+        // solve for intersection with plane z = 0 (ground plane)
+        let denominator = ray_direction_in_world.z;
+        if (abs(denominator) > 1e-6) {
+            let t = -ray_origin_in_world.z / denominator;
+            if (t > 0.0) {
+                let intersect_point = vec4<f32>(
+                    ray_origin_in_world.x + t * ray_direction_in_world.x,
+                    ray_origin_in_world.y + t * ray_direction_in_world.y,
+                    0.0,
+                    ray_origin_in_world.w + t * ray_direction_in_world.w
+                );
+                best_voxel.r = 1.0;
+                best_voxel.g = 1.0;
                 best_voxel.b = 0.7;
-                // add waves
-                let osc01_10hz = (0.5 + 0.5 * sin(6.3 * sim_t / 10.0)); // oscillator which does a 0 to 1 loop every 10 sec
-                let wave_width = 3.0;
-                let wave_phase = 6.3 * sim_t / 20.0;
-                best_voxel.b = 0.4 + 0.2 * sin(2.0 * wave_width * x + wave_phase); // * sin(2.0 * wave_width * y + wave_phase) * sin(2.0 * wave_width * w + wave_phase);
+                // white spotlight for (x^2 + y^2 + w^2) < 5^2, outside of that colors for each axis
+                let x = intersect_point.x;
+                let y = intersect_point.y;
+                let w = intersect_point.w;
+                let islandR = 20.0; // spotlight radius
+                if (x*x + y*y + w*w) > islandR*islandR {
+                    best_voxel.r = 0.0;
+                    best_voxel.g = 0.1;
+                    best_voxel.b = 0.7;
+                    // add waves
+                    let osc01_10hz = (0.5 + 0.5 * sin(6.3 * sim_t / 10.0)); // oscillator which does a 0 to 1 loop every 10 sec
+                    let wave_width = 3.0;
+                    let wave_phase = 6.3 * sim_t / 20.0;
+                    best_voxel.b = 0.4 + 0.2 * sin(2.0 * wave_width * x + wave_phase); // * sin(2.0 * wave_width * y + wave_phase) * sin(2.0 * wave_width * w + wave_phase);
+                    
+
+                }
+                best_voxel.a = 0.2;
+                best_voxel.s = t; // use t as "s" value for depth comparison
+            }
+        }
+    } else {
+        // add a ground plane with custom texture
+        // get camera ray origin and direction from voxel coordinates
+        // hypercamera_in_world_5x5 is passed as a uniform buffer
+        if (true) {
+        let ray_origin_in_world = hypercameraPoseBuffer.tr;
+        let ray_direction_in_hcam = vec4<f32>(1.0, u, v, l);
+        let ray_direction_in_world = vec4<f32>(
+            hypercameraPoseBuffer.r0.x * 1.0 + hypercameraPoseBuffer.r1.x * u + hypercameraPoseBuffer.r2.x * v + hypercameraPoseBuffer.r3.x * l,
+            hypercameraPoseBuffer.r0.y * 1.0 + hypercameraPoseBuffer.r1.y * u + hypercameraPoseBuffer.r2.y * v + hypercameraPoseBuffer.r3.y * l,
+            hypercameraPoseBuffer.r0.z * 1.0 + hypercameraPoseBuffer.r1.z * u + hypercameraPoseBuffer.r2.z * v + hypercameraPoseBuffer.r3.z * l,
+            hypercameraPoseBuffer.r0.w * 1.0 + hypercameraPoseBuffer.r1.w * u + hypercameraPoseBuffer.r2.w * v + hypercameraPoseBuffer.r3.w * l
+        );
+        // solve for intersection with plane z = 0 (ground plane)
+        let denominator = ray_direction_in_world.z;
+        if (abs(denominator) > 1e-6) {
+            let t = -ray_origin_in_world.z / denominator;
+            if (t > 0.0) {
+                let intersect_point = vec4<f32>(
+                    ray_origin_in_world.x + t * ray_direction_in_world.x,
+                    ray_origin_in_world.y + t * ray_direction_in_world.y,
+                    0.0,
+                    ray_origin_in_world.w + t * ray_direction_in_world.w
+                );
+
+                let x = intersect_point.x;
+                let y = intersect_point.y;
+                let w = intersect_point.w;
+                let R = 1000.0; // don't render too far from center
+                if (x*x + y*y + w*w) < R*R {
+                // checkerboard pattern based on intersect_point.x and intersect_point.y and intersect_point.w
+                let checker_size = 5.0;
                 
+                let check_x = floor(intersect_point.x / checker_size);
+                let check_y = floor(intersect_point.y / checker_size);
+                let check_w = floor(intersect_point.w / checker_size);
+                let in_cell_x = fract(intersect_point.x / checker_size);
+                let in_cell_y = fract(intersect_point.y / checker_size);
+                let in_cell_w = fract(intersect_point.w / checker_size);
 
-            }
-            best_voxel.a = 0.2;
-            best_voxel.s = t; // use t as "s" value for depth comparison
-        }
-    }
-    `;
-    }
-
-    // DEBUG
-    if (false) {
-    floorShader = `
-    // add a ground plane with custom texture
-    // get camera ray origin and direction from voxel coordinates
-    // hypercamera_in_world_5x5 is passed as a uniform buffer
-    if (true) {
-    let ray_origin_in_world = hypercameraPoseBuffer.tr;
-    let ray_direction_in_hcam = vec4<f32>(1.0, u, v, l);
-    let ray_direction_in_world = vec4<f32>(
-        hypercameraPoseBuffer.r0.x * 1.0 + hypercameraPoseBuffer.r1.x * u + hypercameraPoseBuffer.r2.x * v + hypercameraPoseBuffer.r3.x * l,
-        hypercameraPoseBuffer.r0.y * 1.0 + hypercameraPoseBuffer.r1.y * u + hypercameraPoseBuffer.r2.y * v + hypercameraPoseBuffer.r3.y * l,
-        hypercameraPoseBuffer.r0.z * 1.0 + hypercameraPoseBuffer.r1.z * u + hypercameraPoseBuffer.r2.z * v + hypercameraPoseBuffer.r3.z * l,
-        hypercameraPoseBuffer.r0.w * 1.0 + hypercameraPoseBuffer.r1.w * u + hypercameraPoseBuffer.r2.w * v + hypercameraPoseBuffer.r3.w * l
-    );
-    // solve for intersection with plane z = 0 (ground plane)
-    let denominator = ray_direction_in_world.z;
-    if (abs(denominator) > 1e-6) {
-        let t = -ray_origin_in_world.z / denominator;
-        if (t > 0.0) {
-            let intersect_point = vec4<f32>(
-                ray_origin_in_world.x + t * ray_direction_in_world.x,
-                ray_origin_in_world.y + t * ray_direction_in_world.y,
-                0.0,
-                ray_origin_in_world.w + t * ray_direction_in_world.w
-            );
-
-            let x = intersect_point.x;
-            let y = intersect_point.y;
-            let w = intersect_point.w;
-            let R = 1000.0; // don't render too far from center
-            if (x*x + y*y + w*w) < R*R {
-            // checkerboard pattern based on intersect_point.x and intersect_point.y and intersect_point.w
-            let checker_size = 5.0;
-            
-            let check_x = floor(intersect_point.x / checker_size);
-            let check_y = floor(intersect_point.y / checker_size);
-            let check_w = floor(intersect_point.w / checker_size);
-            let in_cell_x = fract(intersect_point.x / checker_size);
-            let in_cell_y = fract(intersect_point.y / checker_size);
-            let in_cell_w = fract(intersect_point.w / checker_size);
-
-            var in_cell_tetra_index = 0;
-            if (in_cell_x + in_cell_y + in_cell_w) < 1.0 {
-                if (in_cell_x >= in_cell_y && in_cell_x >= in_cell_w) {
-                    in_cell_tetra_index = 0;
-                } else if (in_cell_y >= in_cell_x && in_cell_y >= in_cell_w) {
-                    in_cell_tetra_index = 1;
+                var in_cell_tetra_index = 0;
+                if (in_cell_x + in_cell_y + in_cell_w) < 1.0 {
+                    if (in_cell_x >= in_cell_y && in_cell_x >= in_cell_w) {
+                        in_cell_tetra_index = 0;
+                    } else if (in_cell_y >= in_cell_x && in_cell_y >= in_cell_w) {
+                        in_cell_tetra_index = 1;
+                    } else {
+                        in_cell_tetra_index = 2;
+                    }
                 } else {
-                    in_cell_tetra_index = 2;
+                    if (in_cell_x <= in_cell_y && in_cell_x <= in_cell_w) {
+                        in_cell_tetra_index = 3;
+                    } else if (in_cell_y <= in_cell_x && in_cell_y <= in_cell_w) {
+                        in_cell_tetra_index = 4;
+                    } else {
+                        in_cell_tetra_index = 5;
+                    }
                 }
-            } else {
-                if (in_cell_x <= in_cell_y && in_cell_x <= in_cell_w) {
-                    in_cell_tetra_index = 3;
-                } else if (in_cell_y <= in_cell_x && in_cell_y <= in_cell_w) {
-                    in_cell_tetra_index = 4;
-                } else {
-                    in_cell_tetra_index = 5;
+                let cell_index = i32(check_x) + i32(check_y) * 100 + i32(check_w) * 10000;
+                let tetra_index = in_cell_tetra_index + abs(cell_index) * 6;
+                // color based on tetra index
+                let r = f32((tetra_index * 37) % 256) / 255.0;
+                let g = f32((tetra_index * 59) % 256) / 255.0;
+                let b = f32((tetra_index * 83) % 256) / 255.0;
+                // Per-tetra random color, 5-tetra pattern
+
+                best_voxel.r = r;
+                best_voxel.g = g;
+                best_voxel.b = b;
+                best_voxel.a = 0.2;
+                best_voxel.s = t; // use t as "s" value for depth comparison
                 }
             }
-            let cell_index = i32(check_x) + i32(check_y) * 100 + i32(check_w) * 10000;
-            let tetra_index = in_cell_tetra_index + abs(cell_index) * 6;
-            // color based on tetra index
-            let r = f32((tetra_index * 37) % 256) / 255.0;
-            let g = f32((tetra_index * 59) % 256) / 255.0;
-            let b = f32((tetra_index * 83) % 256) / 255.0;
-            // Per-tetra random color, 5-tetra pattern
-
-            best_voxel.r = r;
-            best_voxel.g = g;
-            best_voxel.b = b;
-            best_voxel.a = 0.2;
-            best_voxel.s = t; // use t as "s" value for depth comparison
-            }
         }
-    }
+        }
+
     }
     `;
     }
@@ -916,7 +938,8 @@ struct UniformPose4D {
 
 @group(1) @binding(0) var<uniform> params: vec4<u32>; // RES, TILE_RES, TILE_SZ, unused
 @group(1) @binding(1) var<uniform> hypercameraPoseBuffer: UniformPose4D; // 5x5 matrix
-@group(1) @binding(2) var<uniform> simtimeBuffer: vec4<f32>; // 5x5 matrix
+@group(1) @binding(2) var<uniform> simtimeBuffer: vec4<f32>; // simulation time
+@group(1) @binding(3) var<uniform> stage3DebugBuffer: vec4<f32>; // debug info
 
 fn signedVolume(a: vec3<f32>, b: vec3<f32>, c: vec3<f32>, d: vec3<f32>) -> f32 {
     let ab = b - a;
@@ -995,7 +1018,7 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let voxel_index = U + V * RES + L * RES * RES;
 
     if (U == 0 || U == RES-1 || V == 0 || V == RES-1 || L == 0 || L == RES-1) {
-     voxels[voxel_index] = Voxel(1.0, 1.0, 1.0, 0.1, 1.0, 0u, 0u, 0u);
+     voxels[voxel_index] = Voxel(1.0, 1.0, 1.0, 0.01, 1.0, 0u, 0u, 0u);
      return;
      } 
     
@@ -1067,9 +1090,11 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 best_voxel.g = texel.y;
                 best_voxel.b = texel.z;
                 // DEBUG: Uncomment this to use tetra debug colors instead
-                // best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u) / 256.0;
-                // best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u) / 256.0;
-                // best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u) / 256.0;
+                if (stage3DebugBuffer.x > 0.5) {
+                    best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u) / 256.0;
+                    best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u) / 256.0;
+                    best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u) / 256.0;
+                }
                 best_voxel.a = 1.0;
                 best_voxel.s = s;
             }
@@ -1088,6 +1113,7 @@ struct Uniforms {
   cameraUp: vec3f,
   cameraRight: vec3f,
   resolution: vec3f,
+  debug1: vec4f,
 }
 
 struct Voxel {
@@ -1104,7 +1130,7 @@ struct Voxel {
 const fVOX: f32 = ${VOX}.0;
 const iVOX: i32 = ${VOX};
 
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(0) var<uniform> stage4UniformBuffer: Uniforms;
 @group(0) @binding(1) var<storage, read> voxelGrid: array<Voxel>;
 
 fn getVoxel(pos: vec3i) -> Voxel {
@@ -1113,10 +1139,10 @@ fn getVoxel(pos: vec3i) -> Voxel {
   }
 
   // sensormodefloat
-  if (uniforms.resolution.z == 0.0) { // slice
+  if (stage4UniformBuffer.resolution.z == 0.0) { // slice
     if (pos.z == iVOX / 2) {} else { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
   }
-  if (uniforms.resolution.z == 1.0) { // cutout
+  if (stage4UniformBuffer.resolution.z == 1.0) { // cutout
     if (pos.x < iVOX / 2 && pos.z < iVOX / 2) { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
   }
 
@@ -1129,7 +1155,7 @@ fn unpackColor(voxel: Voxel) -> vec4f {
   let r = voxel.r;
   let g = voxel.g;
   let b = voxel.b;
-  let a = voxel.a;
+  let a = voxel.a * stage4UniformBuffer.debug1.x; // global opacity multiplier
   return vec4f(r, g, b, a);
 }
 
@@ -1266,17 +1292,17 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f 
 
 @fragment
 fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-  let uv = (fragCoord.xy / uniforms.resolution.xy) * 2.0 - 1.0;
-  let aspect = uniforms.resolution.x / uniforms.resolution.y;
+  let uv = (fragCoord.xy / stage4UniformBuffer.resolution.xy) * 2.0 - 1.0;
+  let aspect = stage4UniformBuffer.resolution.x / stage4UniformBuffer.resolution.y;
   
   // Construct ray direction
   let rayDir = normalize(
-    uniforms.cameraDir + 
-    uniforms.cameraRight * uv.x * aspect -
-    uniforms.cameraUp * uv.y
+    stage4UniformBuffer.cameraDir + 
+    stage4UniformBuffer.cameraRight * uv.x * aspect -
+    stage4UniformBuffer.cameraUp * uv.y
   );
   
-  return traceRay(uniforms.cameraPos, rayDir);
+  return traceRay(stage4UniformBuffer.cameraPos, rayDir);
 }
 `;
   
@@ -1308,7 +1334,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // Create uniform buffer
     // 4 vec4s (camera pos, dir, up, right) + 1 vec2 (resolution) + padding = 80 bytes
     const stage4UniformBuffer = device.createBuffer({
-    size: 80,
+    size: 6 * 4 * 4, // 6 vec3s, 4 f32s per vec3, 4 bytes per f32
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
@@ -1377,6 +1403,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     });
     device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0]));
 
+    const stage3DebugBuffer = device.createBuffer({
+    size: 1 * 4 * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(stage3DebugBuffer, 0, new Float32Array([0, 0, 0, 0]));
+
     // textures
     const textureHeaderBuffer = device.createBuffer({
     size: object_texture_header_data.byteLength,
@@ -1430,12 +1462,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     });
 
     // Update params for rasterization
-    const rasterParamsData = new Uint32Array([VOX, TILE_RES, TILE_SZ, 0]);
+    const rasterParamsBufferData = new Uint32Array([VOX, TILE_RES, TILE_SZ, 0]);
     const rasterParamsBuffer = device.createBuffer({
         size: 16,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
-    device.queue.writeBuffer(rasterParamsBuffer, 0, rasterParamsData);
+    device.queue.writeBuffer(rasterParamsBuffer, 0, rasterParamsBufferData);
 
     // ---- Layouts, Pipelines ----
     // Create bind group layout
@@ -1652,7 +1684,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
             { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
         ]
     });
     const stage3PipelineLayout = device.createPipelineLayout({
@@ -1684,7 +1717,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         entries: [
             { binding: 0, resource: { buffer: rasterParamsBuffer } },
             { binding: 1, resource: { buffer: hypercameraPoseBuffer } },
-            { binding: 2, resource: { buffer: simtimeBuffer } }
+            { binding: 2, resource: { buffer: simtimeBuffer } },
+            { binding: 3, resource: { buffer: stage3DebugBuffer } }
         ]
     });
     // Stage 4 Pipelines
@@ -2247,14 +2281,15 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
 
         // Update uniform buffer
-        const uniforms = new Float32Array([
+        const stage4UniformBufferData = new Float32Array([
             cx, cy, cz, 0,
             dir[0], dir[1], dir[2], 0,
             up[0], up[1], up[2], 0,
             right[0], right[1], right[2], 0,
             canvas.width, canvas.height, sensormodefloat, 0,
+            SENSOR_ALPHA, 0, 0, 0, // debug1
         ]);
-        device.queue.writeBuffer(stage4UniformBuffer, 0, uniforms);
+        device.queue.writeBuffer(stage4UniformBuffer, 0, stage4UniformBufferData);
     }
 
     function physicsStepCPU() {
@@ -2483,6 +2518,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     
     function writePhysicsTimeToGPU() {
         device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0])); // write sim time to GPU
+        const debugtetracolorsfloat = DEBUG_TETRA_COLORS ? 1.0 : 0.0;
+        device.queue.writeBuffer(stage3DebugBuffer, 0, new Float32Array([debugtetracolorsfloat, 0, 0, 0])); // write stage3 debug flags
     }
 
     function animateObjects() {
