@@ -13,6 +13,7 @@ export async function runHyperengine(scene) {
     let SENSOR_MODE = "full";
     let DEBUG_TETRA_COLORS = false;
     let SENSOR_ALPHA = 1.0;
+    let AUTO_SHAKE_SENSOR = false;
     let help_div = document.createElement("div");
     help_div.style.position = "fixed";
     help_div.style.top = "10px";
@@ -42,6 +43,7 @@ export async function runHyperengine(scene) {
         <option value="slice">Slice</option>
         <option value="cutout">Cutout</option>
         <option value="full" selected>Full</option>
+        <option value="eyeball">Eyeball</option>
     </select>
     </div>
 
@@ -56,6 +58,13 @@ export async function runHyperengine(scene) {
     <label for="debug-tetras">Debug Tetras:</label>
     <input type="checkbox" id="debug-tetras" name="debug-tetras">
     </div>
+
+    <!-- Checkbox for auto shake sensor -->
+    <div id="auto-shake-sensor-checkbox" style="color:rgb(156, 156, 156);">
+    <label for="auto-shake-sensor">Auto Shake Sensor:</label>
+    <input type="checkbox" id="auto-shake-sensor" name="auto-shake-sensor">
+    </div>
+
 
     </div>
     <br>
@@ -76,6 +85,11 @@ export async function runHyperengine(scene) {
     document.getElementById("debug-tetras").addEventListener("change", function() {
         DEBUG_TETRA_COLORS = this.checked;
         console.log("DEBUG_TETRA_COLORS:", DEBUG_TETRA_COLORS);
+    });
+    // update auto shake sensor
+    document.getElementById("auto-shake-sensor").addEventListener("change", function() {
+        AUTO_SHAKE_SENSOR = this.checked;
+        console.log("AUTO_SHAKE_SENSOR:", AUTO_SHAKE_SENSOR);
     });
 
     // Add PDA
@@ -1145,7 +1159,16 @@ fn getVoxel(pos: vec3i) -> Voxel {
   if (stage4UniformBuffer.resolution.z == 1.0) { // cutout
     if (pos.x < iVOX / 2 && pos.z < iVOX / 2) { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
   }
-
+  if (stage4UniformBuffer.resolution.z == 3.0) { // eyeball
+    let center = iVOX / 2;
+    let radius = iVOX / 2;
+    let dx = pos.x - center;
+    let dy = pos.y - center;
+    let dz = pos.z - center;
+    if (dx * dx + dy * dy + dz * dz > radius * radius) {
+      return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
+    }
+  }
   let idx = pos.x + pos.y * iVOX + pos.z * iVOX * iVOX;
   return voxelGrid[idx];
 }
@@ -2229,6 +2252,11 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     function writeDDACameraPoseToGPU() {
         let rotY = sensorCamRotX;
         let rotX = sensorCamRotY;
+
+        if (AUTO_SHAKE_SENSOR) {
+            rotY = -Math.PI / 2. + Math.sin(physics_time_s * 0.2) * 0.2;
+            rotX = 0.3 + Math.cos(physics_time_s * 0.2) * 0.1;
+        }
         let dist = sensorCamDist;
 
         // Sensor modes
@@ -2242,6 +2270,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             sensormodefloat = 1.0;
         } else if (SENSOR_MODE === "full") {
             sensormodefloat = 2.0;
+        } else if (SENSOR_MODE === "eyeball") {
+            sensormodefloat = 3.0;
         } else {
             console.log("unknown sensor mode");
             sensormodefloat = 0.0;
