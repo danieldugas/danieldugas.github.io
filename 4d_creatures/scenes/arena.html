@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebGPU Hypercamera Renderer</title>
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #1a1a1a;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+canvas {
+  border: 2px solid #444;
+  background: #000;
+  max-width: 100%;
+}
+.controls {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+label {
+  font-size: 12px;
+  color: #aaa;
+}
+input[type="range"] {
+  width: 150px;
+}
+.info {
+  font-size: 14px;
+  color: #888;
+  text-align: center;
+}
+.help {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.5);
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #ccc;
+  max-width: 300px;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas" width="600" height="600"></canvas>
+<div class="info">WebGPU Hypercamera Renderer</div>
+<div class="help">
+    <div id="help-controls" style="color:rgb(156, 156, 156);">
+    WASD: Move hypercamera forwards, sideways<br>
+    Q/E: Move hypercamera in ana, kata directions<br>
+    IJKL: Rotate hypercamera up/down, left/right<br>
+    U/O: Rotate hypercamera in wx plane<br>
+    Y/P: Rotate hypercamera in wy plane<br>
+    Mouse drag: Rotate sensor view<br>
+    Mouse wheel: Zoom<br>
+    </div>
+    <br>
+    This is the GPU version of <a href="../4d_camera.html">Hypercamera</a>
+</div>
+<script type="module">
+
+import { Transform4D, Vector4D } from '../hyperengine/transform4d.js';
+import { Hyperobject, createHypercube } from '../hyperengine/hyperobject.js';
+import { createHypersphere } from '../models/hypersphere.js';
+import { AABBoxCollider } from '../hyperengine/collider.js';
+import { runHyperengine } from '../hyperengine/hyperengine.js';
+
+
+// To create a aabb cube at -1, -1, -1, -1 to 1, 1, 1, 1
+// pose should be identity, transl 0
+
+let objects = [];
+function createAABBCube(min, max, color) {
+    let sides = max.subtract(min);
+    let scale = sides.multiply_by_scalar(0.5);
+    let center = min.add(scale);
+
+    let hypercube = createHypercube(new Transform4D([
+            [scale.x, 0, 0, 0, center.x],
+            [0, scale.y, 0, 0, center.y],
+            [0, 0, scale.z, 0, center.z],
+            [0, 0, 0, scale.w, center.w],
+            [0, 0, 0, 0, 1]
+        ]),
+        color=color,
+    );
+    hypercube.simulate_physics = false;
+    let aabb = hypercube.get_aabb();
+    console.log(aabb);
+    hypercube.collider = new AABBoxCollider(aabb.min, aabb.max);
+
+    return hypercube;
+}
+
+objects.push(createAABBCube(new Vector4D(5, -5, -1, -5), new Vector4D(5+1, 5, 3, 5), 0xff00ff));
+
+let hypersphere = createHypersphere(1.0, 0xffff00);
+hypersphere.pose.translate_self_by_delta(10, 0, 2, 0);
+objects.push(hypersphere);
+
+// Check WebGPU support
+if (!navigator.gpu) {
+  document.body.innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
+  throw new Error('WebGPU not supported');
+}
+
+
+const main_canvas = document.getElementById('canvas');
+
+let custom_scene = {
+  visibleHyperobjects: objects,
+  mainCanvas: main_canvas
+};
+
+runHyperengine(custom_scene).catch(err => {
+  console.error(err);
+  document.body.innerHTML += '<div style="color: red; padding: 20px;">Error: ' + err.message + '</div>';
+});
+</script>
+</body>
+</html>

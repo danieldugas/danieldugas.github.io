@@ -2182,6 +2182,37 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             lookTowards(new Vector4D(0, 0, 0, 0));
         }
 
+        // Box Colliders
+        for (let i = 0; i < visibleHyperobjects.length; i++) {
+            const obj = visibleHyperobjects[i];
+            if (obj.collider) {
+                obj.collider.constrainTransform(camstand_T);
+            }
+        }
+
+                // Debug: print the player pose to a div
+                // create div if it doesn't exist
+                if (!document.getElementById("player_pose")) {
+                    const div = document.createElement("div");
+                    div.id = "player_pose";
+                    document.body.appendChild(div);
+                    div.style.position = "absolute";
+                    div.style.top = "10px";
+                    div.style.right = "10px";
+                    div.style.color = "rgb(156, 156, 156)";
+                    div.style.fontFamily = "monospace";
+                    div.style.fontSize = "12px";
+                    console.log("created div");
+                }
+                // update div
+                document.getElementById("player_pose").innerHTML = `Player:<br>`;
+                document.getElementById("player_pose").innerHTML += `[${camstand_T.matrix[0][0].toFixed(2)}, ${camstand_T.matrix[0][1].toFixed(2)}, ${camstand_T.matrix[0][2].toFixed(2)}, ${camstand_T.matrix[0][3].toFixed(2)}, ${camstand_T.matrix[0][4].toFixed(2)}]<br>`;
+                document.getElementById("player_pose").innerHTML += `[${camstand_T.matrix[1][0].toFixed(2)}, ${camstand_T.matrix[1][1].toFixed(2)}, ${camstand_T.matrix[1][2].toFixed(2)}, ${camstand_T.matrix[1][3].toFixed(2)}, ${camstand_T.matrix[1][4].toFixed(2)}]<br>`;
+                document.getElementById("player_pose").innerHTML += `[${camstand_T.matrix[2][0].toFixed(2)}, ${camstand_T.matrix[2][1].toFixed(2)}, ${camstand_T.matrix[2][2].toFixed(2)}, ${camstand_T.matrix[2][3].toFixed(2)}, ${camstand_T.matrix[2][4].toFixed(2)}]<br>`;
+                document.getElementById("player_pose").innerHTML += `[${camstand_T.matrix[3][0].toFixed(2)}, ${camstand_T.matrix[3][1].toFixed(2)}, ${camstand_T.matrix[3][2].toFixed(2)}, ${camstand_T.matrix[3][3].toFixed(2)}, ${camstand_T.matrix[3][4].toFixed(2)}]<br>`;
+
+
+
         // Don't let player off the island
         if (scene.floorPreset === 'island') {
             const islandR = 20.0;
@@ -2193,8 +2224,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 camstand_T.matrix[1][4] = playerPosXYW.y;
                 camstand_T.matrix[3][4] = playerPosXYW.w;
             }
-
         }
+
         // Compute final camera transform from intermediate poses
         // Jump and camera height
         // reset camera z to 0

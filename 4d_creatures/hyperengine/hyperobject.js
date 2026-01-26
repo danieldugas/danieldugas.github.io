@@ -59,9 +59,29 @@ export class Hyperobject {
     get_com() {
         return this.pose.origin();
     }
+
+    get_aabb() {
+        let min = new Vector4D(Infinity, Infinity, Infinity, Infinity);
+        let max = new Vector4D(-Infinity, -Infinity, -Infinity, -Infinity);
+        this.update_vertices_in_world();
+        for (let v of this.vertices_in_world) {
+            if (v.x < min.x) min.x = v.x;
+            if (v.x > max.x) max.x = v.x;
+            if (v.y < min.y) min.y = v.y;
+            if (v.y > max.y) max.y = v.y;
+            if (v.z < min.z) min.z = v.z;
+            if (v.z > max.z) max.z = v.z;
+            if (v.w < min.w) min.w = v.w;
+            if (v.w > max.w) max.w = v.w;
+        }
+        if (this.vertices_in_world.length === 0) {
+            console.warn(`Hyperobject ${this.name} has no vertices to compute AABB`);
+        }
+        return { min: min, max: max };
+    }
 }
 
-export function createHypercube(pose) {
+export function createHypercube(pose, color=0xff0000) {
     const const_hypercube_vertices = [ 
             new Vector4D(-1, -1, -1, -1),
             new Vector4D( 1, -1, -1, -1),
@@ -192,7 +212,7 @@ export function createHypercube(pose) {
         // tetras
         create_40_tetrahedra_tiling_of_hypercube(const_hypercube_vertices),
         // color
-        0xff0000,
+        color,
         // simulate_physics
         true,
         // show_vertices

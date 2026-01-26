@@ -184,10 +184,14 @@ export class Transform4D {
             ];
         }
     }
+
+    setTranslation(v) {
+        this.matrix[0][4] = v.x;
+        this.matrix[1][4] = v.y;
+        this.matrix[2][4] = v.z;
+        this.matrix[3][4] = v.w;
+    }
             
-
-    
-
     rotation_only() {
         let R = [
             [this.matrix[0][0], this.matrix[0][1], this.matrix[0][2], this.matrix[0][3], 0],
@@ -237,4 +241,15 @@ export class Transform4D {
         ];
         return new Transform4D(invMatrix);
     }
-}
+
+    clone() {
+        let newMatrix = [];
+        for (let i = 0; i < 5; i++) {
+            newMatrix[i] = [];
+            for (let j = 0; j < 5; j++) {
+                newMatrix[i][j] = this.matrix[i][j];
+            }
+        }
+        return new Transform4D(newMatrix);
+    }
+} // class Transform4D
