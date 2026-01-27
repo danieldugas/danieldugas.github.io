@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wall Model</title>
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #1a1a1a;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+canvas {
+  border: 2px solid #444;
+  background: #000;
+  max-width: 100%;
+}
+.controls {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+label {
+  font-size: 12px;
+  color: #aaa;
+}
+input[type="range"] {
+  width: 150px;
+}
+.info {
+  font-size: 14px;
+  color: #888;
+  text-align: center;
+}
+.help {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.5);
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #ccc;
+  max-width: 300px;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas" width="600" height="600"></canvas>
+<div class="info">WebGPU Hypercamera Renderer</div>
+<div class="help">
+    <div id="help-controls" style="color:rgb(156, 156, 156);">
+    WASD: Move hypercamera forwards, sideways<br>
+    Q/E: Move hypercamera in ana, kata directions<br>
+    IJKL: Rotate hypercamera up/down, left/right<br>
+    U/O: Rotate hypercamera in wx plane<br>
+    Y/P: Rotate hypercamera in wy plane<br>
+    Mouse drag: Rotate sensor view<br>
+    Mouse wheel: Zoom<br>
+    </div>
+    <br>
+</div>
+<script type="module">
+
+import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4d.js';
+import { createHyperwall, createHyperwallWithCenterHole  } from '../models/wall.js';
+import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
+
+let objects = [];
+
+createHyperwallWithCenterHole(objects,
+  new Transform4D([
+      [1, 0, 0, 0, 10],
+      [0, 10, 0, 0, 0],
+      [0, 0, 3, 0, 0],
+      [0, 0, 0, 10, 0],
+      [0, 0, 0, 0, 1]
+  ]),
+  0.33, 0.33,
+  0xff0000
+);
+objects.push(createHyperwall(
+  new Transform4D([
+    [1, 0, 0, 0, -10],
+    [0, 10, 0, 0, 0],
+    [0, 0, 3, 0, 0],
+    [0, 0, 0, 10, 0],
+    [0, 0, 0, 0, 1]
+  ]),
+  0x770000
+));
+objects.push(createHyperwall(new Transform4D([
+    [0, 10, 0, 0, 0],
+    [1, 0, 0, 0, 10],
+    [0, 0, 3, 0, 0],
+    [0, 0, 0, 10, 0],
+    [0, 0, 0, 0, 1]
+]), 0x00ff00));
+objects.push(createHyperwall(new Transform4D([
+    [0, 10, 0, 0, 0],
+    [1, 0, 0, 0, -10],
+    [0, 0, 3, 0, 0],
+    [0, 0, 0, 10, 0],
+    [0, 0, 0, 0, 1]
+]), 0x007700));
+objects.push(createHyperwall(new Transform4D([
+    [0, 10, 0, 0, 0],
+    [0, 0, 0, 10, 0],
+    [0, 0, 3, 0, 0],
+    [1, 0, 0, 0, 10],
+    [0, 0, 0, 0, 1]
+]), 0x0000ff));
+objects.push(createHyperwall(new Transform4D([
+    [0, 10, 0, 0, 0],
+    [0, 0, 0, 10, 0],
+    [0, 0, 3, 0, 0],
+    [1, 0, 0, 0, -10],
+    [0, 0, 0, 0, 1]
+]), 0x000077));
+
+
+// Check WebGPU support
+if (!navigator.gpu) {
+  document.body.innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
+  throw new Error('WebGPU not supported');
+}
+
+const main_canvas = document.getElementById('canvas');
+let custom_scene = {
+    visibleHyperobjects: objects,
+    mainCanvas: main_canvas
+};
+
+runHyperengine(custom_scene).catch(err => {
+  console.error(err);
+  document.body.innerHTML += '<div style="color: red; padding: 20px;">Error: ' + err.message + '</div>';
+});
+</script>
+</body>
+</html>

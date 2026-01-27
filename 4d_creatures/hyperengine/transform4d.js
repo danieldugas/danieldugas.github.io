@@ -204,42 +204,81 @@ export class Transform4D {
     }
 
     inverse() {
-        // separate rotation and translation
-        let R = [
-            [this.matrix[0][0], this.matrix[0][1], this.matrix[0][2], this.matrix[0][3]],
-            [this.matrix[1][0], this.matrix[1][1], this.matrix[1][2], this.matrix[1][3]],
-            [this.matrix[2][0], this.matrix[2][1], this.matrix[2][2], this.matrix[2][3]],
-            [this.matrix[3][0], this.matrix[3][1], this.matrix[3][2], this.matrix[3][3]]
+        // Full 5x5 inverse via the 4x4 upper-left block + translation
+        // Extract 4x4 linear part (A) and 4x1 translation (t)
+        const m = this.matrix;
+        const A = [
+            [m[0][0], m[0][1], m[0][2], m[0][3]],
+            [m[1][0], m[1][1], m[1][2], m[1][3]],
+            [m[2][0], m[2][1], m[2][2], m[2][3]],
+            [m[3][0], m[3][1], m[3][2], m[3][3]]
         ];
-        let t = [
-            this.matrix[0][4],
-            this.matrix[1][4],
-            this.matrix[2][4],
-            this.matrix[3][4]
+
+        // Compute full 4x4 inverse using cofactors
+        // Precompute 2x2 determinants from rows 0-1 and rows 2-3
+        const s0 = A[0][0] * A[1][1] - A[0][1] * A[1][0];
+        const s1 = A[0][0] * A[1][2] - A[0][2] * A[1][0];
+        const s2 = A[0][0] * A[1][3] - A[0][3] * A[1][0];
+        const s3 = A[0][1] * A[1][2] - A[0][2] * A[1][1];
+        const s4 = A[0][1] * A[1][3] - A[0][3] * A[1][1];
+        const s5 = A[0][2] * A[1][3] - A[0][3] * A[1][2];
+
+        const c5 = A[2][2] * A[3][3] - A[2][3] * A[3][2];
+        const c4 = A[2][1] * A[3][3] - A[2][3] * A[3][1];
+        const c3 = A[2][1] * A[3][2] - A[2][2] * A[3][1];
+        const c2 = A[2][0] * A[3][3] - A[2][3] * A[3][0];
+        const c1 = A[2][0] * A[3][2] - A[2][2] * A[3][0];
+        const c0 = A[2][0] * A[3][1] - A[2][1] * A[3][0];
+
+        const det = s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0;
+        if (Math.abs(det) < 1e-12) {
+            throw new Error("Transform4D.inverse(): matrix is singular");
+        }
+        const invDet = 1.0 / det;
+
+        // Adjugate (transposed cofactor matrix) / det
+        const Ai = [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
         ];
-        // transpose rotation
-        let R_inv = [
-            [R[0][0], R[1][0], R[2][0], R[3][0]],
-            [R[0][1], R[1][1], R[2][1], R[3][1]],
-            [R[0][2], R[1][2], R[2][2], R[3][2]],
-            [R[0][3], R[1][3], R[2][3], R[3][3]]
+        Ai[0][0] = ( A[1][1] * c5 - A[1][2] * c4 + A[1][3] * c3) * invDet;
+        Ai[0][1] = (-A[0][1] * c5 + A[0][2] * c4 - A[0][3] * c3) * invDet;
+        Ai[0][2] = ( A[3][1] * s5 - A[3][2] * s4 + A[3][3] * s3) * invDet;
+        Ai[0][3] = (-A[2][1] * s5 + A[2][2] * s4 - A[2][3] * s3) * invDet;
+
+        Ai[1][0] = (-A[1][0] * c5 + A[1][2] * c2 - A[1][3] * c1) * invDet;
+        Ai[1][1] = ( A[0][0] * c5 - A[0][2] * c2 + A[0][3] * c1) * invDet;
+        Ai[1][2] = (-A[3][0] * s5 + A[3][2] * s2 - A[3][3] * s1) * invDet;
+        Ai[1][3] = ( A[2][0] * s5 - A[2][2] * s2 + A[2][3] * s1) * invDet;
+
+        Ai[2][0] = ( A[1][0] * c4 - A[1][1] * c2 + A[1][3] * c0) * invDet;
+        Ai[2][1] = (-A[0][0] * c4 + A[0][1] * c2 - A[0][3] * c0) * invDet;
+        Ai[2][2] = ( A[3][0] * s4 - A[3][1] * s2 + A[3][3] * s0) * invDet;
+        Ai[2][3] = (-A[2][0] * s4 + A[2][1] * s2 - A[2][3] * s0) * invDet;
+
+        Ai[3][0] = (-A[1][0] * c3 + A[1][1] * c1 - A[1][2] * c0) * invDet;
+        Ai[3][1] = ( A[0][0] * c3 - A[0][1] * c1 + A[0][2] * c0) * invDet;
+        Ai[3][2] = (-A[3][0] * s3 + A[3][1] * s1 - A[3][2] * s0) * invDet;
+        Ai[3][3] = ( A[2][0] * s3 - A[2][1] * s1 + A[2][2] * s0) * invDet;
+
+        // Compute -Ai * t for the inverse translation
+        const t = [m[0][4], m[1][4], m[2][4], m[3][4]];
+        const ti = [
+            -(Ai[0][0] * t[0] + Ai[0][1] * t[1] + Ai[0][2] * t[2] + Ai[0][3] * t[3]),
+            -(Ai[1][0] * t[0] + Ai[1][1] * t[1] + Ai[1][2] * t[2] + Ai[1][3] * t[3]),
+            -(Ai[2][0] * t[0] + Ai[2][1] * t[1] + Ai[2][2] * t[2] + Ai[2][3] * t[3]),
+            -(Ai[3][0] * t[0] + Ai[3][1] * t[1] + Ai[3][2] * t[2] + Ai[3][3] * t[3])
         ];
-        // new translation
-        let t_inv = [
-            -(R_inv[0][0] * t[0] + R_inv[0][1] * t[1] + R_inv[0][2] * t[2] + R_inv[0][3] * t[3]),
-            -(R_inv[1][0] * t[0] + R_inv[1][1] * t[1] + R_inv[1][2] * t[2] + R_inv[1][3] * t[3]),
-            -(R_inv[2][0] * t[0] + R_inv[2][1] * t[1] + R_inv[2][2] * t[2] + R_inv[2][3] * t[3]),
-            -(R_inv[3][0] * t[0] + R_inv[3][1] * t[1] + R_inv[3][2] * t[2] + R_inv[3][3] * t[3])
-        ];
-        // combine into new matrix
-        let invMatrix = [
-            [R_inv[0][0], R_inv[0][1], R_inv[0][2], R_inv[0][3], t_inv[0]],
-            [R_inv[1][0], R_inv[1][1], R_inv[1][2], R_inv[1][3], t_inv[1]],
-            [R_inv[2][0], R_inv[2][1], R_inv[2][2], R_inv[2][3], t_inv[2]],
-            [R_inv[3][0], R_inv[3][1], R_inv[3][2], R_inv[3][3], t_inv[3]],
+
+        return new Transform4D([
+            [Ai[0][0], Ai[0][1], Ai[0][2], Ai[0][3], ti[0]],
+            [Ai[1][0], Ai[1][1], Ai[1][2], Ai[1][3], ti[1]],
+            [Ai[2][0], Ai[2][1], Ai[2][2], Ai[2][3], ti[2]],
+            [Ai[3][0], Ai[3][1], Ai[3][2], Ai[3][3], ti[3]],
             [0, 0, 0, 0, 1]
-        ];
-        return new Transform4D(invMatrix);
+        ]);
     }
 
     clone() {

@@ -1630,7 +1630,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     });
 
     // Stage 1 Buffers and Pipeline
-    // Extend buffers to accommodate clipped geometry (30% expansion for memory efficiency)
+    // Extend buffers to accommodate clipped geometry (X% expansion for memory efficiency)
     const CLIPPING_EXPANSION = 0.1;
     const MAX_TOTAL_TETRAS = Math.ceil(tetras.length * (1 + CLIPPING_EXPANSION)) + 400;
     const MAX_TOTAL_VERTICES = Math.ceil(vertices_in_world.length * (1 + CLIPPING_EXPANSION)) + 400;
