@@ -1,7 +1,17 @@
 import { Transform4D, Vector4D } from '../hyperengine/transform4d.js';
 import { Hyperobject, createHypercube, removeDuplicates } from '../hyperengine/hyperobject.js';
 
-export function createHypersphere(size, color) {
+export function createHypersphere(size, color, pose) {
+  // if pose is not set, use the default pose
+  if (pose === undefined) {
+      pose = new Transform4D([
+          [1, 0, 0, 0, 0],
+          [0, 1, 0, 0, 0],
+          [0, 0, 1, 0, 0],
+          [0, 0, 0, 1, 0],
+          [0, 0, 0, 0, 1]
+      ])
+  }
   // build a hypersphere surface (mesh)
   const n_i = 9;
   const n_j = 5;
@@ -104,13 +114,7 @@ export function createHypersphere(size, color) {
       // mass
       1.0,
       // pose (Transform4D)
-      new Transform4D([
-          [1, 0, 0, 0, 0],
-          [0, 1, 0, 0, 0],
-          [0, 0, 1, 0, 0],
-          [0, 0, 0, 1, 0],
-          [0, 0, 0, 0, 1]
-      ]),
+      pose,
       // name
       "Hypersphere"
   );

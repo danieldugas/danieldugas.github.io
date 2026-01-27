@@ -2965,29 +2965,22 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // update DDA camera
         writeDDACameraPoseToGPU();
         if (PROFILING) { t_dda_cam = performance.now(); }
-
         // update hypercamera
         updatePlayerControls();
         if (PROFILING) { t_player = performance.now(); }
-
         writeCameraPoseToGPU();
         if (PROFILING) { t_cam_gpu = performance.now(); }
-
         // Animate objects
         let isObjectVertPosDataChanged = animateObjects();
         if (isObjectVertPosDataChanged) { writeObjectVerticesToGPU(); }
         if (PROFILING) { t_animate = performance.now(); }
-
         // update physics
         physicsStepCPU();
         if (PROFILING) { t_physics = performance.now(); }
-
         writeObjectPosesToGPU();
         if (PROFILING) { t_poses_gpu = performance.now(); }
-
         writePhysicsTimeToGPU();
         if (PROFILING) { t_time_gpu = performance.now(); }
-
 
         // Run all Stages
         const commandEncoder = device.createCommandEncoder();
@@ -3005,7 +2998,6 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         }
 
         // Stage 2.a: Clip tetras against sensor plane
-
         if (true) {
             // Clear clipping counters
             device.queue.writeBuffer(tetraCountsBuffer, 0, originalTetraCountsBufferData);
