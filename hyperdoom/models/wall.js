@@ -183,6 +183,17 @@ export function createHyperwall(pose, color=0xff0000) {
     );
     hyperwall.vertices_in_texmap = hyperwall.vertices_in_object.map(v => new Vector4D(v.y, v.z, v.w, 0.0)); // Map 4D surface coords to 3D texture
     hyperwall.collider = new StaticObjectFrameBoxCollider(hyperwall.pose);
+    // extend collider by +- 1 in y and w frame, to account for player thickness (fixes clipping through corners)
+    //  (there is already +-1 margin in the x dim due to the object frame being [-1 to 1] in x but the actual geom is thin at 0)
+    // first figure out the y and w size of the wall in world
+    let yUnitVecInWorld = pose.transform_vector(new Vector4D(0, 1, 0, 0)); // in world
+    let yUnitMagInWorld = yUnitVecInWorld.magnitude(); // 1 wall unit = this distance in world
+    let wUnitVecInWorld = pose.transform_vector(new Vector4D(0, 0, 0, 1)); // in world
+    let wUnitMagInWorld = wUnitVecInWorld.magnitude(); // 1 wall unit = this distance in world
+    let oneMeterInWallY = 1.0 / yUnitMagInWorld; // 1 meter in wall = this many wall units
+    let oneMeterInWallW = 1.0 / wUnitMagInWorld; // 1 meter in wall = this many wall units
+    hyperwall.collider.min = new Vector4D(-1, -1 - oneMeterInWallY, -1, -1 - oneMeterInWallW); // in object
+    hyperwall.collider.max = new Vector4D(1, 1 + oneMeterInWallY, 1, 1 + oneMeterInWallW);
     return hyperwall;
 } // function createHyperwall()
 
@@ -249,14 +260,50 @@ export function createHyperwallWithCenterHole(objectlist, pose, holeRatio1, hole
       [0.0, 0.0, 0.0, w3_scale2, w3_offset2],
       [0.0, 0.0, 0.0, 0.0, 1.0]
     ]);
+    // Manually fix colliders
+    //                 ^ w      pY
+    //                 |        |-|
+    //      -----------------------
+    //  1 _ '  _________________  '
+    //      '  |       1       |  '
+    //      '  |_-_- _ _ _ -_-_|  '
+    //      '  |    | - - |    |
+    //  0 - '  |  4 ||   || 3  |  ' --> y
+    //      '  |_ _ |_-_-_| _ _|  '
+    //      '  | - -   2   - - |  '
+    // -1 _ '  |_______________|  ' _
+    //      '                     ' | pW
+    //      ----------------------- -
+    //
+    // Figure out metric equivalent in wall frame to extend colliders properly
+    // extend collider by +- 1 in y and w frame, to account for player thickness (fixes clipping through corners)
+    //  (there is already +-1 margin in the x dim due to the object frame being [-1 to 1] in x but the actual geom is thin at 0)
+    let yUnitVecInWorld = pose.transform_vector(new Vector4D(0, 1, 0, 0)); // in world
+    let yUnitMagInWorld = yUnitVecInWorld.magnitude(); // 1 wall unit = this distance in world
+    let wUnitVecInWorld = pose.transform_vector(new Vector4D(0, 0, 0, 1)); // in world
+    let wUnitMagInWorld = wUnitVecInWorld.magnitude(); // 1 wall unit = this distance in world
+    let oneMeterInWallY = 1.0 / yUnitMagInWorld; // 1 meter in wall = this many wall units
+    let oneMeterInWallW = 1.0 / wUnitMagInWorld; // 1 meter in wall = this many wall units
+    let hY = holeRatio1; // hole start in wall coords
+    let hW = holeRatio2; // hole start in wall coords
+    let pY = oneMeterInWallY; // y padding for colliders
+    let pW = oneMeterInWallW; // w padding for colliders
+    let wall1ColliderMax = new Vector4D(1.0, 1.0 + pY, 1.0, 1.0 + pW); // in wall
+    let wall1ColliderMin = new Vector4D(-1.0, -1.0 - pY, -1.0, hW - pW); // in wall
+    let wall2ColliderMax = new Vector4D(1.0, 1.0 + pY, 1.0, -hW + pW); // in wall
+    let wall2ColliderMin = new Vector4D(-1.0, -1.0 - pY, -1.0, -1.0 - pW); // in wall
+    let wall4ColliderMin = new Vector4D(-1.0, -1.0 - pY, -1.0, -hW - pW); // in wall
+    let wall4ColliderMax = new Vector4D(1.0, -hY + pY, 1.0, hW + pW); // in wall
+    let wall3ColliderMin = new Vector4D(-1.0, hY - pY, -1.0, -hW - pW); // in wall
+    let wall3ColliderMax = new Vector4D(1.0, 1.0 + pY, 1.0, hW + pW); // in wall
     // Create subwalls and transform their vertices and collider
     // for each subwall frame
     for (let i = 0; i < 4; i++) {
         let subwallPoseInWallFrame = [wall1PoseInWallFrame, wall2PoseInWallFrame, wall3PoseInWallFrame, wall4PoseInWallFrame][i];
         let subwall = createHyperwall(pose, color);
         subwall.vertices_in_object = subwall.vertices_in_object.map(vertex => subwallPoseInWallFrame.transform_point(vertex));
-        subwall.collider.min = subwallPoseInWallFrame.transform_point(subwall.collider.min);
-        subwall.collider.max = subwallPoseInWallFrame.transform_point(subwall.collider.max);
+        subwall.collider.min = [wall1ColliderMin, wall2ColliderMin, wall3ColliderMin, wall4ColliderMin][i];
+        subwall.collider.max = [wall1ColliderMax, wall2ColliderMax, wall3ColliderMax, wall4ColliderMax][i];
         subwall.vertices_in_texmap = subwall.vertices_in_object.map(vertex => new Vector4D(vertex.y, vertex.z, vertex.w, 1.0));
         objectlist.push(subwall);
     }
