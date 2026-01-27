@@ -2933,6 +2933,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     const PROFILING = true;
     const PROF_HISTORY = 60;
     let profiling_div, prof_history, prof_frame_count, prof_last_frame_time, prof_gpu_ms;
+    let render_iter = 0;
     if (PROFILING) {
         profiling_div = document.createElement("div");
         profiling_div.style.position = "fixed";
@@ -2962,6 +2963,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             prof_last_frame_time = t_frame_start;
         }
 
+        // Non-rendering work
+        // No need to run this in another thread, because GPU work is already async.
+        // When render() loops too fast the GPU.submit just blocks to reduce backpressure.
+        // So unless this takes more than ~60ms we are good.
         // update DDA camera
         writeDDACameraPoseToGPU();
         if (PROFILING) { t_dda_cam = performance.now(); }
@@ -3180,11 +3185,18 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             const t_encode_end = performance.now();
             const t_submit = t_encode_end; // submit is measured right after
 
+            if (render_iter < 10) {
+                console.log(`Frame ${render_iter}: submit ${t_submit}`);    
+            }
+
             // GPU timing: measure when GPU work completes via onSubmittedWorkDone
             const t_gpu_start = performance.now();
             device.queue.onSubmittedWorkDone().then(() => {
                 const t_gpu_done = performance.now();
                 prof_gpu_ms = t_gpu_done - t_gpu_start;
+                if (render_iter < 10) {
+                    console.log(`Frame ${render_iter}: done ${t_gpu_done}`);    
+                }
             });
 
             // Collect CPU timings for this frame
@@ -3236,6 +3248,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         }
 
         // Schedule next frame
+        render_iter = render_iter + 1;
         requestAnimationFrame(render);
     }
 
