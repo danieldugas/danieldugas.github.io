@@ -2929,19 +2929,64 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         device.queue.writeBuffer(allVerticesInObjectBuffer, 0, all_vertices_in_object_data);
     }
 
+    // --- Profiling setup ---
+    const PROFILING = true;
+    const PROF_HISTORY = 60;
+    let profiling_div, prof_history, prof_frame_count, prof_last_frame_time, prof_gpu_ms;
+    if (PROFILING) {
+        profiling_div = document.createElement("div");
+        profiling_div.style.position = "fixed";
+        profiling_div.style.bottom = "10px";
+        profiling_div.style.right = "10px";
+        profiling_div.style.backgroundColor = "rgba(0,0,0,0.7)";
+        profiling_div.style.padding = "10px";
+        profiling_div.style.borderRadius = "5px";
+        profiling_div.style.fontSize = "11px";
+        profiling_div.style.color = "#0f0";
+        profiling_div.style.fontFamily = "monospace";
+        profiling_div.style.zIndex = "9999";
+        profiling_div.style.whiteSpace = "pre";
+        profiling_div.style.pointerEvents = "none";
+        document.body.appendChild(profiling_div);
+        prof_history = [];
+        prof_frame_count = 0;
+        prof_last_frame_time = performance.now();
+        prof_gpu_ms = 0;
+    }
+
     function render() {
+        let t_frame_start, frame_dt, t_dda_cam, t_player, t_cam_gpu, t_animate, t_physics, t_poses_gpu, t_time_gpu;
+        if (PROFILING) {
+            t_frame_start = performance.now();
+            frame_dt = t_frame_start - prof_last_frame_time;
+            prof_last_frame_time = t_frame_start;
+        }
+
         // update DDA camera
         writeDDACameraPoseToGPU();
+        if (PROFILING) { t_dda_cam = performance.now(); }
+
         // update hypercamera
         updatePlayerControls();
+        if (PROFILING) { t_player = performance.now(); }
+
         writeCameraPoseToGPU();
+        if (PROFILING) { t_cam_gpu = performance.now(); }
+
         // Animate objects
         let isObjectVertPosDataChanged = animateObjects();
         if (isObjectVertPosDataChanged) { writeObjectVerticesToGPU(); }
+        if (PROFILING) { t_animate = performance.now(); }
+
         // update physics
         physicsStepCPU();
+        if (PROFILING) { t_physics = performance.now(); }
+
         writeObjectPosesToGPU();
+        if (PROFILING) { t_poses_gpu = performance.now(); }
+
         writePhysicsTimeToGPU();
+        if (PROFILING) { t_time_gpu = performance.now(); }
 
 
         // Run all Stages
@@ -3139,9 +3184,68 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
         device.queue.submit([commandEncoder.finish()]);
 
+        if (PROFILING) {
+            const t_encode_end = performance.now();
+            const t_submit = t_encode_end; // submit is measured right after
+
+            // GPU timing: measure when GPU work completes via onSubmittedWorkDone
+            const t_gpu_start = performance.now();
+            device.queue.onSubmittedWorkDone().then(() => {
+                const t_gpu_done = performance.now();
+                prof_gpu_ms = t_gpu_done - t_gpu_start;
+            });
+
+            // Collect CPU timings for this frame
+            const frame = {
+                frameDt: frame_dt,
+                total: t_submit - t_frame_start,
+                ddaCam: t_dda_cam - t_frame_start,
+                player: t_player - t_dda_cam,
+                camGpu: t_cam_gpu - t_player,
+                animate: t_animate - t_cam_gpu,
+                physics: t_physics - t_animate,
+                posesGpu: t_poses_gpu - t_physics,
+                timeGpu: t_time_gpu - t_poses_gpu,
+                encode: t_encode_end - t_time_gpu,
+                submit: t_submit - t_encode_end,
+            };
+
+            prof_history.push(frame);
+            if (prof_history.length > PROF_HISTORY) prof_history.shift();
+            prof_frame_count++;
+
+            // Update display every 30 frames
+            if (prof_frame_count % 30 === 0 && prof_history.length > 0) {
+                const avg = {};
+                for (const key of Object.keys(prof_history[0])) {
+                    avg[key] = prof_history.reduce((s, f) => s + f[key], 0) / prof_history.length;
+                }
+                const fps = 1000 / avg.frameDt;
+                const pad = (s, n) => s.padEnd(n);
+                const fmt = (v) => v.toFixed(2).padStart(6) + " ms";
+                let lines = [];
+                lines.push(`FPS: ${fps.toFixed(1)}`);
+                lines.push(`${pad("Frame total", 22)} ${fmt(avg.total)}`);
+                lines.push(`--- CPU ---`);
+                lines.push(`${pad("  DDA cam write", 22)} ${fmt(avg.ddaCam)}`);
+                lines.push(`${pad("  Player controls", 22)} ${fmt(avg.player)}`);
+                lines.push(`${pad("  Cam pose write", 22)} ${fmt(avg.camGpu)}`);
+                lines.push(`${pad("  Animate objects", 22)} ${fmt(avg.animate)}`);
+                lines.push(`${pad("  Physics (CPU)", 22)} ${fmt(avg.physics)}`);
+                lines.push(`${pad("  Obj poses write", 22)} ${fmt(avg.posesGpu)}`);
+                lines.push(`${pad("  Sim time write", 22)} ${fmt(avg.timeGpu)}`);
+                lines.push(`--- GPU cmd encode ---`);
+                lines.push(`${pad("  Encode all stages", 22)} ${fmt(avg.encode)}`);
+                lines.push(`${pad("  Queue submit", 22)} ${fmt(avg.submit)}`);
+                lines.push(`--- GPU (async) ---`);
+                lines.push(`${pad("  GPU work done", 22)} ${fmt(prof_gpu_ms)}`);
+                profiling_div.textContent = lines.join("\n");
+            }
+        }
+
         // Schedule next frame
         requestAnimationFrame(render);
     }
-  
+
     render();
 } // end of function runHyperengine()
