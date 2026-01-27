@@ -9,8 +9,8 @@ class StaticObjectFrameBoxCollider {
         this.parentObjectStaticPoseInverse = parentObjectStaticPose.inverse();
         console.log("parentObjectStaticPoseInverse", this.parentObjectStaticPoseInverse);
         // by default collider spans -1, -1, -1, -1 to 1, 1, 1, 1 in object frame
-        this.min = new Vector4D(-1, -1, -1, -1);
-        this.max = new Vector4D(1, 1, 1, 1);
+        this.min = new Vector4D(-1, -1, -1, -1); // in object
+        this.max = new Vector4D(1, 1, 1, 1); // in object
     }
 
     constrainTransform(transform) {
@@ -25,7 +25,7 @@ class StaticObjectFrameBoxCollider {
         const center = this.min.add(halfSize);
 
         // For debugging, print position to a div
-        if (true) {
+        if (false) {
           // Debug: print the player pose to a div
           // create div if it doesn't exist
           if (!document.getElementById("collider_debug")) {
@@ -181,6 +181,7 @@ export function createHyperwall(pose, color=0xff0000) {
         // name
         "Hyperwall"
     );
+    hyperwall.vertices_in_texmap = hyperwall.vertices_in_object.map(v => new Vector4D(v.y, v.z, v.w, 0.0)); // Map 4D surface coords to 3D texture
     hyperwall.collider = new StaticObjectFrameBoxCollider(hyperwall.pose);
     return hyperwall;
 } // function createHyperwall()
@@ -206,6 +207,7 @@ export function createHyperwallWithCenterHole(objectlist, pose, holeRatio1, hole
     // Wall 1 pose in wall frame
     // (remember default wall has x as thin dir and z as height)
     // (remember that wall has default length 2.0, as it goes from -1 to 1 in object frame)
+    // - For texturing, it is best to keep the overall object pose for all objects, and move the vertices and bounding boxes
     let w1_scale1 = 1.0; // scale of 1 means the subwall is the same size as the original (2 units)
     let w1_offset1 = 0.0; // offset of 0 means the subwall is centered at the original wall
     let w1_length2 = 1.0 - holeRatio2;
@@ -247,12 +249,18 @@ export function createHyperwallWithCenterHole(objectlist, pose, holeRatio1, hole
       [0.0, 0.0, 0.0, w3_scale2, w3_offset2],
       [0.0, 0.0, 0.0, 0.0, 1.0]
     ]);
-    let wall1PoseInWorld = pose.transform_transform(wall1PoseInWallFrame);
-    let wall2PoseInWorld = pose.transform_transform(wall2PoseInWallFrame);
-    let wall3PoseInWorld = pose.transform_transform(wall3PoseInWallFrame);
-    let wall4PoseInWorld = pose.transform_transform(wall4PoseInWallFrame);
-    objectlist.push(createHyperwall(wall1PoseInWorld, color));
-    objectlist.push(createHyperwall(wall2PoseInWorld, color));
-    objectlist.push(createHyperwall(wall3PoseInWorld, color));
-    objectlist.push(createHyperwall(wall4PoseInWorld, color));
+    // Create subwalls and transform their vertices and collider
+    // for each subwall frame
+    for (let i = 0; i < 4; i++) {
+        let subwallPoseInWallFrame = [wall1PoseInWallFrame, wall2PoseInWallFrame, wall3PoseInWallFrame, wall4PoseInWallFrame][i];
+        let subwall = createHyperwall(pose, color);
+        subwall.vertices_in_object = subwall.vertices_in_object.map(vertex => subwallPoseInWallFrame.transform_point(vertex));
+        subwall.collider.min = subwallPoseInWallFrame.transform_point(subwall.collider.min);
+        subwall.collider.max = subwallPoseInWallFrame.transform_point(subwall.collider.max);
+        subwall.vertices_in_texmap = subwall.vertices_in_object.map(vertex => new Vector4D(vertex.y, vertex.z, vertex.w, 1.0));
+        objectlist.push(subwall);
+    }
+    
+
+
 } // createHyperwallWithCenterHole
