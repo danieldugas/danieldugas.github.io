@@ -1272,7 +1272,15 @@ fn getTexture(tetra: TetraData, bary: vec4<f32>) -> vec3<f32> {
     let v1_texcoord = vec3<f32>(v1_uvlstexcoord.tex_u, v1_uvlstexcoord.tex_v, v1_uvlstexcoord.tex_w);
     let v2_texcoord = vec3<f32>(v2_uvlstexcoord.tex_u, v2_uvlstexcoord.tex_v, v2_uvlstexcoord.tex_w);
     let v3_texcoord = vec3<f32>(v3_uvlstexcoord.tex_u, v3_uvlstexcoord.tex_v, v3_uvlstexcoord.tex_w);
-    let texcoord = bary.x * v0_texcoord + bary.y * v1_texcoord + bary.z * v2_texcoord + bary.w * v3_texcoord;
+    // Straightforward barycentric interpolation is wrong here (because of perspective)
+    // let texcoord = bary.x * v0_texcoord + bary.y * v1_texcoord + bary.z * v2_texcoord + bary.w * v3_texcoord;
+    // Instead: Perspective-correct texture interpolation
+    let v0_s = v0_uvlstexcoord.s;
+    let v1_s = v1_uvlstexcoord.s;
+    let v2_s = v2_uvlstexcoord.s;
+    let v3_s = v3_uvlstexcoord.s;
+    let inv_s = bary.x / v0_s + bary.y / v1_s + bary.z / v2_s + bary.w / v3_s;
+    let texcoord = (bary.x * v0_texcoord / v0_s + bary.y * v1_texcoord / v1_s + bary.z * v2_texcoord / v2_s + bary.w * v3_texcoord / v3_s) / inv_s;
     // modulo texcoord to [0,1] (for repeating textures)
     let texcoord01 = fract(texcoord);
     // Load texture map for that object
@@ -1334,7 +1342,11 @@ fn tetraIntersectionTest(tetra_index: u32, u: f32, v: f32, l: f32, current_best_
     let bary = barycentricCoordinates(P, A, B, C, D);
     
     if (all(bary >= vec4<f32>(0.0)) && all(bary <= vec4<f32>(1.0))) {
-        let s = bary.x * v0_s + bary.y * v1_s + bary.z * v2_s + bary.w * v3_s;
+        // Straightforward linear interpolation isn't exactly correct due to perspective
+        // let inv_s = bary.x * v0_s + bary.y * v1_s + bary.z * v2_s + bary.w * v3_s;
+        // Perspective-correct interpolation: interpolate 1/s linearly, then invert
+        let inv_s = bary.x / v0_s + bary.y / v1_s + bary.z / v2_s + bary.w / v3_s;
+        let s = 1.0 / inv_s;
 
         if (s < best_voxel.s) {
             // Fetch texture color
