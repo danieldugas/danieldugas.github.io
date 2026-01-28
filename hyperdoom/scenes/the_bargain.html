@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wall Model</title>
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #1a1a1a;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+canvas {
+  border: 2px solid #444;
+  background: #000;
+  max-width: 100%;
+}
+.controls {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+label {
+  font-size: 12px;
+  color: #aaa;
+}
+input[type="range"] {
+  width: 150px;
+}
+.info {
+  font-size: 14px;
+  color: #888;
+  text-align: center;
+}
+.help {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.5);
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #ccc;
+  max-width: 300px;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas" width="600" height="600"></canvas>
+<div class="info">WebGPU Hypercamera Renderer</div>
+<div class="help">
+    <div id="help-controls" style="color:rgb(156, 156, 156);">
+    WASD: Move hypercamera forwards, sideways<br>
+    Q/E: Move hypercamera in ana, kata directions<br>
+    IJKL: Rotate hypercamera up/down, left/right<br>
+    U/O: Rotate hypercamera in wx plane<br>
+    Y/P: Rotate hypercamera in wy plane<br>
+    Mouse drag: Rotate sensor view<br>
+    Mouse wheel: Zoom<br>
+    </div>
+    <br>
+</div>
+<script type="module">
+
+import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4d.js';
+import { createHyperwall, createHyperwallWithCenterHole  } from '../models/wall.js';
+import { createCorridorTube } from '../models/corridor.js';
+import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
+import { createHypersphere } from '../../4d_creatures/models/hypersphere.js';
+import { createHypercrab } from '../../4d_creatures/models/hypercrab.js';
+
+let objects = [];
+
+const _H = 3; // wall z height
+const _2 = 1.0 / Math.sqrt(2);
+
+const ROOM1 = true;
+const CORRIDOR1 = true;
+const ROOM2 = true;
+
+// First room
+//           |---| hr
+//         _3__
+//       /2     \4
+// x <- |1   x   
+//       \7     /5
+//         ----6
+//           | y
+//           v
+//
+const R1hr = 5; // hexagon radius
+const R1hs = R1hr / (0.5 + _2); // hexagon side
+const R1hw = 10; // w thickness of the room
+
+if (ROOM1) {
+  const hr = R1hr; // hexagon radius
+  const hs = R1hs/2.0;
+  const hw = R1hw/2.0;
+  // 1
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ 1,  0,  0,  0, hr],
+      [ 0, hs,  0,  0,  0],
+      [ 0,  0, _H,  0,  0],
+      [ 0,  0,  0, hw,  0],
+      [ 0,  0,  0,  0,  1]
+    ]),
+    0xff0000
+  ));
+  // 2
+  objects.push(createHyperwall(
+    new Transform4D([
+      [    _2, hs*_2,     0,     0, hr*_2],
+      [   -_2, hs*_2,     0,     0,-hr*_2],
+      [     0,     0,    _H,     0,     0],
+      [     0,     0,     0,    hw,     0],
+      [     0,     0,     0,     0,     1]
+    ]),
+    0x777700
+  ));
+  // 3
+  objects.push(createHyperwall(
+    new Transform4D([
+      [     0,    hs,     0,     0,     0],
+      [    -1,     0,     0,     0,   -hr],
+      [     0,     0,    _H,     0,     0],
+      [     0,     0,     0,    hw,     0],
+      [     0,     0,     0,     0,     1]
+    ]),
+    0x007700
+  ));
+  // 4
+  objects.push(createHyperwall(
+    new Transform4D([
+      [   -_2, hs*_2,     0,     0,-hr*_2],
+      [   -_2,-hs*_2,     0,     0,-hr*_2],
+      [     0,     0,    _H,     0,     0],
+      [     0,     0,     0,    hw,     0],
+      [     0,     0,     0,     0,     1]
+    ]),
+    0x777700
+  ));
+  // missing opposite wall, on to 5
+  // 5
+  objects.push(createHyperwall(
+    new Transform4D([
+      [   -_2,-hs*_2,     0,     0,-hr*_2],
+      [    _2,-hs*_2,     0,     0, hr*_2],
+      [     0,     0,    _H,     0,     0],
+      [     0,     0,     0,    hw,     0],
+      [     0,     0,     0,     0,     1]
+    ]),
+    0x777700
+  ));
+  // 6
+  objects.push(createHyperwall(
+    new Transform4D([
+      [     0,   -hs,     0,     0,     0],
+      [     1,     0,     0,     0,    hr],
+      [     0,     0,    _H,     0,     0],
+      [     0,     0,     0,    hw,     0],
+      [     0,     0,     0,     0,     1]
+    ]),
+    0x00ff00
+  ));
+  // 7
+  objects.push(createHyperwall(
+    new Transform4D([
+      [    _2,-hs*_2,     0,     0, hr*_2],
+      [    _2, hs*_2,     0,     0, hr*_2],
+      [     0,     0,    _H,     0,     0],
+      [     0,     0,     0,    hw,     0],
+      [     0,     0,     0,     0,     1]
+    ]),
+    0x777700
+  ));
+  // w+ bounding wall?
+}
+
+// First corridor
+const C1ml = 50.0;
+if (CORRIDOR1) {
+  const center = new Vector4D(- R1hr - C1ml / 2.0, 0, 0, 0);
+  const main_dir = new Vector4D(1,0,0,0);
+  const main_length = C1ml;
+  const dir1 = new Vector4D(0,1,0,0);
+  const dir2 = new Vector4D(0,0,0,1);
+  const length1 = R1hs;
+  const length2 = R1hw;
+  createCorridorTube(objects, center, main_dir, main_length, dir1, dir2, length1, length2, _H);
+}
+
+// Second room, cubic with two exits (+x and -w)
+const R2R = 10.0;
+const R2X = -R1hr - C1ml - R2R;
+if (ROOM2) {
+  const _r = R2R;
+  const h1f1 = R1hs / 2.0 / R2R;
+  const h1f2 = R1hw / 2.0 / R2R;
+  createHyperwallWithCenterHole(objects,
+    new Transform4D([
+        [1, 0, 0, 0, _r + R2X],
+        [0, _r, 0, 0, 0],
+        [0, 0, _H, 0, 0],
+        [0, 0, 0, _r, 0],
+        [0, 0, 0, 0, 1]
+    ]),
+    h1f1, h1f2,
+    0xff0000
+  );
+  objects.push(createHyperwall(
+    new Transform4D([
+      [1, 0, 0, 0, -_r + R2X],
+      [0, _r, 0, 0, 0],
+      [0, 0, _H, 0, 0],
+      [0, 0, 0, _r, 0],
+      [0, 0, 0, 0, 1]
+    ]),
+    0x770000
+  ));
+  objects.push(createHyperwall(new Transform4D([
+      [0, _r, 0, 0, R2X],
+      [1, 0, 0, 0, _r],
+      [0, 0, _H, 0, 0],
+      [0, 0, 0, _r, 0],
+      [0, 0, 0, 0, 1]
+  ]), 0x00ff00));
+  objects.push(createHyperwall(new Transform4D([
+      [0, _r, 0, 0, R2X],
+      [1, 0, 0, 0, -_r],
+      [0, 0, _H, 0, 0],
+      [0, 0, 0, _r, 0],
+      [0, 0, 0, 0, 1]
+  ]), 0x007700));
+  objects.push(createHyperwall(new Transform4D([
+      [0, _r, 0, 0, R2X],
+      [0, 0, 0, _r, 0],
+      [0, 0, _H, 0, 0],
+      [1, 0, 0, 0, _r],
+      [0, 0, 0, 0, 1]
+  ]), 0x0000ff));
+  objects.push(createHyperwall(new Transform4D([
+      [0, _r, 0, 0, R2X],
+      [0, 0, 0, _r, 0],
+      [0, 0, _H, 0, 0],
+      [1, 0, 0, 0, -_r],
+      [0, 0, 0, 0, 1]
+  ]), 0x000077));
+}
+
+
+// Pre-allocate 100 bullets
+if (true) {
+  // Add 100 random hyperspheres
+  // createHypersphere(size, color)
+  for (let i = 0; i < 100; i++) {
+    let dx = Math.random() * 20 - 10;
+    let dy = Math.random() * 20 - 10;
+    let dw = Math.random() * 20 - 10;
+      let pose = new Transform4D([
+        [1, 0, 0, 0, 30 + dx],
+        [0, 1, 0, 0, 0 + dy],
+        [0, 0, 1, 0, 3],
+        [0, 0, 0, 1, 0 + dw],
+        [0, 0, 0, 0, 1]
+      ])
+      let sphere = createHypersphere(1, 0xffff00, pose);
+      objects.push(sphere);
+  }
+}
+
+// Pre-allocate 10 Imps
+for (let i = 0; i < 10; i++) {
+  let dx = Math.random() * 20 - 10;
+  let dy = Math.random() * 20 - 10;
+  let dw = Math.random() * 20 - 10;
+  let hypercrab = createHypercrab();
+  hypercrab.pose.translate_self_by_delta(dx, dy, 4, dw);
+  objects.push(hypercrab);
+}
+
+
+
+// Check WebGPU support
+if (!navigator.gpu) {
+  document.body.innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
+  throw new Error('WebGPU not supported');
+}
+
+const main_canvas = document.getElementById('canvas');
+let custom_scene = {
+    visibleHyperobjects: objects,
+    mainCanvas: main_canvas
+};
+
+runHyperengine(custom_scene).catch(err => {
+  console.error(err);
+  document.body.innerHTML += '<div style="color: red; padding: 20px;">Error: ' + err.message + '</div>';
+});
+</script>
+</body>
+</html>

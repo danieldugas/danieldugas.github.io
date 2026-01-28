@@ -712,6 +712,7 @@ fn clip_tetrahedron(
     v3: Vertex1uvlstex
 ) {
     let flags = tetra.flags;
+    // let flags = 1u; // DEBUG
     let i0 = tetra.i0;
     let i1 = tetra.i1;
     let i2 = tetra.i2;
