@@ -78,6 +78,7 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { createHyperwall, createHyperwallWithCenterHole  } from '../models/wall.js';
 import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 import { createHypersphere } from '../../4d_creatures/models/hypersphere.js';
+import { createHypercrab } from '../../4d_creatures/models/hypercrab.js';
 
 let objects = [];
 
@@ -201,6 +202,16 @@ if (false) {
       let sphere = createHypersphere(1, 0xff00ff, pose);
       objects.push(sphere);
   }
+}
+
+// Add 10 Crabs
+for (let i = 0; i < 10; i++) {
+  let dx = Math.random() * 20 - 10;
+  let dy = Math.random() * 20 - 10;
+  let dw = Math.random() * 20 - 10;
+  let hypercrab = createHypercrab();
+  hypercrab.pose.translate_self_by_delta(dx, dy, 4, dw);
+  objects.push(hypercrab);
 }
 
 // Check WebGPU support
