@@ -495,11 +495,13 @@ export async function runHyperengine(scene) {
         vertices1uvlstexData[i * 8 + 6] = vertices_texcoords_data[i * 3 + 2];
         vertices1uvlstexData[i * 8 + 7] = vertex_object_indices_data[i]; // object index TODO: gpu expects a u32, but this is a f32
     }
-    // initialize bvh
+    // initialize acceleration structure
     const TILE_SZ = 2;
     const TILE_RES = VOX / TILE_SZ;
     const MAX_ACCEL_STRUCTURE_DEPTH = 200;
     const MAX_ACCEL_STRUCTURE_SIZE = TILE_RES*TILE_RES*TILE_RES*MAX_ACCEL_STRUCTURE_DEPTH;
+    const MAX_LARGE_TETRAS = tetras.length; // large tetras get stored in a separate accel structure
+    const LARGE_TETRA_THRESHOLD = VOX * VOX * VOX / 8; // number of voxels required to be a large tetra. Set to VOX*VOX*VOX to disable.
     const accelStructureOffsetsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
     const accelStructureCountsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
     const accelStructureTetraIndicesData = new Uint32Array(MAX_ACCEL_STRUCTURE_SIZE);
@@ -904,20 +906,24 @@ struct CellCountAndOffset {
 @group(0) @binding(0) var<storage, read> tetras: array<TetraData>;
 @group(0) @binding(1) var<storage, read> vertices1uvlstexBuffer: array<Vertex1uvlstex>;
 @group(0) @binding(2) var<storage, read_write> cellCountsAndOffsetsBuffer: array<atomic<u32>>;
+@group(0) @binding(3) var<storage, read_write> largeTetraBuffer: array<atomic<u32>>; // [count, idx0, idx1, ...]
 
 @group(1) @binding(0) var<uniform> params: vec4<u32>; // RES, TILE_RES, TILE_SZ, unused
 @group(1) @binding(1) var<uniform> tetra_counts: vec4<u32>; // num_valid_tetras, num_vertices, num_additional_tetras, num_additional_vertices
+
+const LARGE_TETRA_THRESHOLD: u32 = ${LARGE_TETRA_THRESHOLD}u;
+const MAX_LARGE_TETRAS: u32 = ${MAX_LARGE_TETRAS}u;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let tetra_index = global_id.x;
     let num_tetras = tetra_counts.x + tetra_counts.z;
     let TILE_RES = params.y;
-    
+
     if (tetra_index >= num_tetras) {
         return;
     }
-    
+
     let tetra = tetras[tetra_index];
     let v0_1uvls = vertices1uvlstexBuffer[tetra.i0];
     let v1_1uvls = vertices1uvlstexBuffer[tetra.i1];
@@ -935,21 +941,31 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let v_max = max(max(v0_1uvls.v, v1_1uvls.v), max(v2_1uvls.v, v3_1uvls.v));
     let l_min = min(min(v0_1uvls.l, v1_1uvls.l), min(v2_1uvls.l, v3_1uvls.l));
     let l_max = max(max(v0_1uvls.l, v1_1uvls.l), max(v2_1uvls.l, v3_1uvls.l));
-    
+
     let S_U_START = -1.0;
     let S_U_RANGE = 2.0;
     let S_V_START = -1.0;
     let S_V_RANGE = 2.0;
     let S_L_START = -1.0;
     let S_L_RANGE = 2.0;
-    
+
     let TU_min = u32(clamp(floor((u_min - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TU_max = u32(clamp(ceil((u_max - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TV_min = u32(clamp(floor((v_min - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TV_max = u32(clamp(ceil((v_max - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TL_min = u32(clamp(floor((l_min - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TL_max = u32(clamp(ceil((l_max - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
-    
+
+    // Divert large tetras to a separate global list
+    let span = (TU_max - TU_min + 1u) * (TV_max - TV_min + 1u) * (TL_max - TL_min + 1u);
+    if (span > LARGE_TETRA_THRESHOLD) {
+        let idx = atomicAdd(&largeTetraBuffer[0], 1u);
+        if (idx < MAX_LARGE_TETRAS) {
+            atomicStore(&largeTetraBuffer[idx + 1u], tetra_index);
+        }
+        return;
+    }
+
     for (var TU = TU_min; TU <= TU_max; TU++) {
         for (var TV = TV_min; TV <= TV_max; TV++) {
             for (var TL = TL_min; TL <= TL_max; TL++) {
@@ -1082,14 +1098,16 @@ struct CellCountAndOffset {
 @group(1) @binding(0) var<uniform> params: vec4<u32>;
 @group(1) @binding(1) var<uniform> tetra_counts: vec4<u32>;
 
+const LARGE_TETRA_THRESHOLD: u32 = ${LARGE_TETRA_THRESHOLD}u;
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let tetra_index = global_id.x;
     let num_tetras = tetra_counts.x + tetra_counts.z;
     let TILE_RES = params.y;
-    
+
     if (tetra_index >= num_tetras) { return; }
-    
+
     let tetra = tetras[tetra_index];
     let v0 = vertices1uvlstexBuffer[tetra.i0];
     let v1 = vertices1uvlstexBuffer[tetra.i1];
@@ -1108,18 +1126,24 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let v_max = max(max(v0.v, v1.v), max(v2.v, v3.v));
     let l_min = min(min(v0.l, v1.l), min(v2.l, v3.l));
     let l_max = max(max(v0.l, v1.l), max(v2.l, v3.l));
-    
+
     let S_U_START = -1.0; let S_U_RANGE = 2.0;
     let S_V_START = -1.0; let S_V_RANGE = 2.0;
     let S_L_START = -1.0; let S_L_RANGE = 2.0;
-    
+
     let TU_min = u32(clamp(floor((u_min - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TU_max = u32(clamp(ceil((u_max - S_U_START) / S_U_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TV_min = u32(clamp(floor((v_min - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TV_max = u32(clamp(ceil((v_max - S_V_START) / S_V_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TL_min = u32(clamp(floor((l_min - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
     let TL_max = u32(clamp(ceil((l_max - S_L_START) / S_L_RANGE * f32(TILE_RES)), 0.0, f32(TILE_RES - 1)));
-    
+
+    // Skip large tetras - they were already added to the global list in Stage 2.1
+    let span = (TU_max - TU_min + 1u) * (TV_max - TV_min + 1u) * (TL_max - TL_min + 1u);
+    if (span > LARGE_TETRA_THRESHOLD) {
+        return;
+    }
+
     for (var TU = TU_min; TU <= TU_max; TU++) {
         for (var TV = TV_min; TV <= TV_max; TV++) {
             for (var TL = TL_min; TL <= TL_max; TL++) {
@@ -1204,7 +1228,7 @@ struct UniformPose4D {
 @group(0) @binding(4) var<storage, read> object_texture_header: array<vec4<u32>>; // offset, USIZE, VSIZE, WSIZE
 @group(0) @binding(5) var<storage, read> texture_data: array<u32>; // combine with above
 @group(0) @binding(6) var<storage, read_write> voxels: array<Voxel>;
-// @group(0) @binding(4) var<storage, read_write> voxels: array<Voxel>;
+@group(0) @binding(7) var<storage, read> largeTetraBuffer: array<u32>; // [count, idx0, idx1, ...]
 
 @group(1) @binding(0) var<uniform> params: vec4<u32>; // RES, TILE_RES, TILE_SZ, unused
 @group(1) @binding(1) var<uniform> hypercameraPoseBuffer: UniformPose4D; // 5x5 matrix
@@ -1270,6 +1294,67 @@ fn getTexture(tetra: TetraData, bary: vec4<f32>) -> vec3<f32> {
     return texel;
 }
 
+fn tetraIntersectionTest(tetra_index: u32, u: f32, v: f32, l: f32, current_best_voxel: Voxel) -> Voxel {
+    var best_voxel = current_best_voxel;
+    let tetra = tetras[tetra_index];
+    
+    let v0_1uvls = vertices1uvlstexBuffer[tetra.i0];
+    let v1_1uvls = vertices1uvlstexBuffer[tetra.i1];
+    let v2_1uvls = vertices1uvlstexBuffer[tetra.i2];
+    let v3_1uvls = vertices1uvlstexBuffer[tetra.i3];
+    
+    let v0_s = v0_1uvls.s;
+    let v1_s = v1_1uvls.s;
+    let v2_s = v2_1uvls.s;
+    let v3_s = v3_1uvls.s;
+    
+    let A = vec3<f32>(v0_1uvls.u, v0_1uvls.v, v0_1uvls.l);
+    let B = vec3<f32>(v1_1uvls.u, v1_1uvls.v, v1_1uvls.l);
+    let C = vec3<f32>(v2_1uvls.u, v2_1uvls.v, v2_1uvls.l);
+    let D = vec3<f32>(v3_1uvls.u, v3_1uvls.v, v3_1uvls.l);
+    let P = vec3<f32>(u, v, l);
+    
+    let u_min = min(min(v0_1uvls.u, v1_1uvls.u), min(v2_1uvls.u, v3_1uvls.u));
+    let u_max = max(max(v0_1uvls.u, v1_1uvls.u), max(v2_1uvls.u, v3_1uvls.u));
+    let v_min = min(min(v0_1uvls.v, v1_1uvls.v), min(v2_1uvls.v, v3_1uvls.v));
+    let v_max = max(max(v0_1uvls.v, v1_1uvls.v), max(v2_1uvls.v, v3_1uvls.v));
+    let l_min = min(min(v0_1uvls.l, v1_1uvls.l), min(v2_1uvls.l, v3_1uvls.l));
+    let l_max = max(max(v0_1uvls.l, v1_1uvls.l), max(v2_1uvls.l, v3_1uvls.l));
+    
+    if (u < u_min || u > u_max || v < v_min || v > v_max || l < l_min || l > l_max) {
+        return best_voxel;
+    }
+    
+    let bary = barycentricCoordinates(P, A, B, C, D);
+    
+    if (all(bary >= vec4<f32>(0.0)) && all(bary <= vec4<f32>(1.0))) {
+        let s = bary.x * v0_s + bary.y * v1_s + bary.z * v2_s + bary.w * v3_s;
+
+        if (s < best_voxel.s) {
+            // Fetch texture color
+            let texel = getTexture(tetra, bary);
+            best_voxel.r = texel.x;
+            best_voxel.g = texel.y;
+            best_voxel.b = texel.z;
+            if (tetra.flags != 0u) {
+                best_voxel.r = f32((tetra.flags * 53u) % 256u) / 256.0;
+                best_voxel.g = f32((tetra.flags * 97u) % 256u) / 256.0;
+                best_voxel.b = f32((tetra.flags * 193u) % 256u) / 256.0;
+            }
+            // DEBUG: use tetra debug colors instead
+            if (stage3DebugBuffer.x > 0.5) {
+                best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u) / 256.0;
+                best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u) / 256.0;
+                best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u) / 256.0;
+            }
+            best_voxel.a = 1.0;
+            best_voxel.s = s;
+        }
+    }
+
+    return best_voxel;
+}
+
 @compute @workgroup_size(4, 4, 4)
 fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let RES = params.x;
@@ -1320,63 +1405,16 @@ fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     
     for (var i = 0u; i < cell_count; i++) {
         let tetra_index = cell_tetra_indices[cell_offset + i];
-        let tetra = tetras[tetra_index];
-        
-        let v0_1uvls = vertices1uvlstexBuffer[tetra.i0];
-        let v1_1uvls = vertices1uvlstexBuffer[tetra.i1];
-        let v2_1uvls = vertices1uvlstexBuffer[tetra.i2];
-        let v3_1uvls = vertices1uvlstexBuffer[tetra.i3];
-        
-        let v0_s = v0_1uvls.s;
-        let v1_s = v1_1uvls.s;
-        let v2_s = v2_1uvls.s;
-        let v3_s = v3_1uvls.s;
-        
-        let A = vec3<f32>(v0_1uvls.u, v0_1uvls.v, v0_1uvls.l);
-        let B = vec3<f32>(v1_1uvls.u, v1_1uvls.v, v1_1uvls.l);
-        let C = vec3<f32>(v2_1uvls.u, v2_1uvls.v, v2_1uvls.l);
-        let D = vec3<f32>(v3_1uvls.u, v3_1uvls.v, v3_1uvls.l);
-        let P = vec3<f32>(u, v, l);
-        
-        let u_min = min(min(v0_1uvls.u, v1_1uvls.u), min(v2_1uvls.u, v3_1uvls.u));
-        let u_max = max(max(v0_1uvls.u, v1_1uvls.u), max(v2_1uvls.u, v3_1uvls.u));
-        let v_min = min(min(v0_1uvls.v, v1_1uvls.v), min(v2_1uvls.v, v3_1uvls.v));
-        let v_max = max(max(v0_1uvls.v, v1_1uvls.v), max(v2_1uvls.v, v3_1uvls.v));
-        let l_min = min(min(v0_1uvls.l, v1_1uvls.l), min(v2_1uvls.l, v3_1uvls.l));
-        let l_max = max(max(v0_1uvls.l, v1_1uvls.l), max(v2_1uvls.l, v3_1uvls.l));
-        
-        if (u < u_min || u > u_max || v < v_min || v > v_max || l < l_min || l > l_max) {
-            continue;
-        }
-        
-        let bary = barycentricCoordinates(P, A, B, C, D);
-        
-        if (all(bary >= vec4<f32>(0.0)) && all(bary <= vec4<f32>(1.0))) {
-            let s = bary.x * v0_s + bary.y * v1_s + bary.z * v2_s + bary.w * v3_s;
-            
-            if (s < best_voxel.s) {
-                // Fetch texture color
-                let texel = getTexture(tetra, bary);
-                best_voxel.r = texel.x;
-                best_voxel.g = texel.y;
-                best_voxel.b = texel.z;
-                if (tetra.flags != 0u) {
-                    best_voxel.r = f32((tetra.flags * 53u) % 256u) / 256.0;
-                    best_voxel.g = f32((tetra.flags * 97u) % 256u) / 256.0;
-                    best_voxel.b = f32((tetra.flags * 193u) % 256u) / 256.0;
-                }
-                // DEBUG: use tetra debug colors instead
-                if (stage3DebugBuffer.x > 0.5) {
-                    best_voxel.r = f32(((tetra_index + 1u) * 53u) % 256u) / 256.0;
-                    best_voxel.g = f32(((tetra_index + 1u) * 97u) % 256u) / 256.0;
-                    best_voxel.b = f32(((tetra_index + 1u) * 193u) % 256u) / 256.0;
-                }
-                best_voxel.a = 1.0;
-                best_voxel.s = s;
-            }
-        }
+        best_voxel = tetraIntersectionTest(tetra_index, u, v, l, best_voxel);
     }
-    
+
+    // Test large tetras (not in the grid, tested by every voxel)
+    let num_large = largeTetraBuffer[0];
+    for (var j = 0u; j < num_large; j++) {
+        let lt_index = largeTetraBuffer[j + 1u];
+        best_voxel = tetraIntersectionTest(lt_index, u, v, l, best_voxel);
+    }
+
     voxels[voxel_index] = best_voxel;
 }
 `;
@@ -1763,6 +1801,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     });
 
+    // Large tetra list: [count, idx0, idx1, ...] — element 0 is atomic counter
+    const largeTetraBuffer = device.createBuffer({
+        size: (1 + MAX_LARGE_TETRAS) * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+
     // Update params for rasterization
     const rasterParamsBufferData = new Uint32Array([VOX, TILE_RES, TILE_SZ, 0]);
     const rasterParamsBuffer = device.createBuffer({
@@ -1860,7 +1904,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
             { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
         ]
     });
     const stage2p1ParamsBindGroupLayout = device.createBindGroupLayout({
@@ -1884,7 +1929,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         entries: [
             { binding: 0, resource: { buffer: tetraBuffer } },
             { binding: 1, resource: { buffer: vertices1uvlstexBuffer } },
-            { binding: 2, resource: { buffer: cellCountsAndOffsetsBuffer } }
+            { binding: 2, resource: { buffer: cellCountsAndOffsetsBuffer } },
+            { binding: 3, resource: { buffer: largeTetraBuffer } }
         ]
     });
     const stage2p1ParamsBindGroup = device.createBindGroup({
@@ -1947,6 +1993,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     const clearWriteCountsBG = device.createBindGroup({
         layout: clearBindGroupLayout,
         entries: [{ binding: 0, resource: { buffer: cellWriteCountsBuffer } }]
+    });
+    const clearLargeTetraBG = device.createBindGroup({
+        layout: clearBindGroupLayout,
+        entries: [{ binding: 0, resource: { buffer: largeTetraBuffer } }]
     });
     const initPipeline = device.createComputePipeline({
     layout: prefixSumPipelineLayout,
@@ -2019,8 +2069,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
             { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
             { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-            { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
-        //   { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+            { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }
         ]
     });
     const stage3ParamsBindGroupLayout = device.createBindGroupLayout({
@@ -2050,8 +2100,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             { binding: 3, resource: { buffer: cellTetraIndicesBuffer } },
             { binding: 4, resource: { buffer: textureHeaderBuffer } },
             { binding: 5, resource: { buffer: textureBuffer } },
-            { binding: 6, resource: { buffer: voxelBuffer } }
-            // { binding: 4, resource: { buffer: voxelBuffer } }
+            { binding: 6, resource: { buffer: voxelBuffer } },
+            { binding: 7, resource: { buffer: largeTetraBuffer } }
         ]
     });
     const stage3ParamsBindGroup = device.createBindGroup({
@@ -3028,6 +3078,9 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // Clear cell_write_counters
         clearPass.setBindGroup(0, clearWriteCountsBG);
         clearPass.dispatchWorkgroups(Math.ceil(accelStructureCountsData.length / 256));
+        // Clear large tetra count
+        clearPass.setBindGroup(0, clearLargeTetraBG);
+        clearPass.dispatchWorkgroups(1);
         clearPass.end();
 
         // Stage 2.1: Accel structure counts
