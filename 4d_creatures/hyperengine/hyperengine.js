@@ -501,7 +501,7 @@ export async function runHyperengine(scene) {
     const MAX_ACCEL_STRUCTURE_DEPTH = 100;
     const MAX_ACCEL_STRUCTURE_SIZE = TILE_RES*TILE_RES*TILE_RES*MAX_ACCEL_STRUCTURE_DEPTH;
     const MAX_LARGE_TETRAS = tetras.length; // large tetras get stored in a separate accel structure
-    const LARGE_TETRA_THRESHOLD = VOX * VOX * VOX / 8; // number of voxels required to be a large tetra. Set to VOX*VOX*VOX to disable.
+    const LARGE_TETRA_THRESHOLD = VOX * VOX * VOX / 64; // number of voxels required to be a large tetra. Set to VOX*VOX*VOX to disable.
     const accelStructureOffsetsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
     const accelStructureCountsData = new Uint32Array(TILE_RES*TILE_RES*TILE_RES);
     const accelStructureTetraIndicesData = new Uint32Array(MAX_ACCEL_STRUCTURE_SIZE);
