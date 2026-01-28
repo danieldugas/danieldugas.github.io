@@ -1804,7 +1804,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // Large tetra list: [count, idx0, idx1, ...] — element 0 is atomic counter
     const largeTetraBuffer = device.createBuffer({
         size: (1 + MAX_LARGE_TETRAS) * 4,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     });
 
     // Update params for rasterization
@@ -2983,7 +2983,20 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     const PROFILING = true;
     const PROF_HISTORY = 60;
     let profiling_div, prof_history, prof_frame_count, prof_last_frame_time, prof_gpu_ms;
+    let prof_accel_stats = null; // latest accel structure utilization stats
+    let prof_accel_pending = false; // true while a readback is in flight
     let render_iter = 0;
+
+    // Staging buffers for accel structure readback
+    const NUM_CELLS = TILE_RES * TILE_RES * TILE_RES;
+    const accelStagingBuffer = device.createBuffer({
+        size: NUM_CELLS * 2 * 4, // count + offset per cell, u32 each
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    });
+    const largeTetrasCountStagingBuffer = device.createBuffer({
+        size: 4, // just the counter (first u32)
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    });
     if (PROFILING) {
         profiling_div = document.createElement("div");
         profiling_div.style.position = "fixed";
@@ -3206,6 +3219,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         pass3.dispatchWorkgroups(Math.ceil(MAX_TOTAL_TETRAS / 64));
         pass3.end();
 
+        // Accel structure readback (copy to staging buffers for async map)
+        if (PROFILING && !prof_accel_pending) {
+            commandEncoder.copyBufferToBuffer(cellCountsAndOffsetsBuffer, 0, accelStagingBuffer, 0, NUM_CELLS * 2 * 4);
+            commandEncoder.copyBufferToBuffer(largeTetraBuffer, 0, largeTetrasCountStagingBuffer, 0, 4);
+        }
+
         // Stage 3: Intersection tests compute pass to update voxel data
         if (true) {
             const computePass = commandEncoder.beginComputePass();
@@ -3233,6 +3252,47 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         stage4Pass.end();
 
         device.queue.submit([commandEncoder.finish()]);
+
+        // Async accel structure readback
+        if (PROFILING && !prof_accel_pending) {
+            prof_accel_pending = true;
+            Promise.all([
+                accelStagingBuffer.mapAsync(GPUMapMode.READ),
+                largeTetrasCountStagingBuffer.mapAsync(GPUMapMode.READ)
+            ]).then(() => {
+                const countsAndOffsets = new Uint32Array(accelStagingBuffer.getMappedRange());
+                const largeCnt = new Uint32Array(largeTetrasCountStagingBuffer.getMappedRange());
+
+                let nonEmpty = 0;
+                let totalEntries = 0;
+                let maxCount = 0;
+                for (let i = 0; i < NUM_CELLS; i++) {
+                    const count = countsAndOffsets[i * 2]; // count is first in struct
+                    if (count > 0) nonEmpty++;
+                    totalEntries += count;
+                    if (count > maxCount) maxCount = count;
+                }
+                const meanNonEmpty = nonEmpty > 0 ? totalEntries / nonEmpty : 0;
+
+                prof_accel_stats = {
+                    nonEmpty,
+                    totalCells: NUM_CELLS,
+                    occupancy: (nonEmpty / NUM_CELLS * 100),
+                    totalEntries,
+                    maxDepth: MAX_ACCEL_STRUCTURE_DEPTH,
+                    maxCount,
+                    meanCount: meanNonEmpty,
+                    bufferFill: (totalEntries / MAX_ACCEL_STRUCTURE_SIZE * 100),
+                    numLargeTetras: largeCnt[0],
+                };
+
+                accelStagingBuffer.unmap();
+                largeTetrasCountStagingBuffer.unmap();
+                prof_accel_pending = false;
+            }).catch(() => {
+                prof_accel_pending = false;
+            });
+        }
 
         if (PROFILING) {
             const t_encode_end = performance.now();
@@ -3296,6 +3356,15 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 lines.push(`${pad("  Queue submit", 22)} ${fmt(avg.submit)}`);
                 lines.push(`--- GPU (async) ---`);
                 lines.push(`${pad("  GPU work done", 22)} ${fmt(prof_gpu_ms)}`);
+                if (prof_accel_stats) {
+                    const a = prof_accel_stats;
+                    lines.push(`--- Accel structure ---`);
+                    lines.push(`${pad("  Cells used", 22)} ${String(a.nonEmpty).padStart(6)} / ${a.totalCells} (${a.occupancy.toFixed(1)}%)`);
+                    lines.push(`${pad("  Total entries", 22)} ${String(a.totalEntries).padStart(6)} / ${MAX_ACCEL_STRUCTURE_SIZE} (${a.bufferFill.toFixed(1)}%)`);
+                    lines.push(`${pad("  Max cell count", 22)} ${String(a.maxCount).padStart(6)} / ${MAX_ACCEL_STRUCTURE_DEPTH}`);
+                    lines.push(`${pad("  Mean cell count", 22)} ${a.meanCount.toFixed(1).padStart(6)}`);
+                    lines.push(`${pad("  Large tetras", 22)} ${String(a.numLargeTetras).padStart(6)}`);
+                }
                 profiling_div.textContent = lines.join("\n");
             }
         }
