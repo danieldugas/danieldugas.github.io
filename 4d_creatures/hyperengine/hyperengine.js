@@ -134,7 +134,7 @@ export async function runHyperengine(scene) {
         info_div.innerHTML = text;
     }
 
-    const VOX = 64 // 96; // Voxel grid size
+    const VOX = 64; // 96 128; // Voxel grid size
     
     // game variables
     let STEP_PHYSICS_ONCE = false;
@@ -498,7 +498,7 @@ export async function runHyperengine(scene) {
     // initialize acceleration structure
     const TILE_SZ = 2;
     const TILE_RES = VOX / TILE_SZ;
-    const MAX_ACCEL_STRUCTURE_DEPTH = 200;
+    const MAX_ACCEL_STRUCTURE_DEPTH = 100;
     const MAX_ACCEL_STRUCTURE_SIZE = TILE_RES*TILE_RES*TILE_RES*MAX_ACCEL_STRUCTURE_DEPTH;
     const MAX_LARGE_TETRAS = tetras.length; // large tetras get stored in a separate accel structure
     const LARGE_TETRA_THRESHOLD = VOX * VOX * VOX / 8; // number of voxels required to be a large tetra. Set to VOX*VOX*VOX to disable.
@@ -1030,9 +1030,14 @@ fn downsweep(@builtin(global_invocation_id) global_id: vec3<u32>) {
 @compute @workgroup_size(256)
 fn init(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let tid = global_id.x;
-    let num_elements = params.x;
-    if (tid < num_elements) {
-        temp[tid] = cellCountsAndOffsetsBuffer[tid].count;
+    let padded_size = params.x;
+    let real_size = params.y;
+    if (tid < padded_size) {
+        if (tid < real_size) {
+            temp[tid] = cellCountsAndOffsetsBuffer[tid].count;
+        } else {
+            temp[tid] = 0u; // zero-fill padding for power-of-2 Blelloch scan
+        }
     }
 }
 
@@ -1669,7 +1674,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
     // Stage 1 Buffers and Pipeline
     // Extend buffers to accommodate clipped geometry (X% expansion for memory efficiency)
-    const CLIPPING_EXPANSION = 0.1;
+    const CLIPPING_EXPANSION = 3.0;
     const MAX_TOTAL_TETRAS = Math.ceil(tetras.length * (1 + CLIPPING_EXPANSION)) + 400;
     const MAX_TOTAL_VERTICES = Math.ceil(vertices_in_world.length * (1 + CLIPPING_EXPANSION)) + 400;
 
@@ -1781,8 +1786,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     device.queue.writeBuffer(cellTetraIndicesBuffer, 0, accelStructureTetraIndicesData);
 
     // Create temp buffer for scan algorithm (Stage 2.2)
+    // Blelloch scan requires power-of-2 size; pad to next power of 2
+    const PREFIX_SUM_N = 1 << Math.ceil(Math.log2(TILE_RES * TILE_RES * TILE_RES));
     const tempBuffer = device.createBuffer({
-        size: accelStructureCountsData.byteLength,
+        size: PREFIX_SUM_N * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC // NOCOMMIT DEBUG
     });
 
@@ -2997,6 +3004,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         size: 4, // just the counter (first u32)
         usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
     });
+    const tetraCountsStagingBuffer = device.createBuffer({
+        size: 4 * 4, // 4 u32s: [orig_tetras, orig_vertices, additional_tetras, additional_vertices]
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    });
     if (PROFILING) {
         profiling_div = document.createElement("div");
         profiling_div.style.position = "fixed";
@@ -3108,7 +3119,9 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         }
 
         function computePrefixSum(commandEncoder, numElements) {
-            const numLevels = Math.ceil(Math.log2(numElements));
+            // Blelloch scan requires power-of-2 size; use padded size for sweep passes
+            const paddedSize = 1 << Math.ceil(Math.log2(numElements));
+            const numLevels = Math.ceil(Math.log2(paddedSize));
             
             // --- 1. Prepare Data CPU Side ---
             // We calculate all parameters needed for every pass and put them in one array
@@ -3134,20 +3147,21 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             }
 
             // Generate Offsets
-            const offsetInit = addParams(numElements, 0);
-            
+            // Init passes paddedSize as x and numElements as y; sweeps use paddedSize; finalize uses numElements
+            const offsetInit = addParams(paddedSize, numElements);
+
             const offsetsUp = [];
             for (let level = 0; level < numLevels; level++) {
-                offsetsUp.push(addParams(numElements, level));
+                offsetsUp.push(addParams(paddedSize, level));
             }
-            
-            const offsetClear = addParams(numElements, 0); // params.x used for bounds check
-            
+
+            const offsetClear = addParams(paddedSize, 0);
+
             const offsetsDown = [];
             for (let level = numLevels - 1; level >= 0; level--) {
-                offsetsDown.push(addParams(numElements, level));
+                offsetsDown.push(addParams(paddedSize, level));
             }
-            
+
             const offsetFinalize = addParams(numElements, 0);
 
             // --- 2. Upload Data to GPU ---
@@ -3156,12 +3170,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
             // --- 3. Record Commands with Dynamic Offsets ---
             
-            // Init
+            // Init (dispatch over paddedSize to zero-fill padding)
             let pass = commandEncoder.beginComputePass();
             pass.setPipeline(initPipeline);
             pass.setBindGroup(0, prefixSumBindGroup);
-            pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetInit]); // Pass offset here
-            pass.dispatchWorkgroups(Math.ceil(numElements / 256));
+            pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetInit]);
+            pass.dispatchWorkgroups(Math.ceil(paddedSize / 256));
             pass.end();
             
             // Up-sweep
@@ -3171,7 +3185,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 pass.setPipeline(upsweepPipeline);
                 pass.setBindGroup(0, prefixSumBindGroup);
                 pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetsUp[i]]);
-                const workgroups = Math.ceil(numElements / (256 * (1 << (level + 1))));
+                const workgroups = Math.ceil(paddedSize / (256 * (1 << (level + 1))));
                 pass.dispatchWorkgroups(Math.max(1, workgroups));
                 pass.end();
             }
@@ -3191,11 +3205,11 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 pass.setPipeline(downsweepPipeline);
                 pass.setBindGroup(0, prefixSumBindGroup);
                 pass.setBindGroup(1, prefixSumParamsBindGroup, [offsetsDown[i]]);
-                const workgroups = Math.ceil(numElements / (256 * (1 << (level + 1))));
+                const workgroups = Math.ceil(paddedSize / (256 * (1 << (level + 1))));
                 pass.dispatchWorkgroups(Math.max(1, workgroups));
                 pass.end();
             }
-            
+
             // Finalize
             pass = commandEncoder.beginComputePass();
             pass.setPipeline(finalizePipeline);
@@ -3223,6 +3237,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         if (PROFILING && !prof_accel_pending) {
             commandEncoder.copyBufferToBuffer(cellCountsAndOffsetsBuffer, 0, accelStagingBuffer, 0, NUM_CELLS * 2 * 4);
             commandEncoder.copyBufferToBuffer(largeTetraBuffer, 0, largeTetrasCountStagingBuffer, 0, 4);
+            commandEncoder.copyBufferToBuffer(tetraCountsBuffer, 0, tetraCountsStagingBuffer, 0, 4 * 4);
         }
 
         // Stage 3: Intersection tests compute pass to update voxel data
@@ -3258,10 +3273,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             prof_accel_pending = true;
             Promise.all([
                 accelStagingBuffer.mapAsync(GPUMapMode.READ),
-                largeTetrasCountStagingBuffer.mapAsync(GPUMapMode.READ)
+                largeTetrasCountStagingBuffer.mapAsync(GPUMapMode.READ),
+                tetraCountsStagingBuffer.mapAsync(GPUMapMode.READ)
             ]).then(() => {
                 const countsAndOffsets = new Uint32Array(accelStagingBuffer.getMappedRange());
                 const largeCnt = new Uint32Array(largeTetrasCountStagingBuffer.getMappedRange());
+                const tetraCounts = new Uint32Array(tetraCountsStagingBuffer.getMappedRange());
 
                 let nonEmpty = 0;
                 let totalEntries = 0;
@@ -3284,10 +3301,16 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                     meanCount: meanNonEmpty,
                     bufferFill: (totalEntries / MAX_ACCEL_STRUCTURE_SIZE * 100),
                     numLargeTetras: largeCnt[0],
+                    // Clipped tetras stats: [orig_tetras, orig_vertices, additional_tetras, additional_vertices]
+                    origTetras: tetraCounts[0],
+                    origVertices: tetraCounts[1],
+                    clippedTetras: tetraCounts[2],
+                    clippedVertices: tetraCounts[3],
                 };
 
                 accelStagingBuffer.unmap();
                 largeTetrasCountStagingBuffer.unmap();
+                tetraCountsStagingBuffer.unmap();
                 prof_accel_pending = false;
             }).catch(() => {
                 prof_accel_pending = false;
@@ -3364,6 +3387,13 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                     lines.push(`${pad("  Max cell count", 22)} ${String(a.maxCount).padStart(6)} / ${MAX_ACCEL_STRUCTURE_DEPTH}`);
                     lines.push(`${pad("  Mean cell count", 22)} ${a.meanCount.toFixed(1).padStart(6)}`);
                     lines.push(`${pad("  Large tetras", 22)} ${String(a.numLargeTetras).padStart(6)}`);
+                    lines.push(`--- Clipped tetras ---`);
+                    const totalTetras = a.origTetras + a.clippedTetras;
+                    const totalVertices = a.origVertices + a.clippedVertices;
+                    const tetraFill = (totalTetras / MAX_TOTAL_TETRAS * 100);
+                    const vertexFill = (totalVertices / MAX_TOTAL_VERTICES * 100);
+                    lines.push(`${pad("  Tetras", 22)} ${String(totalTetras).padStart(6)} / ${MAX_TOTAL_TETRAS} (${tetraFill.toFixed(1)}%)  [${a.origTetras} + ${a.clippedTetras} clipped]`);
+                    lines.push(`${pad("  Vertices", 22)} ${String(totalVertices).padStart(6)} / ${MAX_TOTAL_VERTICES} (${vertexFill.toFixed(1)}%)  [${a.origVertices} + ${a.clippedVertices} clipped]`);
                 }
                 profiling_div.textContent = lines.join("\n");
             }
