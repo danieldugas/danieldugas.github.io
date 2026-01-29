@@ -106,33 +106,6 @@ export function createBargainer() {
     }
 
 
-    // Make an eye
-    for (let i = 0; i < 2; i++) {
-        vertex_index_offset = grid_vertices.length;
-        let eyeR = 0.3;
-        let eyeCenter = new Vector4D(R, 0.6*R, R*shellThickness, R);
-        if (i === 1) { eyeCenter.y = -eyeCenter.y; }
-        let eyeA = eyeCenter.add(new Vector4D(0, 0, eyeR, 0));
-        let eyeB = eyeCenter.add(new Vector4D(eyeR, eyeR, -eyeR, eyeR));
-        let eyeC = eyeCenter.add(new Vector4D(eyeR, -eyeR, -eyeR, -eyeR));
-        let eyeD = eyeCenter.add(new Vector4D(-eyeR, eyeR, -eyeR, -eyeR));
-        let eyeE = eyeCenter.add(new Vector4D(-eyeR, -eyeR, -eyeR, eyeR));
-        grid_vertices.push(eyeA);
-        grid_vertices.push(eyeB);
-        grid_vertices.push(eyeC);
-        grid_vertices.push(eyeD);
-        grid_vertices.push(eyeE);
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.75, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
-        grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 4]);
-        grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 3, vertex_index_offset + 4]);
-        grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 2, vertex_index_offset + 3, vertex_index_offset + 4]);
-        grid_tetras.push([vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3, vertex_index_offset + 4]);
-    }
     // Legs
        // face directions (6)
     let Xp = new Vector4D(1.0, 0.0, 0.0, 0.0);

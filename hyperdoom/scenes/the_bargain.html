@@ -75,12 +75,13 @@ input[type="range"] {
 <script type="module">
 
 import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4d.js';
+import { TheBargainManager } from '../game_manager/the_bargain_manager.js';
+import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 import { createHyperwall, createHyperwallWithCenterHole  } from '../models/wall.js';
 import { createCorridorTube } from '../models/corridor.js';
-import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 import { createHypersphere } from '../../4d_creatures/models/hypersphere.js';
 import { createHypercrab } from '../../4d_creatures/models/hypercrab.js';
-import { TheBargainManager } from '../game_manager/the_bargain_manager.js';
+import { createBargainer } from '../models/bargainer.js';
 
 let objects = [];
 
@@ -225,7 +226,7 @@ if (CORRIDOR1) {
 
 // Second room, cubic with two exits (+x and -w)
 const R2R = 10.0;
-const R2X = -R1hr - C1ml - R2R;
+const R2X = -R1hr - C1ml - R2R; // center of room2 in x
 if (ROOM2) {
   const _r = R2R;
   const h1f1 = R1hs / 2.0 / R2R;
@@ -279,7 +280,19 @@ if (ROOM2) {
       [1, 0, 0, 0, -_r],
       [0, 0, 0, 0, 1]
   ]), 0x000077));
-}
+
+  // Bargainer
+  let bargainer = createBargainer();
+  bargainer.pose.matrix[0][0] = 2.0;
+  bargainer.pose.matrix[1][1] = 2.0;
+  bargainer.pose.matrix[2][2] = 2.0;
+  bargainer.pose.matrix[3][3] = 2.0;
+  bargainer.pose.rotate_self_by_delta('XY', Math.PI, true);
+  bargainer.pose.translate_self_by_delta(R2X - R2R, 0, 1.0, 0);
+  objects.push(bargainer);
+
+} // ROOM 2
+
 
 
 // Pre-allocate 100 bullets
