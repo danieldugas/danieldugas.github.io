@@ -2,15 +2,44 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 // Custom controls
 //      (3D / 4D upgrade)
 //       Shooting and guns
+//       Jumping and multiple heights
 // Enemy spawning logic
-// Environment logic (doors, keys)
+// Environment logic (doors, keys, floor damage)
 // Inventory
 // Player Health
 // Dialogue overlays
 // Game Over 
 
+// Other TODOs:
+// Per room Floor
+// Bargainer / The Shackled / Redeemer of Flesh / Collector / Absolver / Exactor / Flesher / Sinewwright / Curator / Penitent / Hierarch / Lost One / Surgeon / ???
+// Bargainer dialogue:
+// [You were not supposed to be here.
+// You will never be able to leave this place. 
+// Unless...]
+//    or if returning: [You have returned]
+// I could make you more, let you see through their eyes. Move in their dimensions.
+// But there is a price.
+// Oh, you may lose your sanity.
+// But that is not what I will require for you.
+// Parts of you must be abandoned. Exchanged. Irreversibly.
+// > Surrender your spleen
+// > Surrender your spleen, and eyes
+// > Refuse
+// Your decision. The bargain is sealed.
+
+// You wake up alone. And in horrible pain.
+
+
+// Enemy models
+// Texturing
+
+// Modelling tool?
+
 export class TheBargainManager {
     constructor() {
+        // bullets
+        // enemies
     }
 
     //Called by the hyperengine at every timestep
