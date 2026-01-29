@@ -187,7 +187,27 @@ if (ROOM1) {
     ]),
     0x777700
   ));
-  // w+ bounding wall?
+  // w+ bounding wall
+  objects.push(createHyperwall(
+    new Transform4D([
+      [     0,    hr,     0,     0,     0],
+      [     0,     0,     0,    hr,     0],
+      [     0,     0,    _H,     0,     0],
+      [     1,     0,     0,     0,    hw],
+      [     0,     0,     0,     0,     1]
+    ]),
+    0x222222
+  ));
+  objects.push(createHyperwall(
+    new Transform4D([
+      [     0,    hr,     0,     0,     0],
+      [     0,     0,     0,    hr,     0],
+      [     0,     0,    _H,     0,     0],
+      [    -1,     0,     0,     0,   -hw],
+      [     0,     0,     0,     0,     1]
+    ]),
+    0x222222
+  ));
 }
 
 // First corridor
