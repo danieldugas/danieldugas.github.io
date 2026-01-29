@@ -107,6 +107,7 @@ export async function runHyperengine(scene) {
         <option value="slice">Slice</option>
         <option value="cutout">Cutout</option>
         <option value="full" selected>Full</option>
+        <option value="half" selected>Half</option>
         <option value="eyeball">Eyeball</option>
     </select>
     </div>
@@ -1385,6 +1386,9 @@ fn getVoxel(pos: vec3i) -> Voxel {
       return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
     }
   }
+  if (stage4UniformBuffer.resolution.z == 4.0) { // half
+    if (pos.z < iVOX / 2) { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
+  }
   let idx = pos.x + pos.y * iVOX + pos.z * iVOX * iVOX;
   return voxelGrid[idx];
 }
@@ -2567,6 +2571,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             sensormodefloat = 2.0;
         } else if (engineState.SENSOR_MODE === "eyeball") {
             sensormodefloat = 3.0;
+        } else if (engineState.SENSOR_MODE === "half") {
+            sensormodefloat = 4.0;
         } else {
             console.log("unknown sensor mode");
             sensormodefloat = 0.0;
