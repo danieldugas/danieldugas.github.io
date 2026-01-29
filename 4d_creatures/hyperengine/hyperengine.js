@@ -60,12 +60,15 @@ export async function runHyperengine(scene) {
             this.isDraggingLeftClick = false;
             this.lastX = 0;
             this.lastY = 0;
+            this.mouseCurrentClickedX = 0;
+            this.mouseCurrentClickedY = 0;
             this.isDraggingRightClick = false;
             this.lastXRight = 0;
             this.lastYRight = 0;
             this.isDraggingMiddleClick = false;
             this.lastXMiddle = 0;
             this.lastYMiddle = 0;
+            this.mouseScroll01 = 0.5;
             // keyboard
             this.keys = {};
         }
@@ -2097,36 +2100,9 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         }
     });
     canvas.addEventListener('mousemove', (e) => {
-        if (engineState.isDraggingLeftClick) {
-            const deltaX = e.clientX - engineState.lastX;
-            const deltaY = e.clientY - engineState.lastY;
+        engineState.mouseCurrentClickedX = e.clientX;
+        engineState.mouseCurrentClickedY = e.clientY;
 
-
-            // engineState.sensorCamRotY += deltaY * 0.01;
-            // engineState.sensorCamRotX += deltaX * 0.01;
-            
-            engineState.camstand_T.rotate_self_by_delta('XY', deltaX * 0.01, true);
-            engineState.camstand_T.rotate_self_by_delta('XW', deltaY * 0.01, true);
-            
-            engineState.lastX = e.clientX;
-            engineState.lastY = e.clientY;
-        }
-        if (engineState.isDraggingRightClick) {
-            const deltaX = e.clientX - engineState.lastXRight;
-            const deltaY = e.clientY - engineState.lastYRight;
-            engineState.camstand_T.rotate_self_by_delta('YW', deltaX * 0.01, true);
-            engineState.camstandswivel_angle += deltaY * 0.01;
-            engineState.lastXRight = e.clientX;
-            engineState.lastYRight = e.clientY;
-        }
-        if (engineState.isDraggingMiddleClick) {
-            const deltaX = e.clientX - engineState.lastXMiddle;
-            const deltaY = e.clientY - engineState.lastYMiddle;
-            engineState.sensorCamRotY += deltaY * 0.01;
-            engineState.sensorCamRotX += deltaX * 0.01;
-            engineState.lastXMiddle = e.clientX;
-            engineState.lastYMiddle = e.clientY;
-        }
     });
     canvas.addEventListener('mouseup', () => {
         engineState.isDraggingLeftClick = false;
@@ -2141,10 +2117,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // Scrolling changes camera distance
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
-        engineState.sensorCamDist += e.deltaY * 0.05;
-        // camera.distance += e.deltaY * 0.05;
-        // camera.distance = Math.max(5, Math.min(hypercamera_sensor_resolution * 4.0, camera.distance));
-
+        engineState.mouseScroll01 += e.deltaY * 0.0005;
+        engineState.mouseScroll01 = Math.min(1, Math.max(0, engineState.mouseScroll01));
     });
 
     function lookTowards(lookAt_in_world) {
@@ -2367,6 +2341,35 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         }
 
         // Else, default controls
+        if (engineState.isDraggingLeftClick) {
+            const deltaX = engineState.mouseCurrentClickedX - engineState.lastX;
+            const deltaY = engineState.mouseCurrentClickedY - engineState.lastY;
+            
+            engineState.camstand_T.rotate_self_by_delta('XY', deltaX * 0.01, true);
+            engineState.camstand_T.rotate_self_by_delta('XW', deltaY * 0.01, true);
+            
+            engineState.lastX = engineState.mouseCurrentClickedX;
+            engineState.lastY = engineState.mouseCurrentClickedY;
+        }
+        if (engineState.isDraggingRightClick) {
+            const deltaX = engineState.mouseCurrentClickedX - engineState.lastXRight;
+            const deltaY = engineState.mouseCurrentClickedY - engineState.lastYRight;
+            engineState.camstand_T.rotate_self_by_delta('YW', deltaX * 0.01, true);
+            engineState.camstandswivel_angle += deltaY * 0.01;
+            engineState.lastXRight = engineState.mouseCurrentClickedX;
+            engineState.lastYRight = engineState.mouseCurrentClickedY;
+        }
+        if (engineState.isDraggingMiddleClick) {
+            const deltaX = engineState.mouseCurrentClickedX - engineState.lastXMiddle;
+            const deltaY = engineState.mouseCurrentClickedY - engineState.lastYMiddle;
+            engineState.sensorCamRotY += deltaY * 0.01;
+            engineState.sensorCamRotX += deltaX * 0.01;
+            engineState.lastXMiddle = engineState.mouseCurrentClickedX;
+            engineState.lastYMiddle = engineState.mouseCurrentClickedY;
+        }
+        engineState.sensorCamDist = engineState.mouseScroll01 * 100 + 1;
+
+        // keyboard
         const moveSpeed = 0.1;
         const RELATIVE_MOVEMENT = true;
         if (engineState.keys['w']) {

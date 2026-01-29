@@ -15,7 +15,35 @@ export class TheBargainManager {
 
     //Called by the hyperengine at every timestep
     updatePlayerControls(engineState) {
-        // Else, default controls
+        // Mouse
+        if (engineState.isDraggingLeftClick) {
+            const deltaX = engineState.mouseCurrentClickedX - engineState.lastX;
+            const deltaY = engineState.mouseCurrentClickedY - engineState.lastY;
+            
+            engineState.camstand_T.rotate_self_by_delta('XY', deltaX * 0.01, true);
+            engineState.camstand_T.rotate_self_by_delta('XW', deltaY * 0.01, true);
+            
+            engineState.lastX = engineState.mouseCurrentClickedX;
+            engineState.lastY = engineState.mouseCurrentClickedY;
+        }
+        if (engineState.isDraggingRightClick) {
+            const deltaX = engineState.mouseCurrentClickedX - engineState.lastXRight;
+            const deltaY = engineState.mouseCurrentClickedY - engineState.lastYRight;
+            engineState.camstand_T.rotate_self_by_delta('YW', deltaX * 0.01, true);
+            engineState.camstandswivel_angle += deltaY * 0.01;
+            engineState.lastXRight = engineState.mouseCurrentClickedX;
+            engineState.lastYRight = engineState.mouseCurrentClickedY;
+        }
+        if (engineState.isDraggingMiddleClick) {
+            const deltaX = engineState.mouseCurrentClickedX - engineState.lastXMiddle;
+            const deltaY = engineState.mouseCurrentClickedY - engineState.lastYMiddle;
+            engineState.sensorCamRotY += deltaY * 0.01;
+            engineState.sensorCamRotX += deltaX * 0.01;
+            engineState.lastXMiddle = engineState.mouseCurrentClickedX;
+            engineState.lastYMiddle = engineState.mouseCurrentClickedY;
+        }
+        engineState.sensorCamDist = engineState.mouseScroll01 * 100 + 1;
+
         const moveSpeed = 0.1;
         const RELATIVE_MOVEMENT = true;
         if (engineState.keys['w']) {
