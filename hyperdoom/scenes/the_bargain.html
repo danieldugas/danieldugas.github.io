@@ -80,6 +80,7 @@ import { createCorridorTube } from '../models/corridor.js';
 import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 import { createHypersphere } from '../../4d_creatures/models/hypersphere.js';
 import { createHypercrab } from '../../4d_creatures/models/hypercrab.js';
+import { TheBargainManager } from '../game_manager/the_bargain_manager.js';
 
 let objects = [];
 
@@ -292,7 +293,6 @@ for (let i = 0; i < 10; i++) {
 }
 
 
-
 // Check WebGPU support
 if (!navigator.gpu) {
   document.body.innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
@@ -304,6 +304,10 @@ let custom_scene = {
     visibleHyperobjects: objects,
     mainCanvas: main_canvas
 };
+
+// GameManager
+let gameManager = new TheBargainManager();
+custom_scene.gameManager = gameManager;
 
 runHyperengine(custom_scene).catch(err => {
   console.error(err);

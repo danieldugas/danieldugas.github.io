@@ -9,11 +9,71 @@ export async function runHyperengine(scene) {
     e.preventDefault();
   });
 
+    const VOX = 64; // 96 128; // Voxel grid size
+    
+    // Engine state (anything that can change live)
+    class EngineState {
+        constructor(scene) {
+            this.scene = scene;
+
+            // game variables
+            this.STEP_PHYSICS_ONCE = false;
+            this.DEBUG_PHYSICS = false;
+            this.physics_time_s = 0;
+            this.accumulated_animation_time_s = 0;
+            this.player_is_jumping = false;
+            this.last_player_jump_time = 0;
+
+            // Hypercamera definition
+            this.camstand_height = 2.0;
+            // a vertical pole that is always gravity aligned, on which the camera is mounted with 1 DoF up/down swivel
+            this.camstand_T = new Transform4D([
+                [1, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 0],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1]
+            ]);
+            this.camstandswivel_angle = 0.0;
+            this.hypercamera_T = new Transform4D([
+                [1, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 1],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1]
+            ]); // hypercam in world
+            // No intrinsics for now, (assumed identity)
+
+            // Sensor camera state
+            this.sensorCamRotX = -1.6    ;
+            this.sensorCamRotY = 0.7;
+            this.sensorCamDist = 70;
+
+            this.SENSOR_MODE = "full";
+            this.DEBUG_TETRA_COLORS = false;
+            this.SENSOR_ALPHA = 1.0;
+            this.AUTO_SHAKE_SENSOR = false;
+
+            // Controls state
+            // mouse
+            this.isDraggingLeftClick = false;
+            this.lastX = 0;
+            this.lastY = 0;
+            this.isDraggingRightClick = false;
+            this.lastXRight = 0;
+            this.lastYRight = 0;
+            this.isDraggingMiddleClick = false;
+            this.lastXMiddle = 0;
+            this.lastYMiddle = 0;
+            // keyboard
+            this.keys = {};
+        }
+    }
+    let engineState = new EngineState(scene);
+    
+
+
     // Add Controls Div
-    let SENSOR_MODE = "full";
-    let DEBUG_TETRA_COLORS = false;
-    let SENSOR_ALPHA = 1.0;
-    let AUTO_SHAKE_SENSOR = false;
     let help_div = document.createElement("div");
     help_div.style.position = "fixed";
     help_div.style.top = "10px";
@@ -73,23 +133,23 @@ export async function runHyperengine(scene) {
     help_div.innerHTML = help_html;
     // update sensor mode
     document.getElementById("sensor-mode").addEventListener("change", function() {
-        SENSOR_MODE = this.value;
-        console.log(SENSOR_MODE);
+        engineState.SENSOR_MODE = this.value;
+        console.log(engineState.SENSOR_MODE);
     });
     // update sensor transparency
     document.getElementById("sensor-transparency").addEventListener("input", function() {
-        SENSOR_ALPHA = parseFloat(this.value);
-        console.log(SENSOR_ALPHA);
+        engineState.SENSOR_ALPHA = parseFloat(this.value);
+        console.log(engineState.SENSOR_ALPHA);
     });
     // update debug tetras
     document.getElementById("debug-tetras").addEventListener("change", function() {
-        DEBUG_TETRA_COLORS = this.checked;
-        console.log("DEBUG_TETRA_COLORS:", DEBUG_TETRA_COLORS);
+        engineState.DEBUG_TETRA_COLORS = this.checked;
+        console.log("engineState.DEBUG_TETRA_COLORS:", engineState.DEBUG_TETRA_COLORS);
     });
     // update auto shake sensor
     document.getElementById("auto-shake-sensor").addEventListener("change", function() {
-        AUTO_SHAKE_SENSOR = this.checked;
-        console.log("AUTO_SHAKE_SENSOR:", AUTO_SHAKE_SENSOR);
+        engineState.AUTO_SHAKE_SENSOR = this.checked;
+        console.log("engineState.AUTO_SHAKE_SENSOR:", engineState.AUTO_SHAKE_SENSOR);
     });
 
     // Add PDA
@@ -134,48 +194,6 @@ export async function runHyperengine(scene) {
         info_div.innerHTML = text;
     }
 
-    const VOX = 64; // 96 128; // Voxel grid size
-    
-    // game variables
-    let STEP_PHYSICS_ONCE = false;
-    let DEBUG_PHYSICS = false;
-    let physics_time_s = 0;
-    let accumulated_animation_time_s = 0;
-    let moved = false;
-    let user_has_pushed_object = false;
-    let player_is_jumping = false;
-    let last_player_jump_time = 0;
-
-    // Hypercamera definition
-    let scene_bound = 10.0; // +10 means the scene goes from -10 to +10 in all dimensions
-    const camstand_height = 2.0;
-    // a vertical pole that is always gravity aligned, on which the camera is mounted with 1 DoF up/down swivel
-    let camstand_T = new Transform4D([
-        [1, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0],
-        [0, 0, 1, 0, 0],
-        [0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 1]
-    ]);
-    let camstandswivel_angle = 0.0;
-    let hypercamera_T = new Transform4D([
-        [1, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0],
-        [0, 0, 1, 0, 1],
-        [0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 1]
-    ]); // hypercam in world
-    // let hf = 1.0; // hyper focal length
-    // let hypercamera_intrinsics = [
-        // [hf, 0, 0, 0],
-        // [0, hf, 0, 0],
-        // [0, 0, hf, 0],
-        // [0, 0, 0, 1]
-    // ]; // see TODO s , for now assume identity intrinsics
-    let hypercamera_sensor_size = 1
-    let hypercamera_sensor_uvl_range = [-1, 1, -1, 1, -1, 1]; // u_min, u_max, v_min, v_max, l_min, l_max
-    let hypercamera_is_unit_sensor = true;
-    let hypercamera_sensor_resolution = VOX;
 
     // Floor definition
     // Default floor: checkerboard
@@ -242,7 +260,9 @@ export async function runHyperengine(scene) {
     function flat_heightmap(x, y, w) {
         return 0;
     }
-    let floor_heightmap = flat_heightmap;
+    if (!scene.floor_heightmap) { 
+        scene.floor_heightmap = flat_heightmap;
+    }
     // island floor
     if (scene.floorPreset === 'island') {
         floorShader = `
@@ -377,12 +397,11 @@ export async function runHyperengine(scene) {
     // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects
     // --------------------------------------
     const s0_start = performance.now();
-    let visibleHyperobjects = scene.visibleHyperobjects;
     // let vertices_in_world = hypercube.vertices_in_world;
     // let tetras = hypercube.tetras.map(tetra => ({ indices: tetra, color: hypercube.color }));
     let vertices_in_world = [];
     let tetras = [];
-    for (let obj of visibleHyperobjects) {
+    for (let obj of scene.visibleHyperobjects) {
         const base_index = vertices_in_world.length;
         // add vertices
         for (let v of obj.vertices_in_world) {
@@ -396,12 +415,12 @@ export async function runHyperengine(scene) {
     const s0_end = performance.now();
     console.log(`Stage 0: Gathered vertices and tetras from visible hyperobjects in ${(s0_end - s0_start).toFixed(2)} ms`);
     // Create texture buffers
-    let object_texture_header_data = new Uint32Array(visibleHyperobjects.length * 4); // offset, USIZE, VSIZE, WSIZE
+    let object_texture_header_data = new Uint32Array(scene.visibleHyperobjects.length * 4); // offset, USIZE, VSIZE, WSIZE
     let vertices_texcoords_data = new Float32Array(vertices_in_world.length * 3); // u,v,l per vertex
     // Create global texture data buffer and figure out offsets
     let texture_data_offset = 0;
-    for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
-        let obj = visibleHyperobjects[obj_index];
+    for (let obj_index = 0; obj_index < scene.visibleHyperobjects.length; obj_index++) {
+        let obj = scene.visibleHyperobjects[obj_index];
         let USIZE = obj.texture_info.USIZE;
         let VSIZE = obj.texture_info.VSIZE;
         let WSIZE = obj.texture_info.WSIZE;
@@ -418,8 +437,8 @@ export async function runHyperengine(scene) {
     let total_texture_data_size = texture_data_offset;
     // fill global texture data with object textures
     let global_texture_data = new Uint32Array(total_texture_data_size);
-    for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
-        let obj = visibleHyperobjects[obj_index];
+    for (let obj_index = 0; obj_index < scene.visibleHyperobjects.length; obj_index++) {
+        let obj = scene.visibleHyperobjects[obj_index];
         let offset = object_texture_header_data[obj_index * 4 + 0];
         let USIZE = object_texture_header_data[obj_index * 4 + 1];
         let VSIZE = object_texture_header_data[obj_index * 4 + 2];
@@ -437,11 +456,11 @@ export async function runHyperengine(scene) {
     }
     // Create buffers with 1. all vertices in object frame, 2. all object poses 3. the object index of each vertex
     let all_vertices_in_object_data = new Float32Array(vertices_in_world.length * 4);
-    let all_object_poses_data = new Float32Array(visibleHyperobjects.length * 5 * 5);
+    let all_object_poses_data = new Float32Array(scene.visibleHyperobjects.length * 5 * 5);
     let vertex_object_indices_data = new Uint32Array(vertices_in_world.length);
     let vertex_counter = 0;
-    for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
-        let obj = visibleHyperobjects[obj_index];
+    for (let obj_index = 0; obj_index < scene.visibleHyperobjects.length; obj_index++) {
+        let obj = scene.visibleHyperobjects[obj_index];
         // object poses
         let pose = obj.pose.matrix;
         for (let i = 0; i < 5; i++) {
@@ -1759,7 +1778,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
-    device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0]));
+    device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([engineState.physics_time_s, 0, 0, 0]));
 
     const stage3DebugBuffer = device.createBuffer({
     size: 1 * 4 * 4,
@@ -2178,88 +2197,75 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // -------------------
 
     // Register Keyboard controls
-    const keys = {};
     window.addEventListener('keydown', (e) => {
-        keys[e.key.toLowerCase()] = true;
+        engineState.keys[e.key.toLowerCase()] = true;
     });
 
     window.addEventListener('keyup', (e) => {
-        keys[e.key.toLowerCase()] = false;
+        engineState.keys[e.key.toLowerCase()] = false;
     });
     // Mouse interaction
-    let sensorCamRotX = -1.6    ;
-    let sensorCamRotY = 0.7;
-    let sensorCamDist = 70;
-    let isDraggingLeftClick = false;
-    let lastX = 0;
-    let lastY = 0;
-    let isDraggingRightClick = false;
-    let lastXRight = 0;
-    let lastYRight = 0;
-    let isDraggingMiddleClick = false;
-    let lastXMiddle = 0;
-    let lastYMiddle = 0;
     canvas.addEventListener('mousedown', (e) => {
         if (e.button === 0) {
-            isDraggingLeftClick = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
+            engineState.isDraggingLeftClick = true;
+            engineState.lastX = e.clientX;
+            engineState.lastY = e.clientY;
         } else if (e.button === 2) {
-            isDraggingRightClick = true;
-            lastXRight = e.clientX;
-            lastYRight = e.clientY;
+            engineState.isDraggingRightClick = true;
+            engineState.lastXRight = e.clientX;
+            engineState.lastYRight = e.clientY;
         } else if (e.button === 1) {
-            isDraggingMiddleClick = true;
-            lastXMiddle = e.clientX;
-            lastYMiddle = e.clientY;
+            engineState.isDraggingMiddleClick = true;
+            engineState.lastXMiddle = e.clientX;
+            engineState.lastYMiddle = e.clientY;
         }
     });
     canvas.addEventListener('mousemove', (e) => {
-        if (isDraggingLeftClick) {
-            const deltaX = e.clientX - lastX;
-            const deltaY = e.clientY - lastY;
+        if (engineState.isDraggingLeftClick) {
+            const deltaX = e.clientX - engineState.lastX;
+            const deltaY = e.clientY - engineState.lastY;
 
 
-            // sensorCamRotY += deltaY * 0.01;
-            // sensorCamRotX += deltaX * 0.01;
+            // engineState.sensorCamRotY += deltaY * 0.01;
+            // engineState.sensorCamRotX += deltaX * 0.01;
             
-            camstand_T.rotate_self_by_delta('XY', deltaX * 0.01, true);
-            camstand_T.rotate_self_by_delta('XW', deltaY * 0.01, true);
+            engineState.camstand_T.rotate_self_by_delta('XY', deltaX * 0.01, true);
+            engineState.camstand_T.rotate_self_by_delta('XW', deltaY * 0.01, true);
             
-            lastX = e.clientX;
-            lastY = e.clientY;
+            engineState.lastX = e.clientX;
+            engineState.lastY = e.clientY;
         }
-        if (isDraggingRightClick) {
-            const deltaX = e.clientX - lastXRight;
-            const deltaY = e.clientY - lastYRight;
-            camstand_T.rotate_self_by_delta('YW', deltaX * 0.01, true);
-            camstandswivel_angle += deltaY * 0.01;
-            lastXRight = e.clientX;
-            lastYRight = e.clientY;
+        if (engineState.isDraggingRightClick) {
+            const deltaX = e.clientX - engineState.lastXRight;
+            const deltaY = e.clientY - engineState.lastYRight;
+            engineState.camstand_T.rotate_self_by_delta('YW', deltaX * 0.01, true);
+            engineState.camstandswivel_angle += deltaY * 0.01;
+            engineState.lastXRight = e.clientX;
+            engineState.lastYRight = e.clientY;
         }
-        if (isDraggingMiddleClick) {
-            const deltaX = e.clientX - lastXMiddle;
-            const deltaY = e.clientY - lastYMiddle;
-            sensorCamRotY += deltaY * 0.01;
-            sensorCamRotX += deltaX * 0.01;
-            lastXMiddle = e.clientX;
-            lastYMiddle = e.clientY;
+        if (engineState.isDraggingMiddleClick) {
+            const deltaX = e.clientX - engineState.lastXMiddle;
+            const deltaY = e.clientY - engineState.lastYMiddle;
+            engineState.sensorCamRotY += deltaY * 0.01;
+            engineState.sensorCamRotX += deltaX * 0.01;
+            engineState.lastXMiddle = e.clientX;
+            engineState.lastYMiddle = e.clientY;
         }
     });
     canvas.addEventListener('mouseup', () => {
-        isDraggingLeftClick = false;
-        isDraggingRightClick = false;
-        isDraggingMiddleClick = false;
+        engineState.isDraggingLeftClick = false;
+        engineState.isDraggingRightClick = false;
+        engineState.isDraggingMiddleClick = false;
     });
     canvas.addEventListener('mouseleave', () => {
-        isDraggingLeftClick = false;
-        isDraggingRightClick = false;
-        isDraggingMiddleClick = false;
+        engineState.isDraggingLeftClick = false;
+        engineState.isDraggingRightClick = false;
+        engineState.isDraggingMiddleClick = false;
     });
     // Scrolling changes camera distance
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
-        sensorCamDist += e.deltaY * 0.05;
+        engineState.sensorCamDist += e.deltaY * 0.05;
         // camera.distance += e.deltaY * 0.05;
         // camera.distance = Math.max(5, Math.min(hypercamera_sensor_resolution * 4.0, camera.distance));
 
@@ -2270,7 +2276,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
         // new camera x axis
         let worldZ = new Vector4D(0, 0, 1, 0);
-        let x = lookAt_in_world.subtract(camstand_T.origin()).normalize();
+        let x = lookAt_in_world.subtract(engineState.camstand_T.origin()).normalize();
         let zProj = x.multiply_by_scalar(worldZ.dot(x));
         let zPrime = worldZ.subtract(zProj);
         let z = zPrime.normalize();
@@ -2280,7 +2286,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // Otherwise the camera feels "fragged" in the usual xyz axes
         // let vW = new Vector4D(0, 0, 0, 1); // world w axis
         // Or we pick the current camera w, seems more robust
-        let vW = new Vector4D(camstand_T.matrix[3][0], camstand_T.matrix[3][1], camstand_T.matrix[3][2], camstand_T.matrix[3][3]);
+        let vW = new Vector4D(engineState.camstand_T.matrix[3][0], engineState.camstand_T.matrix[3][1], engineState.camstand_T.matrix[3][2], engineState.camstand_T.matrix[3][3]);
 
         let wPrime = vW
             .subtract(x.multiply_by_scalar(vW.dot(x)))
@@ -2291,7 +2297,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // pick a vector not colinear with x, z
         // let vY = new Vector4D(0, 1, 0, 0);
         // pick the current y axis of the camera
-        let vY = new Vector4D(camstand_T.matrix[1][0], camstand_T.matrix[1][1], camstand_T.matrix[1][2], camstand_T.matrix[1][3]);
+        let vY = new Vector4D(engineState.camstand_T.matrix[1][0], engineState.camstand_T.matrix[1][1], engineState.camstand_T.matrix[1][2], engineState.camstand_T.matrix[1][3]);
 
         let yPrime = vY
             .subtract(x.multiply_by_scalar(vY.dot(x)))
@@ -2303,10 +2309,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
         // matrix = [x y z w]
         if (!PROGRESSIVE_ROTATION_TO_TARGET) {
-        camstand_T.matrix[0][0] = x.x; camstand_T.matrix[0][1] = y.x; camstand_T.matrix[0][2] = z.x; camstand_T.matrix[0][3] = w.x;
-        camstand_T.matrix[1][0] = x.y; camstand_T.matrix[1][1] = y.y; camstand_T.matrix[1][2] = z.y; camstand_T.matrix[1][3] = w.y;
-        camstand_T.matrix[2][0] = x.z; camstand_T.matrix[2][1] = y.z; camstand_T.matrix[2][2] = z.z; camstand_T.matrix[2][3] = w.z;
-        camstand_T.matrix[3][0] = x.w; camstand_T.matrix[3][1] = y.w; camstand_T.matrix[3][2] = z.w; camstand_T.matrix[3][3] = w.w;
+        engineState.camstand_T.matrix[0][0] = x.x; engineState.camstand_T.matrix[0][1] = y.x; engineState.camstand_T.matrix[0][2] = z.x; engineState.camstand_T.matrix[0][3] = w.x;
+        engineState.camstand_T.matrix[1][0] = x.y; engineState.camstand_T.matrix[1][1] = y.y; engineState.camstand_T.matrix[1][2] = z.y; engineState.camstand_T.matrix[1][3] = w.y;
+        engineState.camstand_T.matrix[2][0] = x.z; engineState.camstand_T.matrix[2][1] = y.z; engineState.camstand_T.matrix[2][2] = z.z; engineState.camstand_T.matrix[2][3] = w.z;
+        engineState.camstand_T.matrix[3][0] = x.w; engineState.camstand_T.matrix[3][1] = y.w; engineState.camstand_T.matrix[3][2] = z.w; engineState.camstand_T.matrix[3][3] = w.w;
         }
 
         if (PROGRESSIVE_ROTATION_TO_TARGET) {
@@ -2452,10 +2458,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
             // Example usage:
             const from_R = [
-                [camstand_T.matrix[0][0], camstand_T.matrix[0][1], camstand_T.matrix[0][2], camstand_T.matrix[0][3]],
-                [camstand_T.matrix[1][0], camstand_T.matrix[1][1], camstand_T.matrix[1][2], camstand_T.matrix[1][3]],
-                [camstand_T.matrix[2][0], camstand_T.matrix[2][1], camstand_T.matrix[2][2], camstand_T.matrix[2][3]],
-                [camstand_T.matrix[3][0], camstand_T.matrix[3][1], camstand_T.matrix[3][2], camstand_T.matrix[3][3]]
+                [engineState.camstand_T.matrix[0][0], engineState.camstand_T.matrix[0][1], engineState.camstand_T.matrix[0][2], engineState.camstand_T.matrix[0][3]],
+                [engineState.camstand_T.matrix[1][0], engineState.camstand_T.matrix[1][1], engineState.camstand_T.matrix[1][2], engineState.camstand_T.matrix[1][3]],
+                [engineState.camstand_T.matrix[2][0], engineState.camstand_T.matrix[2][1], engineState.camstand_T.matrix[2][2], engineState.camstand_T.matrix[2][3]],
+                [engineState.camstand_T.matrix[3][0], engineState.camstand_T.matrix[3][1], engineState.camstand_T.matrix[3][2], engineState.camstand_T.matrix[3][3]]
             ];
 
             const to_R = [
@@ -2470,112 +2476,102 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             // Geodesic method (more accurate, especially for large rotations)
             // const interpolated_R = interpolateRotation4D_Geodesic(from_R, to_R, 0.3);
 
-            // Update camstand_T with interpolated rotation
-            camstand_T.matrix[0][0] = interpolated_R[0][0]; camstand_T.matrix[0][1] = interpolated_R[0][1]; camstand_T.matrix[0][2] = interpolated_R[0][2]; camstand_T.matrix[0][3] = interpolated_R[0][3];
-            camstand_T.matrix[1][0] = interpolated_R[1][0]; camstand_T.matrix[1][1] = interpolated_R[1][1]; camstand_T.matrix[1][2] = interpolated_R[1][2]; camstand_T.matrix[1][3] = interpolated_R[1][3];
-            camstand_T.matrix[2][0] = interpolated_R[2][0]; camstand_T.matrix[2][1] = interpolated_R[2][1]; camstand_T.matrix[2][2] = interpolated_R[2][2]; camstand_T.matrix[2][3] = interpolated_R[2][3];
-            camstand_T.matrix[3][0] = interpolated_R[3][0]; camstand_T.matrix[3][1] = interpolated_R[3][1]; camstand_T.matrix[3][2] = interpolated_R[3][2]; camstand_T.matrix[3][3] = interpolated_R[3][3];
+            // Update engineState.camstand_T with interpolated rotation
+            engineState.camstand_T.matrix[0][0] = interpolated_R[0][0]; engineState.camstand_T.matrix[0][1] = interpolated_R[0][1]; engineState.camstand_T.matrix[0][2] = interpolated_R[0][2]; engineState.camstand_T.matrix[0][3] = interpolated_R[0][3];
+            engineState.camstand_T.matrix[1][0] = interpolated_R[1][0]; engineState.camstand_T.matrix[1][1] = interpolated_R[1][1]; engineState.camstand_T.matrix[1][2] = interpolated_R[1][2]; engineState.camstand_T.matrix[1][3] = interpolated_R[1][3];
+            engineState.camstand_T.matrix[2][0] = interpolated_R[2][0]; engineState.camstand_T.matrix[2][1] = interpolated_R[2][1]; engineState.camstand_T.matrix[2][2] = interpolated_R[2][2]; engineState.camstand_T.matrix[2][3] = interpolated_R[2][3];
+            engineState.camstand_T.matrix[3][0] = interpolated_R[3][0]; engineState.camstand_T.matrix[3][1] = interpolated_R[3][1]; engineState.camstand_T.matrix[3][2] = interpolated_R[3][2]; engineState.camstand_T.matrix[3][3] = interpolated_R[3][3];
         }
-        moved=true
     }
     function updatePlayerControls() {
+        // If the scene has a game manager, use it to handle player controls
+        if (scene.gameManager) {
+            scene.gameManager.updatePlayerControls(engineState);
+            return;
+        }
+
+        // Else, default controls
         const moveSpeed = 0.1;
         const RELATIVE_MOVEMENT = true;
-        if (keys['w']) {
-            camstand_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
-            moved = true;
+        if (engineState.keys['w']) {
+            engineState.camstand_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
         }
-        if (keys['s']) {
-            camstand_T.translate_self_by_delta(-moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
-            moved = true;
+        if (engineState.keys['s']) {
+            engineState.camstand_T.translate_self_by_delta(-moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
         }
-        if (keys['a']) {
-            camstand_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
-            moved = true;
+        if (engineState.keys['a']) {
+            engineState.camstand_T.translate_self_by_delta(0, moveSpeed, 0, 0, RELATIVE_MOVEMENT);
         }
-        if (keys['d']) {
-            camstand_T.translate_self_by_delta(0,-moveSpeed, 0, 0, RELATIVE_MOVEMENT);
-            moved = true;
+        if (engineState.keys['d']) {
+            engineState.camstand_T.translate_self_by_delta(0,-moveSpeed, 0, 0, RELATIVE_MOVEMENT);
         }
-        if (keys['q']) {
-            camstand_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
-            moved = true;
+        if (engineState.keys['q']) {
+            engineState.camstand_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
         }
-        if (keys['e']) {
-            camstand_T.translate_self_by_delta(0, 0, 0, +moveSpeed, RELATIVE_MOVEMENT);
-            moved = true;
+        if (engineState.keys['e']) {
+            engineState.camstand_T.translate_self_by_delta(0, 0, 0, +moveSpeed, RELATIVE_MOVEMENT);
         }
-        if (keys['r']) {
-            camstand_T.translate_self_by_delta(0, 0, moveSpeed, 0, RELATIVE_MOVEMENT);
-            moved = true;
+        if (engineState.keys['r']) {
+            engineState.camstand_T.translate_self_by_delta(0, 0, moveSpeed, 0, RELATIVE_MOVEMENT);
         }
-        if (keys['f']) {
-            camstand_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
-            moved = true;
+        if (engineState.keys['f']) {
+            engineState.camstand_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
         }
         // space to jump
-        if (keys[' ']) {
-            if (!player_is_jumping) {
-                last_player_jump_time = physics_time_s;
-                player_is_jumping = true;
+        if (engineState.keys[' ']) {
+            if (!engineState.player_is_jumping) {
+                engineState.last_player_jump_time = engineState.physics_time_s;
+                engineState.player_is_jumping = true;
             }
         }
 
         const rotateSpeed = 0.05;
-        if (keys['i']) {
-            camstandswivel_angle -= rotateSpeed;
-            moved = true;
+        if (engineState.keys['i']) {
+            engineState.camstandswivel_angle -= rotateSpeed;
         }
-        if (keys['k']) {
-            camstandswivel_angle += rotateSpeed;
-            moved = true;
+        if (engineState.keys['k']) {
+            engineState.camstandswivel_angle += rotateSpeed;
         }
-        if (keys['j']) {
-            camstand_T.rotate_self_by_delta('XY', rotateSpeed, true);
-            moved = true;
+        if (engineState.keys['j']) {
+            engineState.camstand_T.rotate_self_by_delta('XY', rotateSpeed, true);
         }
-        if (keys['l']) {
-            camstand_T.rotate_self_by_delta('XY', -rotateSpeed, true);
-            moved = true;
+        if (engineState.keys['l']) {
+            engineState.camstand_T.rotate_self_by_delta('XY', -rotateSpeed, true);
         }
-        if (keys['u']) {
-            camstand_T.rotate_self_by_delta('XW', rotateSpeed, true);
-            moved = true;
+        if (engineState.keys['u']) {
+            engineState.camstand_T.rotate_self_by_delta('XW', rotateSpeed, true);
         }
-        if (keys['o']) {
-            camstand_T.rotate_self_by_delta('XW', -rotateSpeed, true);
-            moved = true;
+        if (engineState.keys['o']) {
+            engineState.camstand_T.rotate_self_by_delta('XW', -rotateSpeed, true);
         }
-        if (keys['y']) {
-            camstand_T.rotate_self_by_delta('YW', -rotateSpeed, true);
-            moved = true;
+        if (engineState.keys['y']) {
+            engineState.camstand_T.rotate_self_by_delta('YW', -rotateSpeed, true);
         }
-        if (keys['p']) {
-            camstand_T.rotate_self_by_delta('YW', rotateSpeed, true);
-            moved = true;
+        if (engineState.keys['p']) {
+            engineState.camstand_T.rotate_self_by_delta('YW', rotateSpeed, true);
         }
 
-        if (keys['1']) {
+        if (engineState.keys['1']) {
             let idx = 0;
-            if (idx < visibleHyperobjects.length) { lookTowards(visibleHyperobjects[idx].get_com()); }
+            if (idx < scene.visibleHyperobjects.length) { lookTowards(scene.visibleHyperobjects[idx].get_com()); }
         }
-        if (keys['2']) {
+        if (engineState.keys['2']) {
             let idx = 1;
-            if (idx < visibleHyperobjects.length) { lookTowards(visibleHyperobjects[idx].get_com()); }
+            if (idx < scene.visibleHyperobjects.length) { lookTowards(scene.visibleHyperobjects[idx].get_com()); }
         }
-        if (keys['3']) {
+        if (engineState.keys['3']) {
             let idx = 2;
-            if (idx < visibleHyperobjects.length) { lookTowards(visibleHyperobjects[idx].get_com()); }
+            if (idx < scene.visibleHyperobjects.length) { lookTowards(scene.visibleHyperobjects[idx].get_com()); }
         }
-        if (keys['0']) {
+        if (engineState.keys['0']) {
             lookTowards(new Vector4D(0, 0, 0, 0));
         }
 
         // Box Colliders
-        for (let i = 0; i < visibleHyperobjects.length; i++) {
-            const obj = visibleHyperobjects[i];
+        for (let i = 0; i < scene.visibleHyperobjects.length; i++) {
+            const obj = scene.visibleHyperobjects[i];
             if (obj.collider) {
-                obj.collider.constrainTransform(camstand_T);
+                obj.collider.constrainTransform(engineState.camstand_T);
             }
         }
 
@@ -2595,23 +2591,23 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 }
                 // update div
                 document.getElementById("player_pose").innerHTML = `Player:<br>`;
-                document.getElementById("player_pose").innerHTML += `[${camstand_T.matrix[0][0].toFixed(2)}, ${camstand_T.matrix[0][1].toFixed(2)}, ${camstand_T.matrix[0][2].toFixed(2)}, ${camstand_T.matrix[0][3].toFixed(2)}, ${camstand_T.matrix[0][4].toFixed(2)}]<br>`;
-                document.getElementById("player_pose").innerHTML += `[${camstand_T.matrix[1][0].toFixed(2)}, ${camstand_T.matrix[1][1].toFixed(2)}, ${camstand_T.matrix[1][2].toFixed(2)}, ${camstand_T.matrix[1][3].toFixed(2)}, ${camstand_T.matrix[1][4].toFixed(2)}]<br>`;
-                document.getElementById("player_pose").innerHTML += `[${camstand_T.matrix[2][0].toFixed(2)}, ${camstand_T.matrix[2][1].toFixed(2)}, ${camstand_T.matrix[2][2].toFixed(2)}, ${camstand_T.matrix[2][3].toFixed(2)}, ${camstand_T.matrix[2][4].toFixed(2)}]<br>`;
-                document.getElementById("player_pose").innerHTML += `[${camstand_T.matrix[3][0].toFixed(2)}, ${camstand_T.matrix[3][1].toFixed(2)}, ${camstand_T.matrix[3][2].toFixed(2)}, ${camstand_T.matrix[3][3].toFixed(2)}, ${camstand_T.matrix[3][4].toFixed(2)}]<br>`;
+                document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[0][0].toFixed(2)}, ${engineState.camstand_T.matrix[0][1].toFixed(2)}, ${engineState.camstand_T.matrix[0][2].toFixed(2)}, ${engineState.camstand_T.matrix[0][3].toFixed(2)}, ${engineState.camstand_T.matrix[0][4].toFixed(2)}]<br>`;
+                document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[1][0].toFixed(2)}, ${engineState.camstand_T.matrix[1][1].toFixed(2)}, ${engineState.camstand_T.matrix[1][2].toFixed(2)}, ${engineState.camstand_T.matrix[1][3].toFixed(2)}, ${engineState.camstand_T.matrix[1][4].toFixed(2)}]<br>`;
+                document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[2][0].toFixed(2)}, ${engineState.camstand_T.matrix[2][1].toFixed(2)}, ${engineState.camstand_T.matrix[2][2].toFixed(2)}, ${engineState.camstand_T.matrix[2][3].toFixed(2)}, ${engineState.camstand_T.matrix[2][4].toFixed(2)}]<br>`;
+                document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[3][0].toFixed(2)}, ${engineState.camstand_T.matrix[3][1].toFixed(2)}, ${engineState.camstand_T.matrix[3][2].toFixed(2)}, ${engineState.camstand_T.matrix[3][3].toFixed(2)}, ${engineState.camstand_T.matrix[3][4].toFixed(2)}]<br>`;
 
 
 
         // Don't let player off the island
         if (scene.floorPreset === 'island') {
             const islandR = 20.0;
-            var playerPosXYW = camstand_T.origin();
+            var playerPosXYW = engineState.camstand_T.origin();
             playerPosXYW.z = 0.0;
             if (playerPosXYW.magnitude() > islandR) {
                 playerPosXYW = playerPosXYW.normalize().multiply_by_scalar(islandR);
-                camstand_T.matrix[0][4] = playerPosXYW.x;
-                camstand_T.matrix[1][4] = playerPosXYW.y;
-                camstand_T.matrix[3][4] = playerPosXYW.w;
+                engineState.camstand_T.matrix[0][4] = playerPosXYW.x;
+                engineState.camstand_T.matrix[1][4] = playerPosXYW.y;
+                engineState.camstand_T.matrix[3][4] = playerPosXYW.w;
             }
         }
 
@@ -2620,26 +2616,26 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // reset camera z to 0
         let jump_z = 0;
         const jump_height = 1;
-        if (player_is_jumping) {
+        if (engineState.player_is_jumping) {
             // jump height is a parabola
             const tend = 4; // jump duration
-            let dt = physics_time_s - last_player_jump_time;
+            let dt = engineState.physics_time_s - engineState.last_player_jump_time;
             let jp01 = dt / tend; // jump progress from 0 to 1
             if (dt > tend) {
-                player_is_jumping = false;
+                engineState.player_is_jumping = false;
             } else {
                 jump_z = jump_height * (1.0 - (2.0 * jp01 - 1.0) ** 2);
             }
         }
-        camstand_T.matrix[2][4] = floor_heightmap(
-            camstand_T.matrix[0][4],
-            camstand_T.matrix[1][4],
-            camstand_T.matrix[3][4]
+        engineState.camstand_T.matrix[2][4] = scene.floor_heightmap(
+            engineState.camstand_T.matrix[0][4],
+            engineState.camstand_T.matrix[1][4],
+            engineState.camstand_T.matrix[3][4]
         ) + jump_z;
         // sine and cosine of swivel angle
-        let ss = Math.sin(camstandswivel_angle);
-        let cs = Math.cos(camstandswivel_angle);
-        let h = camstand_height;
+        let ss = Math.sin(engineState.camstandswivel_angle);
+        let cs = Math.cos(engineState.camstandswivel_angle);
+        let h = engineState.camstand_height;
         let hypercam_in_camstand = new Transform4D([
             [cs, 0, ss, 0, 0],
             [0, 1, 0, 0, 0],
@@ -2647,12 +2643,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             [0, 0, 0, 1, 0],
             [0, 0, 0, 0, 1]
         ]);
-        hypercamera_T = camstand_T.transform_transform(hypercam_in_camstand);
+        engineState.hypercamera_T = engineState.camstand_T.transform_transform(hypercam_in_camstand);
     }
 
     function writeCameraPoseToGPU() {
         let hypercamera_inv_pose_data = new Float32Array(5 * 5);
-        let hc_pose = hypercamera_T.inverse().matrix;
+        let hc_pose = engineState.hypercamera_T.inverse().matrix;
         for (let i = 0; i < 5; i++) {
             for (let j = 0; j < 5; j++) {
                 hypercamera_inv_pose_data[i * 5 + j] = hc_pose[i][j];
@@ -2662,35 +2658,35 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // uniform buffer for hypercamera pose (so we only pass the first 4 rows of each vector)
         let hypercamera_pose_data = new Float32Array(5 * 4);
         for (let i = 0; i < 5; i++) {
-            hypercamera_pose_data[i * 4 + 0] = hypercamera_T.matrix[0][i];
-            hypercamera_pose_data[i * 4 + 1] = hypercamera_T.matrix[1][i];
-            hypercamera_pose_data[i * 4 + 2] = hypercamera_T.matrix[2][i];
-            hypercamera_pose_data[i * 4 + 3] = hypercamera_T.matrix[3][i];
+            hypercamera_pose_data[i * 4 + 0] = engineState.hypercamera_T.matrix[0][i];
+            hypercamera_pose_data[i * 4 + 1] = engineState.hypercamera_T.matrix[1][i];
+            hypercamera_pose_data[i * 4 + 2] = engineState.hypercamera_T.matrix[2][i];
+            hypercamera_pose_data[i * 4 + 3] = engineState.hypercamera_T.matrix[3][i];
         }
         device.queue.writeBuffer(hypercameraPoseBuffer, 0, hypercamera_pose_data);
     }
     function writeDDACameraPoseToGPU() {
-        let rotY = sensorCamRotX;
-        let rotX = sensorCamRotY;
+        let rotY = engineState.sensorCamRotX;
+        let rotX = engineState.sensorCamRotY;
 
-        if (AUTO_SHAKE_SENSOR) {
-            rotY = -Math.PI / 2. + Math.sin(physics_time_s * 0.2) * 0.2;
-            rotX = 0.3 + Math.cos(physics_time_s * 0.2) * 0.1;
+        if (engineState.AUTO_SHAKE_SENSOR) {
+            rotY = -Math.PI / 2. + Math.sin(engineState.physics_time_s * 0.2) * 0.2;
+            rotX = 0.3 + Math.cos(engineState.physics_time_s * 0.2) * 0.1;
         }
-        let dist = sensorCamDist;
+        let dist = engineState.sensorCamDist;
 
         // Sensor modes
         let sensormodefloat = 0.0;
-        if (SENSOR_MODE === "slice") {
+        if (engineState.SENSOR_MODE === "slice") {
             sensormodefloat = 0.0;
             rotY = -Math.PI / 2.0;
             rotX = 0.;
             dist = 50.0;  
-        } else if (SENSOR_MODE === "cutout") {
+        } else if (engineState.SENSOR_MODE === "cutout") {
             sensormodefloat = 1.0;
-        } else if (SENSOR_MODE === "full") {
+        } else if (engineState.SENSOR_MODE === "full") {
             sensormodefloat = 2.0;
-        } else if (SENSOR_MODE === "eyeball") {
+        } else if (engineState.SENSOR_MODE === "eyeball") {
             sensormodefloat = 3.0;
         } else {
             console.log("unknown sensor mode");
@@ -2737,7 +2733,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             up[0], up[1], up[2], 0,
             right[0], right[1], right[2], 0,
             canvas.width, canvas.height, sensormodefloat, 0,
-            SENSOR_ALPHA, 0, 0, 0, // debug1
+            engineState.SENSOR_ALPHA, 0, 0, 0, // debug1
         ]);
         device.queue.writeBuffer(stage4UniformBuffer, 0, stage4UniformBufferData);
     }
@@ -2747,8 +2743,6 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         const SIMULATE_PHYSICS = true;
         for (let n = 0; n < 4; n++) { // substeps for stability
             if (SIMULATE_PHYSICS) {
-                moved = true;
-
                 // debug log
                 let html_physics_log = '';
 
@@ -2759,10 +2753,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 const FLOOR_SIDE_FRICTION_COEFFICIENT = 1;
                 const dt = 0.016; // ~60fps
 
-                html_physics_log += '<b>Sim Time:</b> ' + physics_time_s.toFixed(2) + ' s<br>';
-                html_physics_log += '<b>UI Time:</b> ' + accumulated_animation_time_s.toFixed(2) + ' s<br>';
+                html_physics_log += '<b>Sim Time:</b> ' + engineState.physics_time_s.toFixed(2) + ' s<br>';
+                html_physics_log += '<b>UI Time:</b> ' + engineState.accumulated_animation_time_s.toFixed(2) + ' s<br>';
 
-                for (let hyperobject of visibleHyperobjects) {
+                for (let hyperobject of scene.visibleHyperobjects) {
                     if (hyperobject.simulate_physics) {
 
                         html_physics_log += `<b>Object:</b> ${hyperobject.name}<br>`;
@@ -2781,7 +2775,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                         let com_torque = {xy: 0, xz: 0, xw: 0, yz: 0, yw: 0, zw: 0};
 
                         // If object com is within 1 unit of camera, push it away with small force
-                        let to_camera = hyperobject_com.subtract(hypercamera_T.origin());
+                        let to_camera = hyperobject_com.subtract(engineState.hypercamera_T.origin());
                         let distance_to_camera = Math.sqrt(to_camera.x**2 + to_camera.y**2 + to_camera.z**2 + to_camera.w**2);
                         if (distance_to_camera < 2.0 && distance_to_camera > 0.01) {
                             // let push_strength = 50 * (1.0 - distance_to_camera);
@@ -2792,8 +2786,6 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                             let push_direction = to_camera.multiply_by_scalar(1.0 / distance_to_camera); // normalize
                             let push_force = push_direction.multiply_by_scalar(push_strength);
                             com_force = com_force.add(push_force);
-                            // update mission variables
-                            user_has_pushed_object = true;
                         }
 
                         // Add a general friction force
@@ -2810,7 +2802,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                         
                         // 2. Check for collisions with floor and accumulate forces/torques
                         for (let v of hyperobject.vertices_in_world) {
-                            let floor_height = floor_heightmap(v.x, v.y, v.w);
+                            let floor_height = scene.floor_heightmap(v.x, v.y, v.w);
                             let penetration = floor_height - v.z;
                             if (penetration > 0) {
                                 // Position relative to CoM
@@ -2929,26 +2921,26 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                     }
                 }
 
-                physics_time_s += dt;
+                engineState.physics_time_s += dt;
 
-                if (DEBUG_PHYSICS) {
+                if (engineState.DEBUG_PHYSICS) {
                     // document.getElementById('physics-debug-text').innerHTML = html_physics_log;
                 } else {
                     // document.getElementById('physics-debug-text').innerHTML = '';
                 }
 
-                if (STEP_PHYSICS_ONCE) {
+                if (engineState.STEP_PHYSICS_ONCE) {
                     SIMULATE_PHYSICS = false;
-                    STEP_PHYSICS_ONCE = false;
+                    engineState.STEP_PHYSICS_ONCE = false;
                 }
             } // End of SIMULATE_PHYSICS
         } // end of substeps
     } // end function physicsStepCPU()
 
     function writeObjectPosesToGPU() {
-        let new_object_poses_data = new Float32Array(visibleHyperobjects.length * 5 * 5);
-        for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
-            let obj = visibleHyperobjects[obj_index];
+        let new_object_poses_data = new Float32Array(scene.visibleHyperobjects.length * 5 * 5);
+        for (let obj_index = 0; obj_index < scene.visibleHyperobjects.length; obj_index++) {
+            let obj = scene.visibleHyperobjects[obj_index];
             // basic physics - move cube up and down 
             let time = performance.now() * 0.001;
             // DEBUG - rotate the hypercube
@@ -2967,17 +2959,17 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     }
     
     function writePhysicsTimeToGPU() {
-        device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([physics_time_s, 0, 0, 0])); // write sim time to GPU
-        const debugtetracolorsfloat = DEBUG_TETRA_COLORS ? 1.0 : 0.0;
+        device.queue.writeBuffer(simtimeBuffer, 0, new Float32Array([engineState.physics_time_s, 0, 0, 0])); // write sim time to GPU
+        const debugtetracolorsfloat = engineState.DEBUG_TETRA_COLORS ? 1.0 : 0.0;
         device.queue.writeBuffer(stage3DebugBuffer, 0, new Float32Array([debugtetracolorsfloat, 0, 0, 0])); // write stage3 debug flags
     }
 
     function animateObjects() {
         let isObjectVertPosDataChanged = false;
-        for (let obj_index = 0; obj_index < visibleHyperobjects.length; obj_index++) {
-            let obj = visibleHyperobjects[obj_index];
+        for (let obj_index = 0; obj_index < scene.visibleHyperobjects.length; obj_index++) {
+            let obj = scene.visibleHyperobjects[obj_index];
             if (obj.is_animated) {
-                obj.animateFunction(obj, physics_time_s);
+                obj.animateFunction(obj, engineState.physics_time_s);
                 isObjectVertPosDataChanged = true;
                 // Write vertices to pre-buffer
                 let vertex_counter = obj.object_vertex_start_index;
