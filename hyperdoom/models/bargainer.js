@@ -33,6 +33,13 @@ export function createBargainer() {
         body_vertices[i].x += body_x;
         body_vertices[i].z += body_height;
     }
+    let body_texcoords = [
+        new Vector4D(0.50, 0.99, 0, 0),
+        new Vector4D(0.50, 0.49, 0, 0),
+        new Vector4D(0.50, 0.49, 0, 0),
+        new Vector4D(0.50, 0.39, 0, 0),
+        new Vector4D(0.50, 0.49, 0, 0)
+    ]
     // tetras
     let body_tetras = [
         [0,1,2,3],
@@ -45,7 +52,7 @@ export function createBargainer() {
     // Update
     for (let i = 0; i < body_vertices.length; i++) {
         grid_vertices.push(body_vertices[i]);
-        grid_vertices_texcoords.push(body_vertices[i]);
+        grid_vertices_texcoords.push(body_texcoords[i]);
     }
     for (let i = 0; i < body_tetras.length; i++) {
         grid_tetras.push(body_tetras[i].map(x => x + vertex_index_offset));
@@ -55,15 +62,22 @@ export function createBargainer() {
     vertex_index_offset = grid_vertices.length;
 
     let head_vertices = [
-        new Vector4D(-1, 0, -1, 0),
-        new Vector4D(1, 1, 1, 1),
-        new Vector4D(1, -1, 1, -1),
-        new Vector4D(-1, 1, 1, -1),
-        new Vector4D(-1, -1, 1, 1)
+        new Vector4D(0, 0, 1, 0),
+        new Vector4D(1-1, 1, -2, 1),
+        new Vector4D(1-1, -1, -2, -1),
+        new Vector4D(-1-1, 1, 0, -1),
+        new Vector4D(-1-1, -1, 0, 1)
+    ]
+    let head_texcoords = [
+        new Vector4D(0.16, 0.9, 0, 0),
+        new Vector4D(0.16, 0.49, 0, 0),
+        new Vector4D(0.16, 0.49, 0, 0),
+        new Vector4D(0.16, 0.49, 0, 0),
+        new Vector4D(0.16, 0.49, 0, 0)
     ]
     // scale down head and move it up
     const head_scale = 0.5;
-    const head_height = 0.5;
+    const head_height = 0.6;
     const head_x = -0.5;
     for (let i = 0; i < head_vertices.length; i++) {
         head_vertices[i].x *= head_scale;
@@ -85,7 +99,7 @@ export function createBargainer() {
     // Update
     for (let i = 0; i < head_vertices.length; i++) {
         grid_vertices.push(head_vertices[i]);
-        grid_vertices_texcoords.push(head_vertices[i]);
+        grid_vertices_texcoords.push(head_texcoords[i]);
     }
     for (let i = 0; i < head_tetras.length; i++) {
         grid_tetras.push(head_tetras[i].map(x => x + vertex_index_offset));
@@ -186,11 +200,11 @@ export function createBargainer() {
         grid_vertices.push(leg_B);
         grid_vertices.push(leg_C);
         grid_vertices.push(tip);
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.84, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.84, 0.75, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.84, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.84, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.84, 0.25, 0.0, 0.0));
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         grid_tetras.push([vertex_index_offset + 4, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         bone_vertex_idx_and_affinity.push([vertex_index_offset + 0, 0.0, stem]);
@@ -235,11 +249,13 @@ export function createBargainer() {
     // Fill texture info, texcoords
     if (true) {
         let obj = bargainer;
-        let eyeColorLight = 0xffffff;
-        let eyeColorDark = 0x000000;
-        let shellColorLight = 0xbb0000;
-        let shellColorDark = 0x770000;
-        let USIZE = 4;
+        let hoodColorLight = 0x331111;
+        let hoodColorDark = 0x000000;
+        let armColorLight = 0xbb0000;
+        let armColorDark = 0x770000;
+        let bodyColorLight = hoodColorLight;
+        let bodyColorDark = 0x110000;
+        let USIZE = 3;
         let VSIZE = 2;
         let WSIZE = 8;
         let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
@@ -251,12 +267,15 @@ export function createBargainer() {
                     // checkerboard pattern
                     let color = 0xffffff;
                     let isDark = v === 0;
-                    if (u >= USIZE / 2) { // leaves
-                        if (isDark) { color = shellColorDark; }
-                        else { color = shellColorLight; }
+                    if (u >= 2) { // arms
+                        if (isDark) { color = armColorDark; }
+                        else { color = armColorLight; }
+                    } else if (u >= 1) { // body
+                        if (isDark) { color = bodyColorDark; }
+                        else { color = bodyColorLight; }
                     } else { // eye
-                        if (isDark) { color = eyeColorDark; }
-                        else { color = eyeColorLight; }
+                        if (isDark) { color = hoodColorDark; }
+                        else { color = hoodColorLight; }
                     }
                     // pack color into one u32 RGBA
                     let r_u8 = (color >> 16) & 0xFF;
