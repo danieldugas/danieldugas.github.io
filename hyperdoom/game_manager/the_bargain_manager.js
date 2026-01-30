@@ -89,6 +89,7 @@ export class TheBargainManager {
 
         // state
         this.GOD_MODE = true;
+        this.isFirstStep = true; // Used for debugging
         this.bulletCooldownLastFiredTime = 0;
 
         // bullets
@@ -118,6 +119,11 @@ export class TheBargainManager {
 
     //Called by the hyperengine at every timestep
     updatePlayerControls(engineState) {
+        // First Step callback (debugging)
+        if (this.isFirstStep) {
+            this.isFirstStep = false;
+            if (this.onFirstStepCallback) { this.onFirstStepCallback(engineState); }
+        }
         // Mouse
         if (engineState.isDraggingLeftClick) {
             const deltaX = engineState.mouseCurrentClickedX - engineState.lastX;

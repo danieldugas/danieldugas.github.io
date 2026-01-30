@@ -78,7 +78,7 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { TheBargainManager } from '../game_manager/the_bargain_manager.js';
 import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 import { createHyperwall, createHyperwallWithCenterHole  } from '../models/wall.js';
-import { createCorridorTube } from '../models/corridor.js';
+import { createCorridorTube, createCorridorTubeWithHole } from '../models/corridor.js';
 import { createHypersphere } from '../../4d_creatures/models/hypersphere.js';
 import { createHypercrab } from '../../4d_creatures/models/hypercrab.js';
 import { createBargainer } from '../models/bargainer.js';
@@ -230,6 +230,8 @@ if (CORRIDOR1) {
 // Second room, cubic with two exits (+x and -w)
 const R2R = 10.0;
 const R2X = -R1hr - C1ml - R2R; // center of room2 in x
+const C2R = 5.0; // corridor 2 size (both dims)
+const r2c = new Vector4D(R2X, 0, AREA1_ZH, 0); // convenience
 if (ROOM2) {
   const _r = R2R;
   const h1f1 = R1hs / 2.0 / R2R;
@@ -276,6 +278,7 @@ if (ROOM2) {
       [1, 0, 0, 0, _r],
       [0, 0, 0, 0, 1]
   ]), 0x0000ff));
+  const h2f = C2R / 2.0 / R2R;
   createHyperwallWithCenterHole(objects,
     new Transform4D([
       [0, _r, 0, 0, R2X],
@@ -284,7 +287,7 @@ if (ROOM2) {
       [1, 0, 0, 0, -_r],
       [0, 0, 0, 0, 1]
     ]),
-    0.3, 0.3,
+    h2f, h2f,
     0x000077
   );
 
@@ -328,6 +331,19 @@ objects.push(area1Floor);
 
 // End of Area1 -------------------------------------------
 
+// Area2
+
+// corridor 2 (falling down)
+let c2l = AREA1_ZH;
+let c2c = new Vector4D(R2X, 0, AREA1_ZH / 2.0 + _H, -R2R - C2R / 2.0);
+createCorridorTubeWithHole(objects, c2c, new Vector4D(0,0,-1,0), c2l, new Vector4D(0,0,0,1), new Vector4D(1,0,0,0), C2R, C2R, -c2l / 2.0 + _H / 2.0, _H, new Vector4D(0,1,0,0), C2R, true);
+
+// Corridor 3 (-w, gun)
+const c3r = C2R;
+const C3L = 20.0;
+let c3c = new Vector4D(R2X, 0, 0, -R2R - C3L / 2.0);
+createCorridorTubeWithHole(objects, c3c, new Vector4D(0,0,0,-1), C3L, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), c3r, c3r, 0.0, 0.0, new Vector4D(0,0,1,0), _H, false);
+
 
 function the_bargain_floor_heightmap(x, y, w) {
   if (x >= area1xmin && x <= area1xmax && y >= area1ymin && y <= area1ymax && w >= area1wmin && w <= area1wmax) {
@@ -352,6 +368,12 @@ let custom_scene = {
 // GameManager
 let gameManager = new TheBargainManager(custom_scene);
 custom_scene.gameManager = gameManager;
+
+// Custom first step for spawning modifications
+gameManager.onFirstStepCallback = (engineState) => {
+  engineState.camstand_T.setTranslation(r2c);
+  
+}
 
 runHyperengine(custom_scene).catch(err => {
   console.error(err);

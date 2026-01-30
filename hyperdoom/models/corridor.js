@@ -68,7 +68,7 @@ export function createCorridorTube(objects, center, main_dir, main_length, dir1,
 } // createCorridorTube
 
 
-export function createCorridorTubeWithHole(objects, center, main_dir, main_length, dir1, dir2, length1, length2, holeOffset, holeSize, lz) {
+export function createCorridorTubeWithHole(objects, center, main_dir, main_length, dir1, dir2, length1, length2, holeOffset, holeSize, zDir, lz, addZWalls=false) {
     //        ^  d1
     //        |
     //     -------- 2
@@ -107,34 +107,38 @@ export function createCorridorTubeWithHole(objects, center, main_dir, main_lengt
 
     // Create 6 walls
     // 1a
-    objects.push(createHyperwall(
-        new Transform4D([
-        [   d1.x, length1a/2.0*md.x,     0, l2/2.0*d2.x, offset1a*md.x+l1/2.0*d1.x+c.x],
-        [   d1.y, length1a/2.0*md.y,     0, l2/2.0*d2.y, offset1a*md.y+l1/2.0*d1.y+c.y],
-        [   d1.z, length1a/2.0*md.z,    lz, l2/2.0*d2.z, offset1a*md.z+l1/2.0*d1.z+c.z],
-        [   d1.w, length1a/2.0*md.w,     0, l2/2.0*d2.w, offset1a*md.w+l1/2.0*d1.w+c.w],
-        [      0,           0,     0,           0,               1]
-        ]),
-        0x770000
-    ));
+    if (length1a > 0.0) {
+        objects.push(createHyperwall(
+            new Transform4D([
+            [   d1.x, length1a/2.0*md.x,  lz*zDir.x, l2/2.0*d2.x, offset1a*md.x+l1/2.0*d1.x+c.x],
+            [   d1.y, length1a/2.0*md.y,  lz*zDir.y, l2/2.0*d2.y, offset1a*md.y+l1/2.0*d1.y+c.y],
+            [   d1.z, length1a/2.0*md.z,  lz*zDir.z, l2/2.0*d2.z, offset1a*md.z+l1/2.0*d1.z+c.z],
+            [   d1.w, length1a/2.0*md.w,  lz*zDir.w, l2/2.0*d2.w, offset1a*md.w+l1/2.0*d1.w+c.w],
+            [      0,           0,     0,         0,               1]
+            ]),
+            0x770000
+        ));
+    }
     // 1b
-    objects.push(createHyperwall(
-        new Transform4D([
-        [   d1.x, length1b/2.0*md.x,     0, l2/2.0*d2.x, offset1b*md.x+l1/2.0*d1.x+c.x],
-        [   d1.y, length1b/2.0*md.y,     0, l2/2.0*d2.y, offset1b*md.y+l1/2.0*d1.y+c.y],
-        [   d1.z, length1b/2.0*md.z,    lz, l2/2.0*d2.z, offset1b*md.z+l1/2.0*d1.z+c.z],
-        [   d1.w, length1b/2.0*md.w,     0, l2/2.0*d2.w, offset1b*md.w+l1/2.0*d1.w+c.w],
-        [      0,           0,     0,           0,               1]
-        ]),
-        0x770000
-    ));
+    if (length1b > 0.0) {
+        objects.push(createHyperwall(
+            new Transform4D([
+            [   d1.x, length1b/2.0*md.x,    lz*zDir.x, l2/2.0*d2.x, offset1b*md.x+l1/2.0*d1.x+c.x],
+            [   d1.y, length1b/2.0*md.y,    lz*zDir.y, l2/2.0*d2.y, offset1b*md.y+l1/2.0*d1.y+c.y],
+            [   d1.z, length1b/2.0*md.z,    lz*zDir.z, l2/2.0*d2.z, offset1b*md.z+l1/2.0*d1.z+c.z],
+            [   d1.w, length1b/2.0*md.w,    lz*zDir.w, l2/2.0*d2.w, offset1b*md.w+l1/2.0*d1.w+c.w],
+            [      0,           0,     0,           0,               1]
+            ]),
+            0x770000
+        ));
+    }
     // 2
     objects.push(createHyperwall(
         new Transform4D([
-        [  -d2.x, ml/2.0*md.x,     0, l1/2.0*d1.x, l2/2.0*-d2.x+c.x],
-        [  -d2.y, ml/2.0*md.y,     0, l1/2.0*d1.y, l2/2.0*-d2.y+c.y],
-        [  -d2.z, ml/2.0*md.z,    lz, l1/2.0*d1.z, l2/2.0*-d2.z+c.z],
-        [  -d2.w, ml/2.0*md.w,     0, l1/2.0*d1.w, l2/2.0*-d2.w+c.w],
+        [  -d2.x, ml/2.0*md.x,    lz*zDir.x, l1/2.0*d1.x, l2/2.0*-d2.x+c.x],
+        [  -d2.y, ml/2.0*md.y,    lz*zDir.y, l1/2.0*d1.y, l2/2.0*-d2.y+c.y],
+        [  -d2.z, ml/2.0*md.z,    lz*zDir.z, l1/2.0*d1.z, l2/2.0*-d2.z+c.z],
+        [  -d2.w, ml/2.0*md.w,    lz*zDir.w, l1/2.0*d1.w, l2/2.0*-d2.w+c.w],
         [      0,           0,     0,           0,               1]
         ]),
         0x007700
@@ -142,10 +146,10 @@ export function createCorridorTubeWithHole(objects, center, main_dir, main_lengt
     // 3
     objects.push(createHyperwall(
         new Transform4D([
-        [  -d1.x, ml/2.0*md.x,     0, l2/2.0*d2.x, -l1/2.0*d1.x+c.x],
-        [  -d1.y, ml/2.0*md.y,     0, l2/2.0*d2.y, -l1/2.0*d1.y+c.y],
-        [  -d1.z, ml/2.0*md.z,    lz, l2/2.0*d2.z, -l1/2.0*d1.z+c.z],
-        [  -d1.w, ml/2.0*md.w,     0, l2/2.0*d2.w, -l1/2.0*d1.w+c.w],
+        [  -d1.x, ml/2.0*md.x,    lz*zDir.x, l2/2.0*d2.x, -l1/2.0*d1.x+c.x],
+        [  -d1.y, ml/2.0*md.y,    lz*zDir.y, l2/2.0*d2.y, -l1/2.0*d1.y+c.y],
+        [  -d1.z, ml/2.0*md.z,    lz*zDir.z, l2/2.0*d2.z, -l1/2.0*d1.z+c.z],
+        [  -d1.w, ml/2.0*md.w,    lz*zDir.w, l2/2.0*d2.w, -l1/2.0*d1.w+c.w],
         [      0,           0,     0,           0,                1]
         ]),
         0xff0000
@@ -153,23 +157,50 @@ export function createCorridorTubeWithHole(objects, center, main_dir, main_lengt
     // 4
     objects.push(createHyperwall(
         new Transform4D([
-        [   d2.x, ml/2.0*md.x,     0, l1/2.0*d1.x, l2/2.0*d2.x+c.x],
-        [   d2.y, ml/2.0*md.y,     0, l1/2.0*d1.y, l2/2.0*d2.y+c.y],
-        [   d2.z, ml/2.0*md.z,    lz, l1/2.0*d1.z, l2/2.0*d2.z+c.z],
-        [   d2.w, ml/2.0*md.w,     0, l1/2.0*d1.w, l2/2.0*d2.w+c.w],
+        [   d2.x, ml/2.0*md.x,    lz*zDir.x, l1/2.0*d1.x, l2/2.0*d2.x+c.x],
+        [   d2.y, ml/2.0*md.y,    lz*zDir.y, l1/2.0*d1.y, l2/2.0*d2.y+c.y],
+        [   d2.z, ml/2.0*md.z,    lz*zDir.z, l1/2.0*d1.z, l2/2.0*d2.z+c.z],
+        [   d2.w, ml/2.0*md.w,    lz*zDir.w, l1/2.0*d1.w, l2/2.0*d2.w+c.w],
         [      0,           0,     0,           0,               1]
         ]),
         0x00ff00
     ));
     // 5
-    objects.push(createHyperwall(
-        new Transform4D([
-        [   md.x, l1/2.0*d1.x,     0, l2/2.0*d2.x, -ml/2.0*md.x+c.x],
-        [   md.y, l1/2.0*d1.y,     0, l2/2.0*d2.y, -ml/2.0*md.y+c.y],
-        [   md.z, l1/2.0*d1.z,    lz, l2/2.0*d2.z, -ml/2.0*md.z+c.z],
-        [   md.w, l1/2.0*d1.w,     0, l2/2.0*d2.w, -ml/2.0*md.w+c.w],
-        [      0,           0,     0,           0,               1]
-        ]),
-        0x0000ff
-    ));
+    if (!addZWalls) {
+        objects.push(createHyperwall(
+            new Transform4D([
+            [   md.x, l1/2.0*d1.x,    lz*zDir.x, l2/2.0*d2.x, -ml/2.0*md.x+c.x],
+            [   md.y, l1/2.0*d1.y,    lz*zDir.y, l2/2.0*d2.y, -ml/2.0*md.y+c.y],
+            [   md.z, l1/2.0*d1.z,    lz*zDir.z, l2/2.0*d2.z, -ml/2.0*md.z+c.z],
+            [   md.w, l1/2.0*d1.w,    lz*zDir.w, l2/2.0*d2.w, -ml/2.0*md.w+c.w],
+            [      0,           0,     0,           0,               1]
+            ]),
+            0x0000ff
+        ));
+        
+    }
+
+    // If addZWalls, the corridor is also bounded in z (usally the floor and sky act as the bounds)
+    if (addZWalls) {
+        objects.push(createHyperwall(
+            new Transform4D([
+            [   zDir.x, ml/2.0*md.x,  l1/2.0*d1.x, l2/2.0*d2.x, -lz/2.0*zDir.x+c.x],
+            [   zDir.y, ml/2.0*md.y,  l1/2.0*d1.y, l2/2.0*d2.y, -lz/2.0*zDir.y+c.y],
+            [   zDir.z, ml/2.0*md.z,  l1/2.0*d1.z, l2/2.0*d2.z, -lz/2.0*zDir.z+c.z],
+            [   zDir.w, ml/2.0*md.w,  l1/2.0*d1.w, l2/2.0*d2.w, -lz/2.0*zDir.w+c.w],
+            [      0,             0,     0,           0,               1]
+            ]),
+            0xff00ff
+        ));
+        objects.push(createHyperwall(
+            new Transform4D([
+            [   zDir.x, ml/2.0*md.x,  l1/2.0*d1.x, l2/2.0*d2.x, lz/2.0*zDir.x+c.x],
+            [   zDir.y, ml/2.0*md.y,  l1/2.0*d1.y, l2/2.0*d2.y, lz/2.0*zDir.y+c.y],
+            [   zDir.z, ml/2.0*md.z,  l1/2.0*d1.z, l2/2.0*d2.z, lz/2.0*zDir.z+c.z],
+            [   zDir.w, ml/2.0*md.w,  l1/2.0*d1.w, l2/2.0*d2.w, lz/2.0*zDir.w+c.w],
+            [      0,             0,     0,           0,               1]
+            ]),
+            0x770077
+        ));
+    }
 }
