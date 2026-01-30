@@ -295,25 +295,6 @@ if (ROOM2) {
 
 
 
-// Pre-allocate 100 bullets
-if (true) {
-  // Add 100 random hyperspheres
-  // createHypersphere(size, color)
-  for (let i = 0; i < 100; i++) {
-    let dx = Math.random() * 20 - 10;
-    let dy = Math.random() * 20 - 10;
-    let dw = Math.random() * 20 - 10;
-      let pose = new Transform4D([
-        [1, 0, 0, 0, 30 + dx],
-        [0, 1, 0, 0, 0 + dy],
-        [0, 0, 1, 0, 3],
-        [0, 0, 0, 1, 0 + dw],
-        [0, 0, 0, 0, 1]
-      ])
-      let sphere = createHypersphere(1, 0xffff00, pose);
-      objects.push(sphere);
-  }
-}
 
 // Pre-allocate 10 Imps
 for (let i = 0; i < 10; i++) {
@@ -339,7 +320,7 @@ let custom_scene = {
 };
 
 // GameManager
-let gameManager = new TheBargainManager();
+let gameManager = new TheBargainManager(custom_scene);
 custom_scene.gameManager = gameManager;
 
 runHyperengine(custom_scene).catch(err => {

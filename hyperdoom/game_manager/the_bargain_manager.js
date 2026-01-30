@@ -1,4 +1,6 @@
 import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4d.js';
+import { createBullet } from '../models/bullet.js';
+import { createCrawler } from '../models/crawler.js';
 // Custom controls
 //      (3D / 4D upgrade)
 //       Shooting and guns
@@ -36,10 +38,80 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 
 // Modelling tool?
 
+class FiredBullet {
+    constructor(scene, primitiveIndex, firedOrigin, firedDirection, firedSimTime) {
+        this.scene = scene;
+        this.primitiveIndex = primitiveIndex;
+        this.firedOrigin = firedOrigin;
+        this.firedDirection = firedDirection;
+        this.firedSimTime = firedSimTime;
+
+        this.lastUpdateTime = firedSimTime;
+
+        let newPos = firedOrigin.add(firedDirection.multiply_by_scalar(2.0));
+        this.lastUpdatePos = newPos;
+
+        // Move primitive to origin
+        this.scene.visibleHyperobjects[primitiveIndex].pose.setTranslation(newPos);
+    }
+
+    updateBullet(physics_time_s, bulletPrimitives, parentList, indexInParentList) {
+        // move by direction * velocity * dt
+        const velocity = 2.0;
+        let newPos = this.lastUpdatePos.add(this.firedDirection.multiply_by_scalar(velocity * (physics_time_s - this.lastUpdateTime)));
+        this.scene.visibleHyperobjects[this.primitiveIndex].pose.setTranslation(newPos);
+
+        this.lastUpdateTime = physics_time_s;
+        this.lastUpdatePos = newPos;
+
+        // Bullets destroy themselves after 100 sec
+        if (physics_time_s - this.firedSimTime > 100.0) {
+            this.destroyBullet(bulletPrimitives, parentList, indexInParentList);
+        }
+
+        // Check colliders, do damage, etc
+
+    }
+
+    destroyBullet(bulletPrimitives, parentList, indexInParentList) {
+        // Return primitive to pool
+        bulletPrimitives.push(this.primitiveIndex);
+        // Remove self from parentList
+        parentList.splice(indexInParentList, 1);
+    }
+}
+
 export class TheBargainManager {
-    constructor() {
+    constructor(scene) {
+        this.scene = scene;
+
+        // state
+        this.GOD_MODE = false;
+        this.bulletCooldownLastFiredTime = 0;
+
         // bullets
+        this.playerBullets = [];
+        this.bulletPrimitives = [];
         // enemies
+
+        // Pre-allocate 100 bullets
+        // createHypersphere(size, color)
+        for (let i = 0; i < 100; i++) { // NOCOMMIT
+            let dx = Math.random() * 20 - 10;
+            let dy = Math.random() * 20 - 10;
+            let dw = Math.random() * 20 - 10;
+            let pose = new Transform4D([
+                [1, 0, 0, 0, 30 + dx],
+                [0, 1, 0, 0, 0 + dy],
+                [0, 0, 1, 0, 3],
+                [0, 0, 0, 1, 0 + dw],
+                [0, 0, 0, 0, 1]
+            ])
+            let sphere = createBullet(1, 0xffff00, pose);
+            this.bulletPrimitives.push(this.scene.visibleHyperobjects.length);
+            this.scene.visibleHyperobjects.push(sphere);
+        }
+
     }
 
     //Called by the hyperengine at every timestep
@@ -107,6 +179,32 @@ export class TheBargainManager {
             }
         }
 
+        // C to shoot
+        if (engineState.keys['c']) {
+            let timeSinceCooldown = engineState.physics_time_s - this.bulletCooldownLastFiredTime;
+            if (timeSinceCooldown > 1.0) {
+                if (this.bulletPrimitives.length == 0) {
+                    this.playerBullets[0].destroyBullet(this.bulletPrimitives, this.playerBullets, 0); // Clear the first (oldest)
+                }
+                // pop first available primitive
+                let primIndex = this.bulletPrimitives.pop();
+                let newBullet = new FiredBullet(this.scene, primIndex, engineState.hypercamera_T.origin(), engineState.camstand_T.transform_vector(new Vector4D(1, 0, 0, 0)), engineState.physics_time_s);
+                this.playerBullets.push(newBullet);
+                this.bulletCooldownLastFiredTime = engineState.physics_time_s;
+            }
+        }
+        // Update all live bullets (while as the list size changes mid loop)
+        let bullet_i = 0;
+        while (true) {
+            if (bullet_i >= this.playerBullets.length) {
+                break;
+            }
+            // this may delete the bullet
+            this.playerBullets[bullet_i].updateBullet(engineState.physics_time_s, this.bulletPrimitives, this.playerBullets, bullet_i);
+            // increment
+            bullet_i++;
+        }
+
         const rotateSpeed = 0.05;
         if (engineState.keys['i']) {
             engineState.camstandswivel_angle -= rotateSpeed;
@@ -134,10 +232,12 @@ export class TheBargainManager {
         }
 
         // Box Colliders
-        for (let i = 0; i < engineState.scene.visibleHyperobjects.length; i++) {
-            const obj = engineState.scene.visibleHyperobjects[i];
-            if (obj.collider) {
-                obj.collider.constrainTransform(engineState.camstand_T);
+        if (!this.GOD_MODE) {
+            for (let i = 0; i < engineState.scene.visibleHyperobjects.length; i++) {
+                const obj = engineState.scene.visibleHyperobjects[i];
+                if (obj.collider) {
+                    obj.collider.constrainTransform(engineState.camstand_T);
+                }
             }
         }
 
