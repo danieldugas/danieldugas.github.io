@@ -13,8 +13,14 @@ import { createCrawler } from '../models/crawler.js';
 // Game Over 
 
 // Other TODOs:
+// One hole corridor model
 // Per room Floor
-// Bargainer / The Shackled / Redeemer of Flesh / Collector / Absolver / Exactor / Flesher / Sinewwright / Curator / Penitent / Hierarch / Lost One / Surgeon / ???
+// Falling logic
+// Enemy models
+// Texturing
+
+// Modelling tool?
+
 // Bargainer dialogue:
 // [You were not supposed to be here.
 // You will never be able to leave this place. 
@@ -33,10 +39,6 @@ import { createCrawler } from '../models/crawler.js';
 // You wake up alone. And in horrible pain.
 
 
-// Enemy models
-// Texturing
-
-// Modelling tool?
 
 class FiredBullet {
     constructor(scene, primitiveIndex, firedOrigin, firedDirection, firedSimTime) {
@@ -86,7 +88,7 @@ export class TheBargainManager {
         this.scene = scene;
 
         // state
-        this.GOD_MODE = false;
+        this.GOD_MODE = true;
         this.bulletCooldownLastFiredTime = 0;
 
         // bullets

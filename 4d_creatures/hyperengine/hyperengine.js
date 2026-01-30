@@ -2527,7 +2527,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             [0, 0, 0, 0, 1]
         ]);
         engineState.hypercamera_T = engineState.camstand_T.transform_transform(hypercam_in_camstand);
-    }
+    } // updatePlayerControls
 
     function writeCameraPoseToGPU() {
         let hypercamera_inv_pose_data = new Float32Array(5 * 5);

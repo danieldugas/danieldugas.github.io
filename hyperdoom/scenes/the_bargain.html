@@ -87,10 +87,13 @@ let objects = [];
 
 const _H = 3; // wall z height
 const _2 = 1.0 / Math.sqrt(2);
+const AREA1_ZH = 5.0;
 
 const ROOM1 = true;
 const CORRIDOR1 = true;
 const ROOM2 = true;
+
+
 
 // First room
 //           |---| hr
@@ -115,7 +118,7 @@ if (ROOM1) {
     new Transform4D([
       [ 1,  0,  0,  0, hr],
       [ 0, hs,  0,  0,  0],
-      [ 0,  0, _H,  0,  0],
+      [ 0,  0, _H,  0,  AREA1_ZH],
       [ 0,  0,  0, hw,  0],
       [ 0,  0,  0,  0,  1]
     ]),
@@ -126,7 +129,7 @@ if (ROOM1) {
     new Transform4D([
       [    _2, hs*_2,     0,     0, hr*_2],
       [   -_2, hs*_2,     0,     0,-hr*_2],
-      [     0,     0,    _H,     0,     0],
+      [     0,     0,    _H,     0,     AREA1_ZH],
       [     0,     0,     0,    hw,     0],
       [     0,     0,     0,     0,     1]
     ]),
@@ -137,7 +140,7 @@ if (ROOM1) {
     new Transform4D([
       [     0,    hs,     0,     0,     0],
       [    -1,     0,     0,     0,   -hr],
-      [     0,     0,    _H,     0,     0],
+      [     0,     0,    _H,     0,     AREA1_ZH],
       [     0,     0,     0,    hw,     0],
       [     0,     0,     0,     0,     1]
     ]),
@@ -148,7 +151,7 @@ if (ROOM1) {
     new Transform4D([
       [   -_2, hs*_2,     0,     0,-hr*_2],
       [   -_2,-hs*_2,     0,     0,-hr*_2],
-      [     0,     0,    _H,     0,     0],
+      [     0,     0,    _H,     0,     AREA1_ZH],
       [     0,     0,     0,    hw,     0],
       [     0,     0,     0,     0,     1]
     ]),
@@ -160,7 +163,7 @@ if (ROOM1) {
     new Transform4D([
       [   -_2,-hs*_2,     0,     0,-hr*_2],
       [    _2,-hs*_2,     0,     0, hr*_2],
-      [     0,     0,    _H,     0,     0],
+      [     0,     0,    _H,     0,     AREA1_ZH],
       [     0,     0,     0,    hw,     0],
       [     0,     0,     0,     0,     1]
     ]),
@@ -171,7 +174,7 @@ if (ROOM1) {
     new Transform4D([
       [     0,   -hs,     0,     0,     0],
       [     1,     0,     0,     0,    hr],
-      [     0,     0,    _H,     0,     0],
+      [     0,     0,    _H,     0,     AREA1_ZH],
       [     0,     0,     0,    hw,     0],
       [     0,     0,     0,     0,     1]
     ]),
@@ -182,7 +185,7 @@ if (ROOM1) {
     new Transform4D([
       [    _2,-hs*_2,     0,     0, hr*_2],
       [    _2, hs*_2,     0,     0, hr*_2],
-      [     0,     0,    _H,     0,     0],
+      [     0,     0,    _H,     0,     AREA1_ZH],
       [     0,     0,     0,    hw,     0],
       [     0,     0,     0,     0,     1]
     ]),
@@ -193,28 +196,28 @@ if (ROOM1) {
     new Transform4D([
       [     0,    hr,     0,     0,     0],
       [     0,     0,     0,    hr,     0],
-      [     0,     0,    _H,     0,     0],
+      [     0,     0,    _H,     0,     AREA1_ZH],
       [     1,     0,     0,     0,    hw],
       [     0,     0,     0,     0,     1]
     ]),
-    0x222222
+    0x0000ff
   ));
   objects.push(createHyperwall(
     new Transform4D([
       [     0,    hr,     0,     0,     0],
       [     0,     0,     0,    hr,     0],
-      [     0,     0,    _H,     0,     0],
+      [     0,     0,    _H,     0,     AREA1_ZH],
       [    -1,     0,     0,     0,   -hw],
       [     0,     0,     0,     0,     1]
     ]),
-    0x222222
+    0x000077
   ));
 }
 
 // First corridor
 const C1ml = 50.0;
 if (CORRIDOR1) {
-  const center = new Vector4D(- R1hr - C1ml / 2.0, 0, 0, 0);
+  const center = new Vector4D(- R1hr - C1ml / 2.0, 0, AREA1_ZH, 0);
   const main_dir = new Vector4D(1,0,0,0);
   const main_length = C1ml;
   const dir1 = new Vector4D(0,1,0,0);
@@ -235,7 +238,7 @@ if (ROOM2) {
     new Transform4D([
         [1, 0, 0, 0, _r + R2X],
         [0, _r, 0, 0, 0],
-        [0, 0, _H, 0, 0],
+        [0, 0, _H, 0, AREA1_ZH],
         [0, 0, 0, _r, 0],
         [0, 0, 0, 0, 1]
     ]),
@@ -246,7 +249,7 @@ if (ROOM2) {
     new Transform4D([
       [1, 0, 0, 0, -_r + R2X],
       [0, _r, 0, 0, 0],
-      [0, 0, _H, 0, 0],
+      [0, 0, _H, 0, AREA1_ZH],
       [0, 0, 0, _r, 0],
       [0, 0, 0, 0, 1]
     ]),
@@ -255,28 +258,28 @@ if (ROOM2) {
   objects.push(createHyperwall(new Transform4D([
       [0, _r, 0, 0, R2X],
       [1, 0, 0, 0, _r],
-      [0, 0, _H, 0, 0],
+      [0, 0, _H, 0, AREA1_ZH],
       [0, 0, 0, _r, 0],
       [0, 0, 0, 0, 1]
   ]), 0x00ff00));
   objects.push(createHyperwall(new Transform4D([
       [0, _r, 0, 0, R2X],
       [1, 0, 0, 0, -_r],
-      [0, 0, _H, 0, 0],
+      [0, 0, _H, 0, AREA1_ZH],
       [0, 0, 0, _r, 0],
       [0, 0, 0, 0, 1]
   ]), 0x007700));
   objects.push(createHyperwall(new Transform4D([
       [0, _r, 0, 0, R2X],
       [0, 0, 0, _r, 0],
-      [0, 0, _H, 0, 0],
+      [0, 0, _H, 0, AREA1_ZH],
       [1, 0, 0, 0, _r],
       [0, 0, 0, 0, 1]
   ]), 0x0000ff));
   objects.push(createHyperwall(new Transform4D([
       [0, _r, 0, 0, R2X],
       [0, 0, 0, _r, 0],
-      [0, 0, _H, 0, 0],
+      [0, 0, _H, 0, AREA1_ZH],
       [1, 0, 0, 0, -_r],
       [0, 0, 0, 0, 1]
   ]), 0x000077));
@@ -288,24 +291,46 @@ if (ROOM2) {
   bargainer.pose.matrix[2][2] = 2.0;
   bargainer.pose.matrix[3][3] = 2.0;
   bargainer.pose.rotate_self_by_delta('XY', Math.PI, true);
-  bargainer.pose.translate_self_by_delta(R2X - R2R, 0, 1.0, 0);
+  bargainer.pose.translate_self_by_delta(R2X - R2R, 0, 1.0+AREA1_ZH, 0);
   objects.push(bargainer);
 
 } // ROOM 2
 
+// First area is elevated and so needs a floor surface
+const area1xmax = R1hr;
+const area1xmin = R2X - R2R;
+const area1ymax = R2R;
+const area1ymin = -R2R;
+const area1wmax = R2R;
+const area1wmin = -R2R;
+const A1XL = area1xmax - area1xmin;
+const A1YL = area1ymax - area1ymin;
+const A1WL = area1wmax - area1wmin;
+const A1CX = (area1xmax + area1xmin) / 2.0;
+const A1CY = (area1ymax + area1ymin) / 2.0;
+const A1CW = (area1wmax + area1wmin) / 2.0;
+let area1Floor = createHyperwall(
+    new Transform4D([
+      [ 0, A1XL/2.0,  0,  0,A1CX],
+      [ 0,  0,A1YL/2.0,  0, A1CY],
+      [ 1,  0,  0,  0,  AREA1_ZH],
+      [ 0,  0,  0,A1WL/2.0, A1CW],
+      [ 0,  0,  0,  0,  1]
+    ]),
+    0xffffff
+  );
+area1Floor.collider = null; // height is handled in the player controller
+objects.push(area1Floor);
+
+// End of Area1 -------------------------------------------
 
 
-
-// Pre-allocate 10 Imps
-for (let i = 0; i < 10; i++) {
-  let dx = Math.random() * 20 - 10;
-  let dy = Math.random() * 20 - 10;
-  let dw = Math.random() * 20 - 10;
-  let hypercrab = createHypercrab();
-  hypercrab.pose.translate_self_by_delta(dx, dy, 4, dw);
-  objects.push(hypercrab);
+function the_bargain_floor_heightmap(x, y, w) {
+  if (x >= area1xmin && x <= area1xmax && y >= area1ymin && y <= area1ymax && w >= area1wmin && w <= area1wmax) {
+    return AREA1_ZH;
+  }
+  return 0.0;
 }
-
 
 // Check WebGPU support
 if (!navigator.gpu) {
@@ -316,7 +341,8 @@ if (!navigator.gpu) {
 const main_canvas = document.getElementById('canvas');
 let custom_scene = {
     visibleHyperobjects: objects,
-    mainCanvas: main_canvas
+    mainCanvas: main_canvas,
+    floor_heightmap: the_bargain_floor_heightmap
 };
 
 // GameManager
