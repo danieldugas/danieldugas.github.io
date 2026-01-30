@@ -87,7 +87,7 @@ let objects = [];
 
 const _H = 3; // wall z height
 const _2 = 1.0 / Math.sqrt(2);
-const AREA1_ZH = 5.0;
+const AREA1_ZH = 20.0;
 
 const ROOM1 = true;
 const CORRIDOR1 = true;
@@ -276,13 +276,17 @@ if (ROOM2) {
       [1, 0, 0, 0, _r],
       [0, 0, 0, 0, 1]
   ]), 0x0000ff));
-  objects.push(createHyperwall(new Transform4D([
+  createHyperwallWithCenterHole(objects,
+    new Transform4D([
       [0, _r, 0, 0, R2X],
       [0, 0, 0, _r, 0],
       [0, 0, _H, 0, AREA1_ZH],
       [1, 0, 0, 0, -_r],
       [0, 0, 0, 0, 1]
-  ]), 0x000077));
+    ]),
+    0.3, 0.3,
+    0x000077
+  );
 
   // Bargainer
   let bargainer = createBargainer();
