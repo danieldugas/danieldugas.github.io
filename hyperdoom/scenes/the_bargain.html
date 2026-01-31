@@ -93,8 +93,6 @@ const ROOM1 = true;
 const CORRIDOR1 = true;
 const ROOM2 = true;
 
-
-
 // First room
 //           |---| hr
 //         _3__
@@ -108,7 +106,6 @@ const ROOM2 = true;
 const R1hr = 5; // hexagon radius
 const R1hs = R1hr / (0.5 + _2); // hexagon side
 const R1hw = 10; // w thickness of the room
-
 if (ROOM1) {
   const hr = R1hr; // hexagon radius
   const hs = R1hs/2.0;
@@ -310,18 +307,21 @@ const area1ymax = R2R;
 const area1ymin = -R2R;
 const area1wmax = R2R;
 const area1wmin = -R2R;
-const A1XL = area1xmax - area1xmin;
-const A1YL = area1ymax - area1ymin;
-const A1WL = area1wmax - area1wmin;
-const A1CX = (area1xmax + area1xmin) / 2.0;
-const A1CY = (area1ymax + area1ymin) / 2.0;
-const A1CW = (area1wmax + area1wmin) / 2.0;
+const a1xl = area1xmax - area1xmin;
+const a1yl = area1ymax - area1ymin;
+const a1wl = area1wmax - area1wmin;
+const a1c = new Vector4D(
+  (area1xmax + area1xmin) / 2.0,
+  (area1ymax + area1ymin) / 2.0,
+  AREA1_ZH,
+  (area1wmax + area1wmin) / 2.0
+);
 let area1Floor = createHyperwall(
     new Transform4D([
-      [ 0, A1XL/2.0,  0,  0,A1CX],
-      [ 0,  0,A1YL/2.0,  0, A1CY],
-      [ 1,  0,  0,  0,  AREA1_ZH],
-      [ 0,  0,  0,A1WL/2.0, A1CW],
+      [ 0, a1xl/2.0,  0,  0,a1c.x],
+      [ 0,  0,a1yl/2.0,  0, a1c.y],
+      [ 1,  0,  0,      0,  a1c.z],
+      [ 0,  0,  0,a1wl/2.0, a1c.w],
       [ 0,  0,  0,  0,  1]
     ]),
     0xffffff
@@ -366,6 +366,7 @@ let custom_scene = {
 };
 
 // GameManager
+// Player controls, NPCs, Monsters, etc
 let gameManager = new TheBargainManager(custom_scene);
 custom_scene.gameManager = gameManager;
 

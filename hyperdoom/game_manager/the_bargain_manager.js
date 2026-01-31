@@ -89,6 +89,7 @@ export class TheBargainManager {
 
         // state
         this.GOD_MODE = true;
+        this.playerSpeed = 0.1;
         this.isFirstStep = true; // Used for debugging
         this.bulletCooldownLastFiredTime = 0;
 
@@ -114,11 +115,145 @@ export class TheBargainManager {
             this.bulletPrimitives.push(this.scene.visibleHyperobjects.length);
             this.scene.visibleHyperobjects.push(sphere);
         }
+        
 
+        // Debug panel
+        this.pendingTeleport = null;
+        this.createDebugPanel();
+    }
+
+    createDebugPanel() {
+        // Create container
+        const panel = document.createElement("div");
+        panel.id = "debug_panel";
+        panel.style.position = "absolute";
+        panel.style.bottom = "10px";
+        panel.style.left = "10px";
+        panel.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+        panel.style.color = "#9c9c9c";
+        panel.style.fontFamily = "monospace";
+        panel.style.fontSize = "12px";
+        panel.style.padding = "8px";
+        panel.style.borderRadius = "4px";
+        panel.style.zIndex = "1000";
+        panel.style.userSelect = "none";
+
+        // Create header (collapsible toggle)
+        const header = document.createElement("div");
+        header.style.cursor = "pointer";
+        header.style.fontWeight = "bold";
+        header.style.marginBottom = "8px";
+        header.innerHTML = "▼ Debug Panel";
+
+        // Create content container
+        const content = document.createElement("div");
+        content.id = "debug_panel_content";
+
+        // Toggle collapse
+        let collapsed = false;
+        header.addEventListener("click", () => {
+            collapsed = !collapsed;
+            content.style.display = collapsed ? "none" : "block";
+            header.innerHTML = collapsed ? "▶ Debug Panel" : "▼ Debug Panel";
+        });
+
+        // GOD_MODE toggle
+        const godModeRow = document.createElement("div");
+        godModeRow.style.marginBottom = "8px";
+        const godModeCheckbox = document.createElement("input");
+        godModeCheckbox.type = "checkbox";
+        godModeCheckbox.id = "god_mode_checkbox";
+        godModeCheckbox.checked = this.GOD_MODE;
+        godModeCheckbox.addEventListener("change", (e) => {
+            this.GOD_MODE = e.target.checked;
+        });
+        const godModeLabel = document.createElement("label");
+        godModeLabel.htmlFor = "god_mode_checkbox";
+        godModeLabel.innerHTML = " GOD_MODE";
+        godModeRow.appendChild(godModeCheckbox);
+        godModeRow.appendChild(godModeLabel);
+        content.appendChild(godModeRow);
+
+        // Player speed slider
+        const speedRow = document.createElement("div");
+        speedRow.style.marginBottom = "8px";
+        const speedLabel = document.createElement("label");
+        speedLabel.innerHTML = "Speed: ";
+        const speedValue = document.createElement("span");
+        speedValue.innerHTML = this.playerSpeed.toFixed(2);
+        const speedSlider = document.createElement("input");
+        speedSlider.type = "range";
+        speedSlider.min = "0.01";
+        speedSlider.max = "1.0";
+        speedSlider.step = "0.01";
+        speedSlider.value = this.playerSpeed;
+        speedSlider.style.width = "100%";
+        speedSlider.style.marginTop = "4px";
+        speedSlider.addEventListener("input", (e) => {
+            this.playerSpeed = parseFloat(e.target.value);
+            speedValue.innerHTML = this.playerSpeed.toFixed(2);
+        });
+        speedRow.appendChild(speedLabel);
+        speedRow.appendChild(speedValue);
+        speedRow.appendChild(speedSlider);
+        content.appendChild(speedRow);
+
+        // Teleport section
+        const teleportLabel = document.createElement("div");
+        teleportLabel.innerHTML = "Teleport to:";
+        teleportLabel.style.marginBottom = "4px";
+        content.appendChild(teleportLabel);
+
+        // Room positions (x, y, z, w)
+        const rooms = [
+            { name: "Spawn", pos: [0, 0, 0, 0] },
+            { name: "Room 1", pos: [10, 0, 0, 0] },
+            { name: "Room 2", pos: [20, 0, 0, 0] },
+            { name: "Room 3", pos: [30, 0, 0, 0] },
+            { name: "Corridor 1", pos: [0, 10, 0, 0] },
+            { name: "Corridor 2", pos: [0, 20, 0, 0] },
+        ];
+
+        rooms.forEach(room => {
+            const btn = document.createElement("button");
+            btn.innerHTML = room.name;
+            btn.style.display = "block";
+            btn.style.marginBottom = "4px";
+            btn.style.padding = "4px 8px";
+            btn.style.cursor = "pointer";
+            btn.style.backgroundColor = "#333";
+            btn.style.color = "#9c9c9c";
+            btn.style.border = "1px solid #555";
+            btn.style.borderRadius = "2px";
+            btn.style.width = "100%";
+            btn.addEventListener("click", () => {
+                this.teleportTo(room.pos[0], room.pos[1], room.pos[2], room.pos[3]);
+            });
+            content.appendChild(btn);
+        });
+
+        panel.appendChild(header);
+        panel.appendChild(content);
+        document.body.appendChild(panel);
+
+        this.debugPanel = panel;
+    }
+
+    teleportTo(x, y, z, w) {
+        this.pendingTeleport = { x, y, z, w };
     }
 
     //Called by the hyperengine at every timestep
     updatePlayerControls(engineState) {
+        // Apply pending teleport from debug panel
+        if (this.pendingTeleport) {
+            engineState.camstand_T.matrix[0][4] = this.pendingTeleport.x;
+            engineState.camstand_T.matrix[1][4] = this.pendingTeleport.y;
+            engineState.camstand_T.matrix[2][4] = this.pendingTeleport.z;
+            engineState.camstand_T.matrix[3][4] = this.pendingTeleport.w;
+            this.pendingTeleport = null;
+        }
+
         // First Step callback (debugging)
         if (this.isFirstStep) {
             this.isFirstStep = false;
@@ -153,7 +288,7 @@ export class TheBargainManager {
         }
         engineState.sensorCamDist = engineState.mouseScroll01 * 100 + 1;
 
-        const moveSpeed = 0.1;
+        const moveSpeed = this.playerSpeed;
         const RELATIVE_MOVEMENT = true;
         if (engineState.keys['w']) {
             engineState.camstand_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
