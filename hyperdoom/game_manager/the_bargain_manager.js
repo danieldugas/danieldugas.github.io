@@ -96,7 +96,7 @@ export class TheBargainManager {
         // Eye opening animation state
         this.playerEyeMode = "Lidded"; // Lidded or WideOpen
         this.eyeAnimationProgress = 0; // 0 to 1 within current phase
-        this.eyeAnimationSpeed = 2.0; // How fast the animation progresses
+        this.eyeAnimationSpeed = 1.0; // How fast the animation progresses
         this.lastEyeUpdateTime = 0;
         this.rKeyWasPressed = false;
 
@@ -315,7 +315,7 @@ export class TheBargainManager {
         if (engineState.keys['e']) {
             engineState.camstand_T.translate_self_by_delta(0, 0, 0, +moveSpeed, RELATIVE_MOVEMENT);
         }
-        // R key: Eye mode toggle with easing animation
+        // R key: "Unblink" - Eye mode toggle with easing animation
         this.updateEyeMode(engineState);
         if (engineState.keys['f']) {
             engineState.camstand_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
@@ -494,17 +494,24 @@ export class TheBargainManager {
             } else {
                 // Set the sensor mode according to current anim
                 const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-                const easedProgress = easeInOut(this.eyeAnimationProgress);
                 if (this.playerEyeMode === "Lidded->WideOpen") {
-                    engineState.SENSOR_MODE = 2.0 + 2.99 * easedProgress;
+                    // Cam moves linearly, lid only starts moving after half the time
+                    const easedProgressCam = easeInOut(this.eyeAnimationProgress);
+                    let lid01 = Math.min(Math.max(this.eyeAnimationProgress - 0.5, 0), 1);
+                    const easedProgressLid = easeInOut(lid01);
+                    engineState.SENSOR_MODE = 2.0 + 2.99 * easedProgressLid;
                     // update camera 
-                    engineState.sensorCamRotX = liddedCamRot[0] + (wideOpenCamRot[0] - liddedCamRot[0]) * easedProgress;
-                    engineState.sensorCamRotY = liddedCamRot[1] + (wideOpenCamRot[1] - liddedCamRot[1]) * easedProgress;
+                    engineState.sensorCamRotX = liddedCamRot[0] + (wideOpenCamRot[0] - liddedCamRot[0]) * easedProgressCam;
+                    engineState.sensorCamRotY = liddedCamRot[1] + (wideOpenCamRot[1] - liddedCamRot[1]) * easedProgressCam;
                 } else if (this.playerEyeMode === "WideOpen->Lidded") {
-                    engineState.SENSOR_MODE = 2.99 - 0.99 * easedProgress;
+                    // Cam moves linearly, lid only starts moving after half the time
+                    const easedProgressCam = easeInOut(this.eyeAnimationProgress);
+                    let lid01 = Math.min(Math.max(this.eyeAnimationProgress / 0.5, 0), 1);
+                    const easedProgressLid = easeInOut(lid01);
+                    engineState.SENSOR_MODE = 2.99 - 0.99 * easedProgressLid;
                     // update Camera
-                    engineState.sensorCamRotX = wideOpenCamRot[0] + (liddedCamRot[0] - wideOpenCamRot[0]) * easedProgress;
-                    engineState.sensorCamRotY = wideOpenCamRot[1] + (liddedCamRot[1] - wideOpenCamRot[1]) * easedProgress;
+                    engineState.sensorCamRotX = wideOpenCamRot[0] + (liddedCamRot[0] - wideOpenCamRot[0]) * easedProgressCam;
+                    engineState.sensorCamRotY = wideOpenCamRot[1] + (liddedCamRot[1] - wideOpenCamRot[1]) * easedProgressCam;
                 }
             }
 
