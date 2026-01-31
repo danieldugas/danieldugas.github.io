@@ -93,6 +93,13 @@ export class TheBargainManager {
         this.isFirstStep = true; // Used for debugging
         this.bulletCooldownLastFiredTime = 0;
 
+        // Eye opening animation state
+        this.playerEyeMode = "Lidded"; // Lidded or WideOpen
+        this.eyeAnimationProgress = 0; // 0 to 1 within current phase
+        this.eyeAnimationSpeed = 2.0; // How fast the animation progresses
+        this.lastEyeUpdateTime = 0;
+        this.rKeyWasPressed = false;
+
         // bullets
         this.playerBullets = [];
         this.bulletPrimitives = [];
@@ -308,9 +315,8 @@ export class TheBargainManager {
         if (engineState.keys['e']) {
             engineState.camstand_T.translate_self_by_delta(0, 0, 0, +moveSpeed, RELATIVE_MOVEMENT);
         }
-        if (engineState.keys['r']) {
-            engineState.camstand_T.translate_self_by_delta(0, 0, moveSpeed, 0, RELATIVE_MOVEMENT);
-        }
+        // R key: Eye mode toggle with easing animation
+        this.updateEyeMode(engineState);
         if (engineState.keys['f']) {
             engineState.camstand_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
         }
@@ -438,6 +444,79 @@ export class TheBargainManager {
             [0, 0, 0, 0, 1]
         ]);
         engineState.hypercamera_T = engineState.camstand_T.transform_transform(hypercam_in_camstand);
+    }
+
+    updateEyeMode(engineState) {
+        const dt = engineState.physics_time_s - this.lastEyeUpdateTime;
+        this.lastEyeUpdateTime = engineState.physics_time_s;
+
+        const rKeyPressed = engineState.keys['r'];
+
+        let changed = false;
+
+        // Detect key press/release transitions
+        if (rKeyPressed && !this.rKeyWasPressed) {
+            // R just pressed - start opening animation
+            this.playerEyeMode = "Lidded->WideOpen";
+            // If we were closing, open from the current progress
+            if (this.eyeAnimationProgress !== 0) {
+                this.eyeAnimationProgress = 1.0 - this.eyeAnimationProgress;
+            }
+            changed = true;
+        } else if (!rKeyPressed && this.rKeyWasPressed) {
+            // R just released - start closing animation
+            this.playerEyeMode = "WideOpen->Lidded";
+            // If we were opening, close from the current progress
+            if (this.eyeAnimationProgress !== 0) {
+                this.eyeAnimationProgress = 1.0 - this.eyeAnimationProgress;
+            }
+            changed = true;
+        }
+        this.rKeyWasPressed = rKeyPressed;
+
+        // Progress the animation
+        if (this.playerEyeMode === "Lidded->WideOpen" || this.playerEyeMode === "WideOpen->Lidded") {
+            this.eyeAnimationProgress += dt * this.eyeAnimationSpeed;
+
+            const liddedCamRot = [-Math.PI / 2.0, 0.1];
+            const wideOpenCamRot = [-Math.PI / 2.0, 1.3];
+
+            if (this.eyeAnimationProgress >= 1.0) {
+                this.eyeAnimationProgress = 0;
+                // Advance to next phase
+                if (this.playerEyeMode === "Lidded->WideOpen") {
+                    this.playerEyeMode = "WideOpen";
+                    engineState.SENSOR_MODE = 3.0;
+                } else if (this.playerEyeMode === "WideOpen->Lidded") {
+                    this.playerEyeMode = "Lidded";
+                    engineState.SENSOR_MODE = 2.0;
+                }
+            } else {
+                // Set the sensor mode according to current anim
+                const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                const easedProgress = easeInOut(this.eyeAnimationProgress);
+                if (this.playerEyeMode === "Lidded->WideOpen") {
+                    engineState.SENSOR_MODE = 2.0 + 2.99 * easedProgress;
+                    // update camera 
+                    engineState.sensorCamRotX = liddedCamRot[0] + (wideOpenCamRot[0] - liddedCamRot[0]) * easedProgress;
+                    engineState.sensorCamRotY = liddedCamRot[1] + (wideOpenCamRot[1] - liddedCamRot[1]) * easedProgress;
+                } else if (this.playerEyeMode === "WideOpen->Lidded") {
+                    engineState.SENSOR_MODE = 2.99 - 0.99 * easedProgress;
+                    // update Camera
+                    engineState.sensorCamRotX = wideOpenCamRot[0] + (liddedCamRot[0] - wideOpenCamRot[0]) * easedProgress;
+                    engineState.sensorCamRotY = wideOpenCamRot[1] + (liddedCamRot[1] - wideOpenCamRot[1]) * easedProgress;
+                }
+            }
+
+            changed = true;
+        }
+
+        // Debug
+        if (true && changed) {
+            // log mode, progress, and sensormode
+            console.log(this.playerEyeMode, this.eyeAnimationProgress, engineState.SENSOR_MODE);
+
+        }
     }
 
 }

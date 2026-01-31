@@ -50,7 +50,7 @@ export async function runHyperengine(scene) {
             this.sensorCamRotY = 0.7;
             this.sensorCamDist = 70;
 
-            this.SENSOR_MODE = "full";
+            this.SENSOR_MODE = 3.0;
             this.DEBUG_TETRA_COLORS = false;
             this.SENSOR_ALPHA = 1.0;
             this.AUTO_SHAKE_SENSOR = false;
@@ -138,7 +138,21 @@ export async function runHyperengine(scene) {
     help_div.innerHTML = help_html;
     // update sensor mode
     document.getElementById("sensor-mode").addEventListener("change", function() {
-        engineState.SENSOR_MODE = this.value;
+        let sensormodefloat = 0.0;
+        if (this.value === "slice") {
+            sensormodefloat = 0.0;
+        } else if (this.value === "cutout") {
+            sensormodefloat = 1.0;
+        } else if (this.value === "half") {
+            sensormodefloat = 2.0;
+        } else if (this.value === "full") {
+            sensormodefloat = 3.0;
+        } else if (this.value === "eyeball") {
+            sensormodefloat = 4.0;
+        } else {
+            console.log("unknown sensor mode");
+        }
+        engineState.SENSOR_MODE = sensormodefloat;
         console.log(engineState.SENSOR_MODE);
     });
     // update sensor transparency
@@ -1376,7 +1390,15 @@ fn getVoxel(pos: vec3i) -> Voxel {
   if (stage4UniformBuffer.resolution.z == 1.0) { // cutout
     if (pos.x < iVOX / 2 && pos.z < iVOX / 2) { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
   }
-  if (stage4UniformBuffer.resolution.z == 3.0) { // eyeball
+  if (stage4UniformBuffer.resolution.z == 2.0) { // half
+    if (pos.z < iVOX / 2) { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
+  }
+  if (stage4UniformBuffer.resolution.z > 2.0 && stage4UniformBuffer.resolution.z < 3.0) { // half + a fraction
+    let frac = stage4UniformBuffer.resolution.z - 2.0; // 0-1
+    let zlim = iVOX / 2 - i32(f32(iVOX) / 2.0 * frac);
+    if (pos.z < zlim) { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
+  }
+  if (stage4UniformBuffer.resolution.z == 4.0) { // eyeball
     let center = iVOX / 2;
     let radius = iVOX / 2;
     let dx = pos.x - center;
@@ -1385,9 +1407,6 @@ fn getVoxel(pos: vec3i) -> Voxel {
     if (dx * dx + dy * dy + dz * dz > radius * radius) {
       return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u);
     }
-  }
-  if (stage4UniformBuffer.resolution.z == 4.0) { // half
-    if (pos.z < iVOX / 2) { return Voxel(0.0, 0.0, 0.0, 0.0, 0.0, 0u, 0u, 0u); }
   }
   let idx = pos.x + pos.y * iVOX + pos.z * iVOX * iVOX;
   return voxelGrid[idx];
@@ -2559,26 +2578,11 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         let dist = engineState.sensorCamDist;
 
         // Sensor modes
-        let sensormodefloat = 0.0;
-        if (engineState.SENSOR_MODE === "slice") {
-            sensormodefloat = 0.0;
+        if (engineState.SENSOR_MODE === 0.0) {
             rotY = -Math.PI / 2.0;
             rotX = 0.;
             dist = 50.0;  
-        } else if (engineState.SENSOR_MODE === "cutout") {
-            sensormodefloat = 1.0;
-        } else if (engineState.SENSOR_MODE === "full") {
-            sensormodefloat = 2.0;
-        } else if (engineState.SENSOR_MODE === "eyeball") {
-            sensormodefloat = 3.0;
-        } else if (engineState.SENSOR_MODE === "half") {
-            sensormodefloat = 4.0;
-        } else {
-            console.log("unknown sensor mode");
-            sensormodefloat = 0.0;
         }
-
-
 
         // Camera position (orbit around center at 2,2,2)
         const cx = VOX / 2 + Math.cos(rotY) * Math.cos(rotX) * dist;
@@ -2617,7 +2621,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             dir[0], dir[1], dir[2], 0,
             up[0], up[1], up[2], 0,
             right[0], right[1], right[2], 0,
-            canvas.width, canvas.height, sensormodefloat, 0,
+            canvas.width, canvas.height, engineState.SENSOR_MODE, 0,
             engineState.SENSOR_ALPHA, 0, 0, 0, // debug1
         ]);
         device.queue.writeBuffer(stage4UniformBuffer, 0, stage4UniformBufferData);
