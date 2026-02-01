@@ -2938,6 +2938,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // When render() loops too fast the GPU.submit just blocks to reduce backpressure.
         // So unless this takes more than ~60ms we are good.
         // update DDA camera
+        let nSimSteps = 1;
         writeDDACameraPoseToGPU();
         if (PROFILING) { t_dda_cam = performance.now(); }
         // update hypercamera

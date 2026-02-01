@@ -2,6 +2,11 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { Hyperobject, createHypercube, removeDuplicates } from '../../4d_creatures/hyperengine/hyperobject.js';
 import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 
+// Shades
+// Umbra
+// Anima
+// Damnati
+
 export function createDamned() {
     // build a hypersphere surface (mesh)
     let grid_vertices = [];
@@ -276,7 +281,7 @@ export function createDamned() {
     // remove duplicates
     // [grid_vertices, grid_vertices_texcoords, grid_edges, grid_tetras] = removeDuplicates(grid_vertices, grid_vertices_texcoords, grid_edges, grid_tetras, 0.001);
     // create the class
-    let hypercrab = new Hyperobject(
+    let damned = new Hyperobject(
         // vertices in object frame
         grid_vertices,
         // edges
@@ -303,10 +308,10 @@ export function createDamned() {
         "Hypercrab"
     );
     // Custom tree texture
-    hypercrab.vertices_in_texmap = grid_vertices_texcoords;
+    damned.vertices_in_texmap = grid_vertices_texcoords;
     // Fill texture info, texcoords
     if (true) {
-        let obj = hypercrab;
+        let obj = damned;
         let eyeColorLight = 0xffffff;
         let eyeColorDark = 0x000000;
         let shellColorLight = 0xbb0000;
@@ -344,7 +349,7 @@ export function createDamned() {
         obj.texture_info = { USIZE: USIZE, VSIZE: VSIZE, WSIZE: WSIZE };
     }
     // Animator
-    hypercrab.bones = bones;
+    damned.bones = bones;
     function animationFrame(obj, t) {
         for (let i = 0; i < obj.bones.length; i++) {
             let bone = obj.bones[i];
@@ -435,7 +440,7 @@ export function createDamned() {
             }
 
     }
-    hypercrab.animateFunction = animationFrame;
-    hypercrab.is_animated = true;
-    return hypercrab;
+    damned.animateFunction = animationFrame;
+    damned.is_animated = true;
+    return damned;
 } // end function createDamned()

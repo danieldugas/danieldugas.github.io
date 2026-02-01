@@ -2,6 +2,10 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { Hyperobject, createHypercube, removeDuplicates } from '../../4d_creatures/hyperengine/hyperobject.js';
 import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 
+// Carcinoma
+// Ulcers
+// Tenaculus
+
 export function createCrawler() {
     // build a hypersphere surface (mesh)
     const n_i = 9;
@@ -93,11 +97,16 @@ export function createCrawler() {
         }
     }
     // Make an eye
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 6; i++) {
         vertex_index_offset = grid_vertices.length;
         let eyeR = 0.3;
         let eyeCenter = new Vector4D(R, 0.6*R, R*shellThickness, R);
         if (i === 1) { eyeCenter.y = -eyeCenter.y; }
+        if (i === 2) { eyeCenter.z = -eyeCenter.z; }
+        if (i === 3) { eyeCenter.x = -eyeCenter.x; }
+        if (i === 4) { eyeCenter.w = -eyeCenter.w; }
+        if (i === 5) { eyeCenter.x = -eyeCenter.x; eyeCenter.y = -eyeCenter.y; eyeCenter.z = -eyeCenter.z; eyeCenter.w = -eyeCenter.w; }
+        
         let eyeA = eyeCenter.add(new Vector4D(0, 0, eyeR, 0));
         let eyeB = eyeCenter.add(new Vector4D(eyeR, eyeR, -eyeR, eyeR));
         let eyeC = eyeCenter.add(new Vector4D(eyeR, -eyeR, -eyeR, -eyeR));
@@ -309,7 +318,7 @@ export function createCrawler() {
             }
         }
         // Update pose
-        if (true) {
+        if (false) {
             const islandR = 20.0;
             obj.pose.translate_self_by_delta(0, 0, 0, 0.01, true);
             // Start sinking if crab is in the water

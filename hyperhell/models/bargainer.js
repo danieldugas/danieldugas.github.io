@@ -1,6 +1,11 @@
 import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4d.js';
 import { Hyperobject, createHypercube, removeDuplicates } from '../../4d_creatures/hyperengine/hyperobject.js';
 
+// Profane
+// Godless
+// Transgressor
+// Asham
+
 export function createBargainer() {
     // constants
     const R = 0.5;

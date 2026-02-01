@@ -102,13 +102,14 @@ const ROOM2 = true;
 //           | y
 //           v
 //
-const R1hr = 5; // hexagon radius
-const R1hs = R1hr / (0.5 + _2); // hexagon side
-const R1hw = 10; // w thickness of the room
+const R1HR = 5; // hexagon radius
+const R1HS = R1HR / (0.5 + _2); // hexagon side
+const R1HW = 10; // w thickness of the room
+const r1c = new Vector4D(0, 0, AREA1_ZH, 0);
 if (ROOM1) {
-  const hr = R1hr; // hexagon radius
-  const hs = R1hs/2.0;
-  const hw = R1hw/2.0;
+  const hr = R1HR; // hexagon radius
+  const hs = R1HS/2.0;
+  const hw = R1HW/2.0;
   // 1
   objects.push(createHyperwall(
     new Transform4D([
@@ -213,25 +214,25 @@ if (ROOM1) {
 // First corridor
 const C1ml = 50.0;
 if (CORRIDOR1) {
-  const center = new Vector4D(- R1hr - C1ml / 2.0, 0, AREA1_ZH, 0);
+  const center = new Vector4D(- R1HR - C1ml / 2.0, 0, AREA1_ZH, 0);
   const main_dir = new Vector4D(1,0,0,0);
   const main_length = C1ml;
   const dir1 = new Vector4D(0,1,0,0);
   const dir2 = new Vector4D(0,0,0,1);
-  const length1 = R1hs;
-  const length2 = R1hw;
+  const length1 = R1HS;
+  const length2 = R1HW;
   createCorridorTube(objects, center, main_dir, main_length, dir1, dir2, length1, length2, _H);
 }
 
 // Second room, cubic with two exits (+x and -w)
 const R2R = 10.0;
-const R2X = -R1hr - C1ml - R2R; // center of room2 in x
+const R2X = -R1HR - C1ml - R2R; // center of room2 in x
 const C2R = 5.0; // corridor 2 size (both dims)
 const r2c = new Vector4D(R2X, 0, AREA1_ZH, 0); // convenience
 if (ROOM2) {
   const _r = R2R;
-  const h1f1 = R1hs / 2.0 / R2R;
-  const h1f2 = R1hw / 2.0 / R2R;
+  const h1f1 = R1HS / 2.0 / R2R;
+  const h1f2 = R1HW / 2.0 / R2R;
   createHyperwallWithCenterHole(objects,
     new Transform4D([
         [1, 0, 0, 0, _r + R2X],
@@ -300,7 +301,7 @@ if (ROOM2) {
 } // ROOM 2
 
 // First area is elevated and so needs a floor surface
-const area1xmax = R1hr;
+const area1xmax = R1HR;
 const area1xmin = R2X - R2R;
 const area1ymax = R2R;
 const area1ymin = -R2R;
@@ -351,6 +352,17 @@ function the_bargain_floor_heightmap(x, y, w) {
   return 0.0;
 }
 
+// PoIs
+let poIs = {
+  roomCenters: [
+    {name: "Room 1", pos: r1c},
+    {name: "Room 2", pos: r2c},
+  ],
+  shadeSpawns: [
+    r2c,
+  ],
+};
+
 // Check WebGPU support
 if (!navigator.gpu) {
   document.body.innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
@@ -366,7 +378,7 @@ let custom_scene = {
 
 // GameManager
 // Player controls, NPCs, Monsters, etc
-let gameManager = new TheBargainManager(custom_scene);
+let gameManager = new TheBargainManager(custom_scene, poIs);
 custom_scene.gameManager = gameManager;
 
 // Custom first step for spawning modifications

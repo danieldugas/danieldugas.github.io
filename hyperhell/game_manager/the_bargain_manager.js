@@ -1,6 +1,7 @@
 import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4d.js';
 import { createBullet } from '../models/bullet.js';
 import { createCrawler } from '../models/crawler.js';
+import { createDamned } from '../models/damned.js';
 // Custom controls
 //      (3D / 4D upgrade)
 //       Shooting and guns
@@ -59,7 +60,7 @@ class FiredBullet {
 
     updateBullet(physics_time_s, bulletPrimitives, parentList, indexInParentList) {
         // move by direction * velocity * dt
-        const velocity = 2.0;
+        const velocity = 5.0;
         let newPos = this.lastUpdatePos.add(this.firedDirection.multiply_by_scalar(velocity * (physics_time_s - this.lastUpdateTime)));
         this.scene.visibleHyperobjects[this.primitiveIndex].pose.setTranslation(newPos);
 
@@ -83,37 +84,50 @@ class FiredBullet {
     }
 }
 
-export class TheBargainManager {
-    constructor(scene) {
-        this.scene = scene;
+class ShadeEnemy {
+    constructor(primitiveIndex) {
+        this.primitiveIndex = primitiveIndex;
+    }
+} // ShadeEnemy
 
+class GameState {
+    constructor() {
         // state
         this.GOD_MODE = true;
         this.playerSpeed = 0.1;
         this.isFirstStep = true; // Used for debugging
         this.bulletCooldownLastFiredTime = 0;
-
         // Player stats
         this.playerHealth = 100;
         this.playerMaxHealth = 100;
         this.playerAmmo = 50;
         this.playerMaxAmmo = 100;
-
         // Eye opening animation state
-        this.playerEyeMode = "Lidded"; // Lidded or WideOpen
+        this.playerEyeMode = "WideOpen->Lidded"; // Lidded or WideOpen
         this.eyeAnimationProgress = 0; // 0 to 1 within current phase
         this.eyeAnimationSpeed = 1.0; // How fast the animation progresses
         this.lastEyeUpdateTime = 0;
         this.rKeyWasPressed = false;
-
         // bullets
         this.playerBullets = [];
         this.bulletPrimitives = [];
         // enemies
+        this.shadeEnemies = [];
+        // Debug
+        this.pendingTeleport = null;
+    }
+}
+
+export class TheBargainManager {
+    constructor(scene, poIs) {
+        this.scene = scene;
+        this.poIs = poIs;
+        // State
+        this.gameState = new GameState();
 
         // Pre-allocate 100 bullets
         // createHypersphere(size, color)
-        for (let i = 0; i < 100; i++) { // NOCOMMIT
+        for (let i = 0; i < 100; i++) {
             let dx = Math.random() * 20 - 10;
             let dy = Math.random() * 20 - 10;
             let dw = Math.random() * 20 - 10;
@@ -125,13 +139,28 @@ export class TheBargainManager {
                 [0, 0, 0, 0, 1]
             ])
             let sphere = createBullet(1, 0xffff00, pose);
-            this.bulletPrimitives.push(this.scene.visibleHyperobjects.length);
+            this.gameState.bulletPrimitives.push(this.scene.visibleHyperobjects.length);
             this.scene.visibleHyperobjects.push(sphere);
         }
         
+        // Pre-allocate 10 Shades, 10 Crawlers, 5 Ophanes
+        for (let i = 0; i < this.poIs.shadeSpawns.length; i++) {
+            let p = this.poIs.shadeSpawns[i];
+            let pose = new Transform4D([
+                [1, 0, 0, 0, p.x],
+                [0, 1, 0, 0, p.y],
+                [0, 0, 1, 0, p.z],
+                [0, 0, 0, 1, p.w],
+                [0, 0, 0, 0, 1]
+            ])
+            let creature = createDamned();
+            creature.pose = pose;
+            let primitiveIndex = this.scene.visibleHyperobjects.length; // this line must be before pushing to scene
+            this.gameState.shadeEnemies.push(new ShadeEnemy(primitiveIndex));
+            this.scene.visibleHyperobjects.push(creature);
+        }
 
         // Debug panel
-        this.pendingTeleport = null;
         this.createDebugPanel();
         this.createHUDBar();
     }
@@ -177,9 +206,9 @@ export class TheBargainManager {
         const godModeCheckbox = document.createElement("input");
         godModeCheckbox.type = "checkbox";
         godModeCheckbox.id = "god_mode_checkbox";
-        godModeCheckbox.checked = this.GOD_MODE;
+        godModeCheckbox.checked = this.gameState.GOD_MODE;
         godModeCheckbox.addEventListener("change", (e) => {
-            this.GOD_MODE = e.target.checked;
+            this.gameState.GOD_MODE = e.target.checked;
         });
         const godModeLabel = document.createElement("label");
         godModeLabel.htmlFor = "god_mode_checkbox";
@@ -194,18 +223,18 @@ export class TheBargainManager {
         const speedLabel = document.createElement("label");
         speedLabel.innerHTML = "Speed: ";
         const speedValue = document.createElement("span");
-        speedValue.innerHTML = this.playerSpeed.toFixed(2);
+        speedValue.innerHTML = this.gameState.playerSpeed.toFixed(2);
         const speedSlider = document.createElement("input");
         speedSlider.type = "range";
         speedSlider.min = "0.01";
         speedSlider.max = "1.0";
         speedSlider.step = "0.01";
-        speedSlider.value = this.playerSpeed;
+        speedSlider.value = this.gameState.playerSpeed;
         speedSlider.style.width = "100%";
         speedSlider.style.marginTop = "4px";
         speedSlider.addEventListener("input", (e) => {
-            this.playerSpeed = parseFloat(e.target.value);
-            speedValue.innerHTML = this.playerSpeed.toFixed(2);
+            this.gameState.playerSpeed = parseFloat(e.target.value);
+            speedValue.innerHTML = this.gameState.playerSpeed.toFixed(2);
         });
         speedRow.appendChild(speedLabel);
         speedRow.appendChild(speedValue);
@@ -219,14 +248,7 @@ export class TheBargainManager {
         content.appendChild(teleportLabel);
 
         // Room positions (x, y, z, w)
-        const rooms = [
-            { name: "Spawn", pos: [0, 0, 0, 0] },
-            { name: "Room 1", pos: [10, 0, 0, 0] },
-            { name: "Room 2", pos: [20, 0, 0, 0] },
-            { name: "Room 3", pos: [30, 0, 0, 0] },
-            { name: "Corridor 1", pos: [0, 10, 0, 0] },
-            { name: "Corridor 2", pos: [0, 20, 0, 0] },
-        ];
+        const rooms = this.poIs.roomCenters;
 
         rooms.forEach(room => {
             const btn = document.createElement("button");
@@ -241,7 +263,7 @@ export class TheBargainManager {
             btn.style.borderRadius = "2px";
             btn.style.width = "100%";
             btn.addEventListener("click", () => {
-                this.teleportTo(room.pos[0], room.pos[1], room.pos[2], room.pos[3]);
+                this.teleportTo(room.pos.x, room.pos.y, room.pos.z, room.pos.w);
             });
             content.appendChild(btn);
         });
@@ -412,30 +434,30 @@ export class TheBargainManager {
         const ammoValue = document.getElementById("hud_ammo_value");
 
         if (healthBar && healthValue) {
-            const healthPercent = (this.playerHealth / this.playerMaxHealth) * 100;
+            const healthPercent = (this.gameState.playerHealth / this.gameState.playerMaxHealth) * 100;
             healthBar.style.width = healthPercent + "%";
-            healthValue.innerHTML = Math.round(this.playerHealth);
+            healthValue.innerHTML = Math.round(this.gameState.playerHealth);
         }
 
         if (ammoBar && ammoValue) {
-            const ammoPercent = (this.playerAmmo / this.playerMaxAmmo) * 100;
+            const ammoPercent = (this.gameState.playerAmmo / this.gameState.playerMaxAmmo) * 100;
             ammoBar.style.width = ammoPercent + "%";
-            ammoValue.innerHTML = Math.round(this.playerAmmo);
+            ammoValue.innerHTML = Math.round(this.gameState.playerAmmo);
         }
 
-        if (this.playerEyeMode === "Lidded") {
+        if (this.gameState.playerEyeMode === "Lidded") {
             const eyeIcon = document.getElementById("hud_left_icon");
             if (eyeIcon) {
                 eyeIcon.innerHTML = `<img src="../icons/dimensional_eye_half_lidded_64x64.png"></img>`;
             }
         }
-        if (this.playerEyeMode === "WideOpen") {
+        if (this.gameState.playerEyeMode === "WideOpen") {
             const eyeIcon = document.getElementById("hud_left_icon");
             if (eyeIcon) {
                 eyeIcon.innerHTML = `<img src="../icons/dimensional_eye_wideopen_4D_64x64.png"></img>`;
             }
         }
-        if (this.playerEyeMode === "Lidded->WideOpen" || this.playerEyeMode === "WideOpen->Lidded") {
+        if (this.gameState.playerEyeMode === "Lidded->WideOpen" || this.gameState.playerEyeMode === "WideOpen->Lidded") {
             const eyeIcon = document.getElementById("hud_left_icon");
             if (eyeIcon) {
                 eyeIcon.innerHTML = `<img src="../icons/dimensional_eye_lidded_64x64.png"></img>`;
@@ -444,27 +466,35 @@ export class TheBargainManager {
     }
 
     teleportTo(x, y, z, w) {
-        this.pendingTeleport = { x, y, z, w };
+        this.gameState.pendingTeleport = { x, y, z, w };
+    }
+
+    updateEnemies(engineState) {
+        // Shades:
     }
 
     //Called by the hyperengine at every timestep
     updatePlayerControls(engineState) {
         // Apply pending teleport from debug panel
-        if (this.pendingTeleport) {
-            engineState.camstand_T.matrix[0][4] = this.pendingTeleport.x;
-            engineState.camstand_T.matrix[1][4] = this.pendingTeleport.y;
-            engineState.camstand_T.matrix[2][4] = this.pendingTeleport.z;
-            engineState.camstand_T.matrix[3][4] = this.pendingTeleport.w;
-            this.pendingTeleport = null;
+        if (this.gameState.pendingTeleport) {
+            engineState.camstand_T.matrix[0][4] = this.gameState.pendingTeleport.x;
+            engineState.camstand_T.matrix[1][4] = this.gameState.pendingTeleport.y;
+            engineState.camstand_T.matrix[2][4] = this.gameState.pendingTeleport.z;
+            engineState.camstand_T.matrix[3][4] = this.gameState.pendingTeleport.w;
+            this.gameState.pendingTeleport = null;
         }
 
         // First Step callback (debugging)
-        if (this.isFirstStep) {
-            this.isFirstStep = false;
+        if (this.gameState.isFirstStep) {
+            this.gameState.isFirstStep = false;
             if (this.onFirstStepCallback) { this.onFirstStepCallback(engineState); }
             // Set a few things
             engineState.SENSOR_MODE = 2.0;
         }
+
+        // Update enemies
+        this.updateEnemies(engineState);
+        
         // Mouse
         if (engineState.isDraggingLeftClick) {
             const deltaX = engineState.mouseCurrentClickedX - engineState.lastX;
@@ -497,7 +527,7 @@ export class TheBargainManager {
             engineState.mouseScrollActive = false;
         }
 
-        const moveSpeed = this.playerSpeed;
+        const moveSpeed = this.gameState.playerSpeed;
         const RELATIVE_MOVEMENT = true;
         if (engineState.keys['w']) {
             engineState.camstand_T.translate_self_by_delta(moveSpeed, 0, 0, 0, RELATIVE_MOVEMENT);
@@ -532,27 +562,27 @@ export class TheBargainManager {
 
         // space to shoot
         if (engineState.keys[' ']) {
-            let timeSinceCooldown = engineState.physics_time_s - this.bulletCooldownLastFiredTime;
-            if (timeSinceCooldown > 1.0 && this.playerAmmo > 0) {
-                if (this.bulletPrimitives.length == 0) {
-                    this.playerBullets[0].destroyBullet(this.bulletPrimitives, this.playerBullets, 0); // Clear the first (oldest)
+            let timeSinceCooldown = engineState.physics_time_s - this.gameState.bulletCooldownLastFiredTime;
+            if (timeSinceCooldown > 1.0 && this.gameState.playerAmmo > 0) {
+                if (this.gameState.bulletPrimitives.length == 0) {
+                    this.gameState.playerBullets[0].destroyBullet(this.gameState.bulletPrimitives, this.gameState.playerBullets, 0); // Clear the first (oldest)
                 }
                 // pop first available primitive
-                let primIndex = this.bulletPrimitives.pop();
-                let newBullet = new FiredBullet(this.scene, primIndex, engineState.hypercamera_T.origin(), engineState.camstand_T.transform_vector(new Vector4D(1, 0, 0, 0)), engineState.physics_time_s);
-                this.playerBullets.push(newBullet);
-                this.bulletCooldownLastFiredTime = engineState.physics_time_s;
-                this.playerAmmo--;
+                let primIndex = this.gameState.bulletPrimitives.pop();
+                let newBullet = new FiredBullet(this.scene, primIndex, engineState.hypercamera_T.origin(), engineState.hypercamera_T.transform_vector(new Vector4D(1, 0, 0, 0)), engineState.physics_time_s);
+                this.gameState.playerBullets.push(newBullet);
+                this.gameState.bulletCooldownLastFiredTime = engineState.physics_time_s;
+                this.gameState.playerAmmo--;
             }
         }
         // Update all live bullets (while as the list size changes mid loop)
         let bullet_i = 0;
         while (true) {
-            if (bullet_i >= this.playerBullets.length) {
+            if (bullet_i >= this.gameState.playerBullets.length) {
                 break;
             }
             // this may delete the bullet
-            this.playerBullets[bullet_i].updateBullet(engineState.physics_time_s, this.bulletPrimitives, this.playerBullets, bullet_i);
+            this.gameState.playerBullets[bullet_i].updateBullet(engineState.physics_time_s, this.gameState.bulletPrimitives, this.gameState.playerBullets, bullet_i);
             // increment
             bullet_i++;
         }
@@ -584,7 +614,7 @@ export class TheBargainManager {
         }
 
         // Box Colliders
-        if (!this.GOD_MODE) {
+        if (!this.gameState.GOD_MODE) {
             for (let i = 0; i < engineState.scene.visibleHyperobjects.length; i++) {
                 const obj = engineState.scene.visibleHyperobjects[i];
                 if (obj.collider) {
@@ -653,67 +683,67 @@ export class TheBargainManager {
     }
 
     updateEyeMode(engineState) {
-        const dt = engineState.physics_time_s - this.lastEyeUpdateTime;
-        this.lastEyeUpdateTime = engineState.physics_time_s;
+        const dt = engineState.physics_time_s - this.gameState.lastEyeUpdateTime;
+        this.gameState.lastEyeUpdateTime = engineState.physics_time_s;
 
         const rKeyPressed = engineState.keys['r'];
 
         let changed = false;
 
         // Detect key press/release transitions
-        if (rKeyPressed && !this.rKeyWasPressed) {
+        if (rKeyPressed && !this.gameState.rKeyWasPressed) {
             // R just pressed - start opening animation
-            this.playerEyeMode = "Lidded->WideOpen";
+            this.gameState.playerEyeMode = "Lidded->WideOpen";
             // If we were closing, open from the current progress
-            if (this.eyeAnimationProgress !== 0) {
-                this.eyeAnimationProgress = 1.0 - this.eyeAnimationProgress;
+            if (this.gameState.eyeAnimationProgress !== 0) {
+                this.gameState.eyeAnimationProgress = 1.0 - this.gameState.eyeAnimationProgress;
             }
             changed = true;
-        } else if (!rKeyPressed && this.rKeyWasPressed) {
+        } else if (!rKeyPressed && this.gameState.rKeyWasPressed) {
             // R just released - start closing animation
-            this.playerEyeMode = "WideOpen->Lidded";
+            this.gameState.playerEyeMode = "WideOpen->Lidded";
             // If we were opening, close from the current progress
-            if (this.eyeAnimationProgress !== 0) {
-                this.eyeAnimationProgress = 1.0 - this.eyeAnimationProgress;
+            if (this.gameState.eyeAnimationProgress !== 0) {
+                this.gameState.eyeAnimationProgress = 1.0 - this.gameState.eyeAnimationProgress;
             }
             changed = true;
         }
-        this.rKeyWasPressed = rKeyPressed;
+        this.gameState.rKeyWasPressed = rKeyPressed;
 
         // Progress the animation
-        if (this.playerEyeMode === "Lidded->WideOpen" || this.playerEyeMode === "WideOpen->Lidded") {
-            this.eyeAnimationProgress += dt * this.eyeAnimationSpeed;
+        if (this.gameState.playerEyeMode === "Lidded->WideOpen" || this.gameState.playerEyeMode === "WideOpen->Lidded") {
+            this.gameState.eyeAnimationProgress += dt * this.gameState.eyeAnimationSpeed;
 
             const liddedCamRot = [-Math.PI / 2.0, 0.1, 40];
             const wideOpenCamRot = [-Math.PI / 2.0, 0.9, 80];
 
-            if (this.eyeAnimationProgress >= 1.0) {
-                this.eyeAnimationProgress = 0;
+            if (this.gameState.eyeAnimationProgress >= 1.0) {
+                this.gameState.eyeAnimationProgress = 0;
                 // Advance to next phase
-                if (this.playerEyeMode === "Lidded->WideOpen") {
-                    this.playerEyeMode = "WideOpen";
+                if (this.gameState.playerEyeMode === "Lidded->WideOpen") {
+                    this.gameState.playerEyeMode = "WideOpen";
                     engineState.SENSOR_MODE = 3.0;
-                } else if (this.playerEyeMode === "WideOpen->Lidded") {
-                    this.playerEyeMode = "Lidded";
+                } else if (this.gameState.playerEyeMode === "WideOpen->Lidded") {
+                    this.gameState.playerEyeMode = "Lidded";
                     engineState.SENSOR_MODE = 2.0;
                 }
             } else {
                 // Set the sensor mode according to current anim
                 const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-                if (this.playerEyeMode === "Lidded->WideOpen") {
+                if (this.gameState.playerEyeMode === "Lidded->WideOpen") {
                     // Cam moves linearly, lid only starts moving after half the time
-                    const easedProgressCam = easeInOut(this.eyeAnimationProgress);
-                    let lid01 = Math.min(Math.max(this.eyeAnimationProgress - 0.5, 0), 1);
+                    const easedProgressCam = easeInOut(this.gameState.eyeAnimationProgress);
+                    let lid01 = Math.min(Math.max(this.gameState.eyeAnimationProgress - 0.5, 0), 1);
                     const easedProgressLid = easeInOut(lid01);
                     engineState.SENSOR_MODE = 2.0 + 2.99 * easedProgressLid;
                     // update camera 
                     engineState.sensorCamRotX = liddedCamRot[0] + (wideOpenCamRot[0] - liddedCamRot[0]) * easedProgressCam;
                     engineState.sensorCamRotY = liddedCamRot[1] + (wideOpenCamRot[1] - liddedCamRot[1]) * easedProgressCam;
                     engineState.sensorCamDist = liddedCamRot[2] + (wideOpenCamRot[2] - liddedCamRot[2]) * easedProgressCam;
-                } else if (this.playerEyeMode === "WideOpen->Lidded") {
+                } else if (this.gameState.playerEyeMode === "WideOpen->Lidded") {
                     // Cam moves linearly, lid only starts moving after half the time
-                    const easedProgressCam = easeInOut(this.eyeAnimationProgress);
-                    let lid01 = Math.min(Math.max(this.eyeAnimationProgress / 0.5, 0), 1);
+                    const easedProgressCam = easeInOut(this.gameState.eyeAnimationProgress);
+                    let lid01 = Math.min(Math.max(this.gameState.eyeAnimationProgress / 0.5, 0), 1);
                     const easedProgressLid = easeInOut(lid01);
                     engineState.SENSOR_MODE = 2.99 - 0.99 * easedProgressLid;
                     // update Camera
@@ -729,7 +759,7 @@ export class TheBargainManager {
         // Debug
         if (true && changed) {
             // log mode, progress, and sensormode
-            console.log(this.playerEyeMode, this.eyeAnimationProgress, engineState.SENSOR_MODE);
+            console.log(this.gameState.playerEyeMode, this.gameState.eyeAnimationProgress, engineState.SENSOR_MODE);
 
         }
     }
