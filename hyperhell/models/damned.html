@@ -82,7 +82,7 @@ import { createDamned } from '../models/damned.js';
 
 
 let monster = createDamned();
-monster.pose.translate_self_by_delta(2, 0, 4, 0);
+monster.pose.translate_self_by_delta(2, 0, 0, 0);
 
 
 // Check WebGPU support
@@ -93,9 +93,8 @@ if (!navigator.gpu) {
 
 const main_canvas = document.getElementById('canvas');
 let custom_scene = {
-    visibleHyperobjects: [hypercrab],
-    mainCanvas: main_canvas,
-    floorPreset: 'island'
+    visibleHyperobjects: [monster],
+    mainCanvas: main_canvas
 };
 
 runHyperengine(custom_scene).catch(err => {

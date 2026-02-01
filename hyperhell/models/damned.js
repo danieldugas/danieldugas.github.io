@@ -4,16 +4,20 @@ import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 
 export function createDamned() {
     // build a hypersphere surface (mesh)
-    const n_i = 9;
-    const n_j = 5;
-    const n_k = 5;
     let grid_vertices = [];
     let grid_edges = [];
     let grid_tetras = [];
     let grid_vertices_texcoords = [];
-    // Shell
+    let bones = [];
+    // Torso
+    const n_i = 9;
+    const n_j = 5;
+    const n_k = 3;
     const R = 1.0;
-    const shellThickness = 0.2;
+    const tbz = 1.0;
+    const thz = 1.0;
+    const ttx = 0.3;
+    const twy = 0.6;
     let vertex_index_offset = grid_vertices.length;
     for (let i = 0; i < n_i; i++) {
         for (let j = 0; j < n_j; j++) {
@@ -22,14 +26,14 @@ export function createDamned() {
                 // a is the circle on xy plane (9)
                 // b is the concentric rings along z (5)
                 // c is the concentric spheres along w (5)
-                let sphere_Rs = [0.0, 0.707*R, R, 0.707*R, 0.0];
+                let sphere_Rs = [twy * 0.9, twy, twy * 0.9];
                 let sphere_R = sphere_Rs[k];
                 let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
                 let circle_R = circle_Rs[j];
-                let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
+                let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i] * ttx;
                 let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
-                let z = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j] * shellThickness;
-                let w = [-R,               -0.707*R,      0.0,        0.707*R,        R][k];
+                let w = [-R,               -0.707*R,      0.0,        0.707*R,        R][j];
+                let z = [tbz,      tbz + thz * 0.7, tbz + thz][k];
                 grid_vertices.push(new Vector4D(x, y, z, w));
 
                 // texture coordinates
@@ -92,133 +96,181 @@ export function createDamned() {
             }
         }
     }
-    // Make an eye
-    for (let i = 0; i < 2; i++) {
-        vertex_index_offset = grid_vertices.length;
-        let eyeR = 0.3;
-        let eyeCenter = new Vector4D(R, 0.6*R, R*shellThickness, R);
-        if (i === 1) { eyeCenter.y = -eyeCenter.y; }
-        let eyeA = eyeCenter.add(new Vector4D(0, 0, eyeR, 0));
-        let eyeB = eyeCenter.add(new Vector4D(eyeR, eyeR, -eyeR, eyeR));
-        let eyeC = eyeCenter.add(new Vector4D(eyeR, -eyeR, -eyeR, -eyeR));
-        let eyeD = eyeCenter.add(new Vector4D(-eyeR, eyeR, -eyeR, -eyeR));
-        let eyeE = eyeCenter.add(new Vector4D(-eyeR, -eyeR, -eyeR, eyeR));
-        grid_vertices.push(eyeA);
-        grid_vertices.push(eyeB);
-        grid_vertices.push(eyeC);
-        grid_vertices.push(eyeD);
-        grid_vertices.push(eyeE);
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.75, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
-        grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 4]);
-        grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 3, vertex_index_offset + 4]);
-        grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 2, vertex_index_offset + 3, vertex_index_offset + 4]);
-        grid_tetras.push([vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3, vertex_index_offset + 4]);
-    }
-    // Legs
-       // face directions (6)
-    let Xp = new Vector4D(1.0, 0.0, 0.0, 0.0);
-    let Xn = new Vector4D(-1.0, 0.0, 0.0, 0.0);
-    let Yp = new Vector4D(0.0, 1.0, 0.0, 0.0);
-    let Yn = new Vector4D(0.0, -1.0, 0.0, 0.0);
-    let Zp = new Vector4D(0.0, 0.0, 1.0, 0.0);
-    let Zn = new Vector4D(0.0, 0.0, -1.0, 0.0);
-    let Wp = new Vector4D(0.0, 0.0, 0.0, 1.0);
-    let Wn = new Vector4D(0.0, 0.0, 0.0, -1.0);
-    // edge directions (12)
-    let XpYp = Xp.add(Yp).normalize();
-    let XpYn = Xp.add(Yn).normalize();
-    let XnYp = Xn.add(Yp).normalize();
-    let XnYn = Xn.add(Yn).normalize();
-    let XpWp = Xp.add(Wp).normalize();
-    let XpWn = Xp.add(Wn).normalize();
-    let XnWp = Xn.add(Wp).normalize();
-    let XnWn = Xn.add(Wn).normalize();
-    let YpWp = Yp.add(Wp).normalize();
-    let YpWn = Yp.add(Wn).normalize();
-    let YnWp = Yn.add(Wp).normalize();
-    let YnWn = Yn.add(Wn).normalize();
-    // corner directions (8)
-    let XpYpWp = Xp.add(Yp).add(Wp).normalize();
-    let XpYpWn = Xp.add(Yp).add(Wn).normalize();
-    let XpYnWp = Xp.add(Yn).add(Wp).normalize();
-    let XpYnWn = Xp.add(Yn).add(Wn).normalize();
-    let XnYpWp = Xn.add(Yp).add(Wp).normalize();
-    let XnYpWn = Xn.add(Yp).add(Wn).normalize();
-    let XnYnWp = Xn.add(Yn).add(Wp).normalize();
-    let XnYnWn = Xn.add(Yn).add(Wn).normalize();
-    // Make leaves
-    let legDirs = [ // leaf_dir, leaf_A_dir, leaf_B_dir
-        // [Xp, Zp, Yp, Wp],
-        // [Xn, Zp, Yn, Wn],
-        // [Yp, Zp, Wp, Xp],
-        // [Yn, Zp, Wn, Xn],
-        // [Wp, Zp, Xp, Yp],
-        // [Wn, Zp, Xn, Yn],
-        // -- edges --
-        // [XpYp, Zp, Wp, XpYn],
-        // [XnYn, Zp, Wn, XnYp],
-        // [XpYn, Zp, Wn, XpYp],
-        // [XnYp, Zp, Wp, XnYn],
-        // [XpWp, Zp, Yp, XpWn],
-        // [XnWn, Zp, Yn, XnWp],
-        // [XpWn, Zp, Yn, XpWp],
-        // [XnWp, Zp, Yp, XnWn],
-        [YpWp, Zp, Xp, YpWn],
-        [YnWn, Zp, Xn, YnWp],
-        [YpWn, Zp, Xn, YpWp],
-        [YnWp, Zp, Xp, YnWn],
-        // // -- corners --
-        [XpYpWp, Zp, XpYnWp, XpYpWn],
-        [XpYpWn, Zp, XpYnWn, XpYnWp],
-        [XpYnWp, Zp, XpYpWn, XpYnWn],
-        [XpYnWn, Zp, XpYpWp, XpYpWn],
-        [XnYpWp, Zp, XnYnWp, XnYpWn],
-        [XnYpWn, Zp, XnYnWn, XnYnWp],
-        [XnYnWp, Zp, XnYpWn, XnYnWn],
-        [XnYnWn, Zp, XnYpWp, XnYpWn],
 
-    ];
-    let legL = 2.0;
-    let legT = 0.4;
-    let bones = [];
-    for (let i = 0; i < legDirs.length; i++) {
-        let bone_vertex_idx_and_affinity = [];
-        let dir = legDirs[i][0];
-        let dirA = legDirs[i][1];
-        let dirB = legDirs[i][2];
-        let stem = dir.multiply_by_scalar(legL/4.0);
-        let leg_mid = stem.add(dir.multiply_by_scalar(legL/2.0));
-        let leg_A = leg_mid.add(dirA.multiply_by_scalar(legT));
-        let leg_B = leg_mid.add(dirB.multiply_by_scalar(legT));
-        let leg_C = leg_mid.add(dirB.multiply_by_scalar(-legT));
-        let tip = stem.add(dir.multiply_by_scalar(legL));
-        leg_mid.z += 0.5;
-        tip.z -= 1.0;
-        // create two tetras, [stem, A, B, C] and [tip, A, B, C]
+    // Head
+    if (true) {
+        const n_i = 9;
+        const n_j = 5;
+        const n_k = 5;
+        const R = 1.0;
+        const tbz = 2.0;
+        const thz = 0.5;
+        const ttx = 0.6;
+        const twy = 0.6;
         let vertex_index_offset = grid_vertices.length;
-        grid_vertices.push(stem);
-        grid_vertices.push(leg_A);
-        grid_vertices.push(leg_B);
-        grid_vertices.push(leg_C);
-        grid_vertices.push(tip);
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
-        grid_tetras.push([vertex_index_offset + 4, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
-        bone_vertex_idx_and_affinity.push([vertex_index_offset + 0, 0.0, stem]);
-        bone_vertex_idx_and_affinity.push([vertex_index_offset + 1, 0.5, leg_A]);
-        bone_vertex_idx_and_affinity.push([vertex_index_offset + 2, 0.5, leg_B]);
-        bone_vertex_idx_and_affinity.push([vertex_index_offset + 3, 0.5, leg_C]);
-        bone_vertex_idx_and_affinity.push([vertex_index_offset + 4, 1.0, tip]);
-        bones.push(bone_vertex_idx_and_affinity);
+        for (let i = 0; i < n_i; i++) {
+            for (let j = 0; j < n_j; j++) {
+                for (let k = 0; k < n_k; k++) {
+                    // Spherical coordinates for the points
+                    // a is the circle on xy plane (9)
+                    // b is the concentric rings along z (5)
+                    // c is the concentric spheres along w (5)
+                    let sphere_R = [0.0, 0.707*thz, thz, 0.707*thz, 0.0][k];
+                    let circle_R = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0][j];
+                    let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i] * ttx;
+                    let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i] * twy;
+                    let w = [-R,               -0.707*R,      0.0,        0.707*R,        R][j];
+                    let z = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][k] + sphere_R + tbz;
+                    grid_vertices.push(new Vector4D(x, y, z, w));
+
+                    // texture coordinates
+                    let theta = i / (n_i - 1.0);
+                    let phi = j / (n_j - 1.0);
+                    grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+
+                    // add an edge to the next vertex in x
+                    if (i < n_i - 1) {
+                        let next_index = grid_vertices.length + (n_j * n_k) - 1;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge to the next vertex in y
+                    if (j < n_j - 1) {
+                        let next_index = grid_vertices.length + n_k - 1;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge to the next vertex in w
+                    if (k < n_k - 1) {
+                        let next_index = grid_vertices.length;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge between next x and next y
+                    if (i < n_i - 1 && j < n_j - 1) {
+                        let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                        let next_y_index = grid_vertices.length + n_k - 1;
+                        grid_edges.push([next_x_index, next_y_index]);
+                    }
+                    // add an edge between next x and next w
+                    if (i < n_i - 1 && k < n_k - 1) {
+                        let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                        let next_w_index = grid_vertices.length;
+                        grid_edges.push([next_x_index, next_w_index]);
+                    }
+                    // add an edge between next y and next w
+                    if (j < n_j - 1 && k < n_k - 1) {
+                        let next_y_index = grid_vertices.length + n_k - 1;
+                        let next_w_index = grid_vertices.length;
+                        grid_edges.push([next_y_index, next_w_index]);
+                    }
+                    // add 5 tetras between this grid point and the next in x,y,w
+                    if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                        let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
+                        let pnn = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + k;
+                        let npn = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + k;
+                        let ppn = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                        let nnp = vertex_index_offset + i * n_j * n_k + j * n_k + (k + 1);
+                        let pnp = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                        let npp = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let ppp = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let cell_tetras = [
+                            [pnn, nnn, ppn, pnp], // tet at corner p n n
+                            [npn, ppn, nnn, npp], // tet at corner n p n
+                            [nnp, pnp, npp, nnn], // tet at corner n n p
+                            [ppp, npp, pnp, ppn], // tet at corner p p p
+                            [nnn, ppn, npp, pnp]  // tet at center
+                        ];
+                        for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                    }
+                }
+            }
+        }
+    }
+
+    // Leg
+    for (let li = 0; li < 2; li++) {
+        const n_i = 9;
+        const n_j = 5;
+        const n_k = 2;
+        const R = 1.0;
+        const tbz = 0.0;
+        const thz = 1.0;
+        const twy = 0.18;
+        const cy = [-0.2, 0.2][li];
+        let vertex_index_offset = grid_vertices.length;
+        for (let i = 0; i < n_i; i++) {
+            for (let j = 0; j < n_j; j++) {
+                for (let k = 0; k < n_k; k++) {
+                    // Spherical coordinates for the points
+                    // a is the circle on xy plane (9)
+                    // b is the concentric rings along z (5)
+                    // c is the concentric spheres along w (5)
+                    let sphere_R = [twy, twy][k];
+                    let circle_R = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0][j];
+                    let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
+                    let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i] + cy;
+                    let w = [-R,               -0.707*R,      0.0,        0.707*R,        R][j];
+                    let z = [tbz, tbz + thz][k];
+                    grid_vertices.push(new Vector4D(x, y, z, w));
+
+                    // texture coordinates
+                    let theta = i / (n_i - 1.0);
+                    let phi = j / (n_j - 1.0);
+                    grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+
+                    // add an edge to the next vertex in x
+                    if (i < n_i - 1) {
+                        let next_index = grid_vertices.length + (n_j * n_k) - 1;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge to the next vertex in y
+                    if (j < n_j - 1) {
+                        let next_index = grid_vertices.length + n_k - 1;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge to the next vertex in w
+                    if (k < n_k - 1) {
+                        let next_index = grid_vertices.length;
+                        grid_edges.push([grid_vertices.length - 1, next_index]);
+                    }
+                    // add an edge between next x and next y
+                    if (i < n_i - 1 && j < n_j - 1) {
+                        let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                        let next_y_index = grid_vertices.length + n_k - 1;
+                        grid_edges.push([next_x_index, next_y_index]);
+                    }
+                    // add an edge between next x and next w
+                    if (i < n_i - 1 && k < n_k - 1) {
+                        let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
+                        let next_w_index = grid_vertices.length;
+                        grid_edges.push([next_x_index, next_w_index]);
+                    }
+                    // add an edge between next y and next w
+                    if (j < n_j - 1 && k < n_k - 1) {
+                        let next_y_index = grid_vertices.length + n_k - 1;
+                        let next_w_index = grid_vertices.length;
+                        grid_edges.push([next_y_index, next_w_index]);
+                    }
+                    // add 5 tetras between this grid point and the next in x,y,w
+                    if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                        let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
+                        let pnn = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + k;
+                        let npn = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + k;
+                        let ppn = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                        let nnp = vertex_index_offset + i * n_j * n_k + j * n_k + (k + 1);
+                        let pnp = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                        let npp = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let ppp = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let cell_tetras = [
+                            [pnn, nnn, ppn, pnp], // tet at corner p n n
+                            [npn, ppn, nnn, npp], // tet at corner n p n
+                            [nnp, pnp, npp, nnn], // tet at corner n n p
+                            [ppp, npp, pnp, ppn], // tet at corner p p p
+                            [nnn, ppn, npp, pnp]  // tet at center
+                        ];
+                        for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                    }
+                }
+            }
+        }
     }
     
     // remove duplicates
@@ -309,7 +361,7 @@ export function createDamned() {
             }
         }
         // Update pose
-        if (true) {
+        if (false) {
             const islandR = 20.0;
             obj.pose.translate_self_by_delta(0, 0, 0, 0.01, true);
             // Start sinking if crab is in the water
