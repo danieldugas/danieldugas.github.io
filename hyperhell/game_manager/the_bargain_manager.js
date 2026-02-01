@@ -522,16 +522,16 @@ export class TheBargainManager {
         if (engineState.keys['f']) {
             engineState.camstand_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
         }
-        // space to jump
-        if (engineState.keys[' ']) {
+        // c to jump
+        if (engineState.keys['c']) {
             if (!engineState.player_is_jumping) {
                 engineState.last_player_jump_time = engineState.physics_time_s;
                 engineState.player_is_jumping = true;
             }
         }
 
-        // C to shoot
-        if (engineState.keys['c']) {
+        // space to shoot
+        if (engineState.keys[' ']) {
             let timeSinceCooldown = engineState.physics_time_s - this.bulletCooldownLastFiredTime;
             if (timeSinceCooldown > 1.0 && this.playerAmmo > 0) {
                 if (this.bulletPrimitives.length == 0) {
