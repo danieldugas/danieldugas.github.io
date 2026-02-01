@@ -93,6 +93,12 @@ export class TheBargainManager {
         this.isFirstStep = true; // Used for debugging
         this.bulletCooldownLastFiredTime = 0;
 
+        // Player stats
+        this.playerHealth = 100;
+        this.playerMaxHealth = 100;
+        this.playerAmmo = 50;
+        this.playerMaxAmmo = 100;
+
         // Eye opening animation state
         this.playerEyeMode = "Lidded"; // Lidded or WideOpen
         this.eyeAnimationProgress = 0; // 0 to 1 within current phase
@@ -127,6 +133,7 @@ export class TheBargainManager {
         // Debug panel
         this.pendingTeleport = null;
         this.createDebugPanel();
+        this.createHUDBar();
     }
 
     createDebugPanel() {
@@ -246,6 +253,177 @@ export class TheBargainManager {
         this.debugPanel = panel;
     }
 
+    createHUDBar() {
+        // Main HUD container
+        const hud = document.createElement("div");
+        hud.id = "hud_bar";
+        hud.style.position = "absolute";
+        hud.style.bottom = "20px";
+        hud.style.left = "50%";
+        hud.style.transform = "translateX(-50%)";
+        hud.style.backgroundColor = "rgba(20, 20, 20, 0.85)";
+        hud.style.border = "2px solid #444";
+        hud.style.borderRadius = "4px";
+        hud.style.padding = "8px 16px";
+        hud.style.display = "flex";
+        hud.style.alignItems = "center";
+        hud.style.gap = "16px";
+        hud.style.zIndex = "999";
+        hud.style.fontFamily = "monospace";
+        hud.style.color = "#ccc";
+        hud.style.userSelect = "none";
+
+        // Left icon (player face/status)
+        const leftIcon = document.createElement("div");
+        leftIcon.id = "hud_left_icon";
+        leftIcon.style.width = "40px";
+        leftIcon.style.height = "40px";
+        leftIcon.style.backgroundColor = "#333";
+        leftIcon.style.border = "1px solid #555";
+        leftIcon.style.borderRadius = "4px";
+        leftIcon.style.display = "flex";
+        leftIcon.style.alignItems = "center";
+        leftIcon.style.justifyContent = "center";
+        leftIcon.style.fontSize = "24px";
+        leftIcon.innerHTML = "👁";
+        hud.appendChild(leftIcon);
+
+        // Health bar container
+        const healthContainer = document.createElement("div");
+        healthContainer.style.display = "flex";
+        healthContainer.style.flexDirection = "column";
+        healthContainer.style.gap = "2px";
+
+        const healthLabel = document.createElement("div");
+        healthLabel.style.fontSize = "10px";
+        healthLabel.style.color = "#888";
+        healthLabel.innerHTML = "HEALTH";
+
+        const healthBarOuter = document.createElement("div");
+        healthBarOuter.style.width = "120px";
+        healthBarOuter.style.height = "16px";
+        healthBarOuter.style.backgroundColor = "#222";
+        healthBarOuter.style.border = "1px solid #555";
+        healthBarOuter.style.borderRadius = "2px";
+        healthBarOuter.style.overflow = "hidden";
+        healthBarOuter.style.position = "relative";
+
+        const healthBarInner = document.createElement("div");
+        healthBarInner.id = "hud_health_bar";
+        healthBarInner.style.width = "100%";
+        healthBarInner.style.height = "100%";
+        healthBarInner.style.backgroundColor = "#c22";
+        healthBarInner.style.transition = "width 0.2s";
+
+        const healthValue = document.createElement("div");
+        healthValue.id = "hud_health_value";
+        healthValue.style.position = "absolute";
+        healthValue.style.top = "0";
+        healthValue.style.left = "0";
+        healthValue.style.width = "100%";
+        healthValue.style.height = "100%";
+        healthValue.style.display = "flex";
+        healthValue.style.alignItems = "center";
+        healthValue.style.justifyContent = "center";
+        healthValue.style.fontSize = "11px";
+        healthValue.style.fontWeight = "bold";
+        healthValue.style.color = "#fff";
+        healthValue.style.textShadow = "1px 1px 1px #000";
+        healthValue.innerHTML = "100";
+
+        healthBarOuter.appendChild(healthBarInner);
+        healthBarOuter.appendChild(healthValue);
+        healthContainer.appendChild(healthLabel);
+        healthContainer.appendChild(healthBarOuter);
+        hud.appendChild(healthContainer);
+
+        // Ammo bar container
+        const ammoContainer = document.createElement("div");
+        ammoContainer.style.display = "flex";
+        ammoContainer.style.flexDirection = "column";
+        ammoContainer.style.gap = "2px";
+
+        const ammoLabel = document.createElement("div");
+        ammoLabel.style.fontSize = "10px";
+        ammoLabel.style.color = "#888";
+        ammoLabel.innerHTML = "AMMO";
+
+        const ammoBarOuter = document.createElement("div");
+        ammoBarOuter.style.width = "120px";
+        ammoBarOuter.style.height = "16px";
+        ammoBarOuter.style.backgroundColor = "#222";
+        ammoBarOuter.style.border = "1px solid #555";
+        ammoBarOuter.style.borderRadius = "2px";
+        ammoBarOuter.style.overflow = "hidden";
+        ammoBarOuter.style.position = "relative";
+
+        const ammoBarInner = document.createElement("div");
+        ammoBarInner.id = "hud_ammo_bar";
+        ammoBarInner.style.width = "50%";
+        ammoBarInner.style.height = "100%";
+        ammoBarInner.style.backgroundColor = "#c90";
+        ammoBarInner.style.transition = "width 0.2s";
+
+        const ammoValue = document.createElement("div");
+        ammoValue.id = "hud_ammo_value";
+        ammoValue.style.position = "absolute";
+        ammoValue.style.top = "0";
+        ammoValue.style.left = "0";
+        ammoValue.style.width = "100%";
+        ammoValue.style.height = "100%";
+        ammoValue.style.display = "flex";
+        ammoValue.style.alignItems = "center";
+        ammoValue.style.justifyContent = "center";
+        ammoValue.style.fontSize = "11px";
+        ammoValue.style.fontWeight = "bold";
+        ammoValue.style.color = "#fff";
+        ammoValue.style.textShadow = "1px 1px 1px #000";
+        ammoValue.innerHTML = "50";
+
+        ammoBarOuter.appendChild(ammoBarInner);
+        ammoBarOuter.appendChild(ammoValue);
+        ammoContainer.appendChild(ammoLabel);
+        ammoContainer.appendChild(ammoBarOuter);
+        hud.appendChild(ammoContainer);
+
+        // Weapon icon (right side)
+        const weaponIcon = document.createElement("div");
+        weaponIcon.id = "hud_weapon_icon";
+        weaponIcon.style.width = "40px";
+        weaponIcon.style.height = "40px";
+        weaponIcon.style.backgroundColor = "#333";
+        weaponIcon.style.border = "1px solid #555";
+        weaponIcon.style.borderRadius = "4px";
+        weaponIcon.style.display = "flex";
+        weaponIcon.style.alignItems = "center";
+        weaponIcon.style.justifyContent = "center";
+        weaponIcon.style.fontSize = "20px";
+        weaponIcon.innerHTML = "🔫";
+        hud.appendChild(weaponIcon);
+
+        document.body.appendChild(hud);
+        this.hudBar = hud;
+    }
+
+    updateHUD() {
+        const healthBar = document.getElementById("hud_health_bar");
+        const healthValue = document.getElementById("hud_health_value");
+        const ammoBar = document.getElementById("hud_ammo_bar");
+        const ammoValue = document.getElementById("hud_ammo_value");
+
+        if (healthBar && healthValue) {
+            const healthPercent = (this.playerHealth / this.playerMaxHealth) * 100;
+            healthBar.style.width = healthPercent + "%";
+            healthValue.innerHTML = Math.round(this.playerHealth);
+        }
+
+        if (ammoBar && ammoValue) {
+            const ammoPercent = (this.playerAmmo / this.playerMaxAmmo) * 100;
+            ammoBar.style.width = ammoPercent + "%";
+            ammoValue.innerHTML = Math.round(this.playerAmmo);
+        }
+    }
+
     teleportTo(x, y, z, w) {
         this.pendingTeleport = { x, y, z, w };
     }
@@ -331,7 +509,7 @@ export class TheBargainManager {
         // C to shoot
         if (engineState.keys['c']) {
             let timeSinceCooldown = engineState.physics_time_s - this.bulletCooldownLastFiredTime;
-            if (timeSinceCooldown > 1.0) {
+            if (timeSinceCooldown > 1.0 && this.playerAmmo > 0) {
                 if (this.bulletPrimitives.length == 0) {
                     this.playerBullets[0].destroyBullet(this.bulletPrimitives, this.playerBullets, 0); // Clear the first (oldest)
                 }
@@ -340,6 +518,7 @@ export class TheBargainManager {
                 let newBullet = new FiredBullet(this.scene, primIndex, engineState.hypercamera_T.origin(), engineState.camstand_T.transform_vector(new Vector4D(1, 0, 0, 0)), engineState.physics_time_s);
                 this.playerBullets.push(newBullet);
                 this.bulletCooldownLastFiredTime = engineState.physics_time_s;
+                this.playerAmmo--;
             }
         }
         // Update all live bullets (while as the list size changes mid loop)
@@ -444,6 +623,9 @@ export class TheBargainManager {
             [0, 0, 0, 0, 1]
         ]);
         engineState.hypercamera_T = engineState.camstand_T.transform_transform(hypercam_in_camstand);
+
+        // Update HUD
+        this.updateHUD();
     }
 
     updateEyeMode(engineState) {
