@@ -7,6 +7,30 @@ import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 // Anima
 // Damnati
 
+class Hitbox {
+    constructor(min, max) {
+        // in object frame
+        this.min = min;
+        this.max = max;
+    }
+
+    checkBulletCollision(bulletPos, enemyPose, bulletRadius) {
+        let worldInEnemy = enemyPose.inverse();
+        const position = worldInEnemy.transform_point(bulletPos);
+        const bulletRInEnemy = worldInEnemy.transform_vector(new Vector4D(bulletRadius, bulletRadius, bulletRadius, bulletRadius));
+
+        // Clamp position to be within the bounds
+        let is_inside_x = position.x > (this.min.x - Math.abs(bulletRInEnemy.x)) && position.x < (this.max.x + Math.abs(bulletRInEnemy.x));
+        let is_inside_y = position.y > (this.min.y - Math.abs(bulletRInEnemy.y)) && position.y < (this.max.y + Math.abs(bulletRInEnemy.y));
+        let is_inside_z = position.z > (this.min.z - Math.abs(bulletRInEnemy.z)) && position.z < (this.max.z + Math.abs(bulletRInEnemy.z));
+        let is_inside_w = position.w > (this.min.w - Math.abs(bulletRInEnemy.w)) && position.w < (this.max.w + Math.abs(bulletRInEnemy.w));
+        if (is_inside_x && is_inside_y && is_inside_z && is_inside_w) {
+            return true;
+        }
+        return false;
+    }
+} // Hitbox
+
 export function createDamned() {
     // build a hypersphere surface (mesh)
     let grid_vertices = [];
@@ -307,6 +331,8 @@ export function createDamned() {
         // name
         "Hypercrab"
     );
+    // Hitbox
+    damned.hitbox = new Hitbox(new Vector4D(-ttx/2.0, -twy/2.0, 0, -twy/2.0), new Vector4D(ttx/2.0, twy/2.0, 2.5, twy/2.0));
     // Custom tree texture
     damned.vertices_in_texmap = grid_vertices_texcoords;
     // Fill texture info, texcoords

@@ -54,14 +54,24 @@ class FiredBullet {
         let newPos = firedOrigin.add(firedDirection.multiply_by_scalar(2.0));
         this.lastUpdatePos = newPos;
 
+        this.bulletVelocity = 5.0;
+        this.bulletRadius = 0.5;
+
         // Move primitive to origin
         this.scene.visibleHyperobjects[primitiveIndex].pose.setTranslation(newPos);
+        this.scene.visibleHyperobjects[primitiveIndex].pose.matrix[0][0] = this.bulletRadius;
+        this.scene.visibleHyperobjects[primitiveIndex].pose.matrix[1][1] = this.bulletRadius;
+        this.scene.visibleHyperobjects[primitiveIndex].pose.matrix[2][2] = this.bulletRadius;
+        this.scene.visibleHyperobjects[primitiveIndex].pose.matrix[3][3] = this.bulletRadius;
+    }
+
+    currentPos() {
+        return this.scene.visibleHyperobjects[this.primitiveIndex].pose.origin();
     }
 
     updateBullet(physics_time_s, bulletPrimitives, parentList, indexInParentList) {
         // move by direction * velocity * dt
-        const velocity = 5.0;
-        let newPos = this.lastUpdatePos.add(this.firedDirection.multiply_by_scalar(velocity * (physics_time_s - this.lastUpdateTime)));
+        let newPos = this.lastUpdatePos.add(this.firedDirection.multiply_by_scalar(this.bulletVelocity * (physics_time_s - this.lastUpdateTime)));
         this.scene.visibleHyperobjects[this.primitiveIndex].pose.setTranslation(newPos);
 
         this.lastUpdateTime = physics_time_s;
@@ -77,6 +87,8 @@ class FiredBullet {
     }
 
     destroyBullet(bulletPrimitives, parentList, indexInParentList) {
+        // Move pose to far away
+        this.scene.visibleHyperobjects[this.primitiveIndex].pose.setTranslation(new Vector4D([0, 0, -10000, 0]));
         // Return primitive to pool
         bulletPrimitives.push(this.primitiveIndex);
         // Remove self from parentList
@@ -87,6 +99,30 @@ class FiredBullet {
 class ShadeEnemy {
     constructor(primitiveIndex) {
         this.primitiveIndex = primitiveIndex;
+
+        // enemy state
+        this.hp = 50;
+    }
+
+    updateShade(gameState, engineState) {
+        // Check own hitbox against player bullets
+        let primitive = engineState.scene.visibleHyperobjects[this.primitiveIndex];
+        let i = 0;
+        while (true) {
+            if (i >= gameState.playerBullets.length) { break; }
+            let playerBullet = gameState.playerBullets[i];
+            if (primitive.hitbox.checkBulletCollision(playerBullet.currentPos(), primitive.pose, playerBullet.bulletRadius)) {
+                this.hp -= 10; // hit
+                playerBullet.destroyBullet(gameState.bulletPrimitives, gameState.playerBullets, i);
+            }
+            i++;
+        }
+
+        // Die if hp <= 0
+        if (this.hp <= 0) {
+            primitive.pose.setTranslation(new Vector4D([0, 0, -10000, 0]));
+        }
+        
     }
 } // ShadeEnemy
 
@@ -471,6 +507,9 @@ export class TheBargainManager {
 
     updateEnemies(engineState) {
         // Shades:
+        for (let i = 0; i < this.gameState.shadeEnemies.length; i++) {
+            this.gameState.shadeEnemies[i].updateShade(this.gameState, engineState);
+        }
     }
 
     //Called by the hyperengine at every timestep
