@@ -69,6 +69,7 @@ export async function runHyperengine(scene) {
             this.lastXMiddle = 0;
             this.lastYMiddle = 0;
             this.mouseScroll01 = 0.5;
+            this.mouseScrollActive = false;
             // keyboard
             this.keys = {};
         }
@@ -2142,6 +2143,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         e.preventDefault();
         engineState.mouseScroll01 += e.deltaY * 0.0005;
         engineState.mouseScroll01 = Math.min(1, Math.max(0, engineState.mouseScroll01));
+        engineState.mouseScrollActive = true;
     });
 
     function lookTowards(lookAt_in_world) {

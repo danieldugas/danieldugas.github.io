@@ -276,8 +276,8 @@ export class TheBargainManager {
         // Left icon (player face/status)
         const leftIcon = document.createElement("div");
         leftIcon.id = "hud_left_icon";
-        leftIcon.style.width = "40px";
-        leftIcon.style.height = "40px";
+        leftIcon.style.width = "32px";
+        leftIcon.style.height = "32px";
         leftIcon.style.backgroundColor = "#333";
         leftIcon.style.border = "1px solid #555";
         leftIcon.style.borderRadius = "4px";
@@ -285,7 +285,7 @@ export class TheBargainManager {
         leftIcon.style.alignItems = "center";
         leftIcon.style.justifyContent = "center";
         leftIcon.style.fontSize = "24px";
-        leftIcon.innerHTML = "👁";
+        leftIcon.innerHTML = `<img src="../icons/dimensional_eye_half_lidded_64x64.png"></img>`;
         hud.appendChild(leftIcon);
 
         // Health bar container
@@ -422,6 +422,25 @@ export class TheBargainManager {
             ammoBar.style.width = ammoPercent + "%";
             ammoValue.innerHTML = Math.round(this.playerAmmo);
         }
+
+        if (this.playerEyeMode === "Lidded") {
+            const eyeIcon = document.getElementById("hud_left_icon");
+            if (eyeIcon) {
+                eyeIcon.innerHTML = `<img src="../icons/dimensional_eye_half_lidded_64x64.png"></img>`;
+            }
+        }
+        if (this.playerEyeMode === "WideOpen") {
+            const eyeIcon = document.getElementById("hud_left_icon");
+            if (eyeIcon) {
+                eyeIcon.innerHTML = `<img src="../icons/dimensional_eye_wideopen_4D_64x64.png"></img>`;
+            }
+        }
+        if (this.playerEyeMode === "Lidded->WideOpen" || this.playerEyeMode === "WideOpen->Lidded") {
+            const eyeIcon = document.getElementById("hud_left_icon");
+            if (eyeIcon) {
+                eyeIcon.innerHTML = `<img src="../icons/dimensional_eye_lidded_64x64.png"></img>`;
+            }
+        }
     }
 
     teleportTo(x, y, z, w) {
@@ -443,6 +462,8 @@ export class TheBargainManager {
         if (this.isFirstStep) {
             this.isFirstStep = false;
             if (this.onFirstStepCallback) { this.onFirstStepCallback(engineState); }
+            // Set a few things
+            engineState.SENSOR_MODE = 2.0;
         }
         // Mouse
         if (engineState.isDraggingLeftClick) {
@@ -471,7 +492,10 @@ export class TheBargainManager {
             engineState.lastXMiddle = engineState.mouseCurrentClickedX;
             engineState.lastYMiddle = engineState.mouseCurrentClickedY;
         }
-        engineState.sensorCamDist = engineState.mouseScroll01 * 100 + 1;
+        if (engineState.mouseScrollActive) {
+            engineState.sensorCamDist = engineState.mouseScroll01 * 100 + 1;
+            engineState.mouseScrollActive = false;
+        }
 
         const moveSpeed = this.playerSpeed;
         const RELATIVE_MOVEMENT = true;
@@ -660,8 +684,8 @@ export class TheBargainManager {
         if (this.playerEyeMode === "Lidded->WideOpen" || this.playerEyeMode === "WideOpen->Lidded") {
             this.eyeAnimationProgress += dt * this.eyeAnimationSpeed;
 
-            const liddedCamRot = [-Math.PI / 2.0, 0.1];
-            const wideOpenCamRot = [-Math.PI / 2.0, 1.3];
+            const liddedCamRot = [-Math.PI / 2.0, 0.1, 40];
+            const wideOpenCamRot = [-Math.PI / 2.0, 0.9, 80];
 
             if (this.eyeAnimationProgress >= 1.0) {
                 this.eyeAnimationProgress = 0;
@@ -685,6 +709,7 @@ export class TheBargainManager {
                     // update camera 
                     engineState.sensorCamRotX = liddedCamRot[0] + (wideOpenCamRot[0] - liddedCamRot[0]) * easedProgressCam;
                     engineState.sensorCamRotY = liddedCamRot[1] + (wideOpenCamRot[1] - liddedCamRot[1]) * easedProgressCam;
+                    engineState.sensorCamDist = liddedCamRot[2] + (wideOpenCamRot[2] - liddedCamRot[2]) * easedProgressCam;
                 } else if (this.playerEyeMode === "WideOpen->Lidded") {
                     // Cam moves linearly, lid only starts moving after half the time
                     const easedProgressCam = easeInOut(this.eyeAnimationProgress);
@@ -694,6 +719,7 @@ export class TheBargainManager {
                     // update Camera
                     engineState.sensorCamRotX = wideOpenCamRot[0] + (liddedCamRot[0] - wideOpenCamRot[0]) * easedProgressCam;
                     engineState.sensorCamRotY = wideOpenCamRot[1] + (liddedCamRot[1] - wideOpenCamRot[1]) * easedProgressCam;
+                    engineState.sensorCamDist = wideOpenCamRot[2] + (liddedCamRot[2] - wideOpenCamRot[2]) * easedProgressCam;
                 }
             }
 
