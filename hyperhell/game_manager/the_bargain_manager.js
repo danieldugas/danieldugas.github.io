@@ -97,8 +97,9 @@ class FiredBullet {
 }
 
 class ShadeEnemy {
-    constructor(primitiveIndex) {
+    constructor(primitiveIndex, returnToPose) {
         this.primitiveIndex = primitiveIndex;
+        this.returnToPose = returnToPose;
 
         // enemy state
         this.hp = 50;
@@ -117,6 +118,49 @@ class ShadeEnemy {
             }
             i++;
         }
+
+        // Check own hitbox against player
+        const playerRadius = 1.0; // TODO use more precise hitbox
+        if (primitive.hitbox.checkBulletCollision(engineState.hypercamera_T.origin(), primitive.pose, playerRadius)) {
+            if (gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
+                gameState.playerHealth -= 10;
+                gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+            }
+        }
+
+        const shadeMoveSpeed = 0.05;
+        const shadeRotationSpeed = 0.005;
+        const shadeAggroDistance = 10.0;
+        const smolDist = 0.01;
+        // Move towards the player
+        let playerPos = engineState.hypercamera_T.origin();
+        let delta = playerPos.subtract(primitive.pose.origin());
+        if (delta.magnitude() < smolDist) { // do nothing if close to the player
+        } else if (delta.magnitude() < shadeAggroDistance) {
+            let direction = delta.normalize();
+            direction.z = 0;
+            let newPos = primitive.pose.origin().add(direction.multiply_by_scalar(shadeMoveSpeed));
+            primitive.pose.setTranslation(newPos);
+            // Slowly rotate along XY plane towards the player (until creature X is aligned with direction)
+            let angle = Math.atan2(direction.y, direction.x);
+            let otherAngle = Math.atan2(primitive.pose.matrix[1][0], primitive.pose.matrix[0][0]);
+            let rotation = angle - otherAngle;
+            if (rotation > Math.PI) { rotation -= Math.PI * 2; }
+            if (rotation < -Math.PI) { rotation += Math.PI * 2; }
+            if (Math.abs(rotation) < smolDist) { rotation = 0; }
+            let newRotation = -Math.sign(rotation) * shadeRotationSpeed;
+            primitive.pose.rotate_self_by_delta('XY', newRotation, false);
+        } else {
+            // return home
+            let homeDelta = this.returnToPose.origin().subtract(primitive.pose.origin());
+            if (homeDelta.magnitude() < smolDist) {
+            } else {
+                let direction = homeDelta.normalize();
+                let newPos = primitive.pose.origin().add(direction.multiply_by_scalar(shadeMoveSpeed));
+                primitive.pose.setTranslation(newPos);
+            }
+        }
+
 
         // Die if hp <= 0
         if (this.hp <= 0) {
@@ -138,6 +182,8 @@ class GameState {
         this.playerMaxHealth = 100;
         this.playerAmmo = 50;
         this.playerMaxAmmo = 100;
+        this.playerInvulnLastHitTime = 0;
+        this.playerInvulnTime = 3.0;
         // Eye opening animation state
         this.playerEyeMode = "WideOpen->Lidded"; // Lidded or WideOpen
         this.eyeAnimationProgress = 0; // 0 to 1 within current phase
@@ -192,7 +238,7 @@ export class TheBargainManager {
             let creature = createDamned();
             creature.pose = pose;
             let primitiveIndex = this.scene.visibleHyperobjects.length; // this line must be before pushing to scene
-            this.gameState.shadeEnemies.push(new ShadeEnemy(primitiveIndex));
+            this.gameState.shadeEnemies.push(new ShadeEnemy(primitiveIndex, pose.clone()));
             this.scene.visibleHyperobjects.push(creature);
         }
 
