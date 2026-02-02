@@ -11,6 +11,8 @@ export async function runHyperengine(scene) {
   });
 
     const VOX = 64; // 96 128; // Voxel grid size
+
+    const PHYSICS_DT = 0.016; // Fixed ~60Hz physics timestep
     
     // Engine state (anything that can change live)
     class EngineState {
@@ -2632,7 +2634,8 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     function physicsStepCPU() {
         // Simulate physics
         const SIMULATE_PHYSICS = true;
-        for (let n = 0; n < 4; n++) { // substeps for stability
+        const N_PHYS_SUBSTEPS = 4;
+        for (let n = 0; n < N_PHYS_SUBSTEPS; n++) { // substeps for stability
             if (SIMULATE_PHYSICS) {
                 // debug log
                 let html_physics_log = '';
@@ -2642,7 +2645,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 const GRAVITY = -9.81;
                 const AIR_FRICTION_COEFFICIENT = 1.0;
                 const FLOOR_SIDE_FRICTION_COEFFICIENT = 1;
-                const dt = 0.016; // ~60fps
+                const dt = PHYSICS_DT / N_PHYS_SUBSTEPS; // ~60fps
 
                 html_physics_log += '<b>Sim Time:</b> ' + engineState.physics_time_s.toFixed(2) + ' s<br>';
                 html_physics_log += '<b>UI Time:</b> ' + engineState.accumulated_animation_time_s.toFixed(2) + ' s<br>';
@@ -2882,6 +2885,10 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         device.queue.writeBuffer(allVerticesInObjectBuffer, 0, all_vertices_in_object_data);
     }
 
+    // --- Fixed timestep physics ---
+    let physicsAccumulator = 0;
+    let lastPhysicsFrameTime = performance.now();
+
     // --- Profiling setup ---
     const PROFILING = true;
     const PROF_HISTORY = 60;
@@ -2926,7 +2933,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     }
 
     function render() {
-        let t_frame_start, frame_dt, t_dda_cam, t_player, t_cam_gpu, t_animate, t_physics, t_poses_gpu, t_time_gpu;
+        let t_frame_start, frame_dt, t_dda_cam, t_player, t_cam_gpu, t_verts_gpu, t_animate, t_physics, t_poses_gpu, t_time_gpu;
         if (PROFILING) {
             t_frame_start = performance.now();
             frame_dt = t_frame_start - prof_last_frame_time;
@@ -2937,22 +2944,31 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // No need to run this in another thread, because GPU work is already async.
         // When render() loops too fast the GPU.submit just blocks to reduce backpressure.
         // So unless this takes more than ~60ms we are good.
-        // update DDA camera
-        let nSimSteps = 1;
+
+        // Fixed timestep with accumulator
+        const now = performance.now();
+        const frameTime = (now - lastPhysicsFrameTime) / 1000; // convert to seconds
+        lastPhysicsFrameTime = now;
+        // Clamp to avoid spiral of death if tab loses focus
+        physicsAccumulator += Math.min(frameTime, 0.1);
+        let nStepsNeeded = Math.floor(physicsAccumulator / PHYSICS_DT);
+
+        for (let i = 0; i < nStepsNeeded; i++) { updatePlayerControls(); }
+        if (PROFILING) { t_player = performance.now(); }
+        let isObjectVertPosDataChanged = false;
+        for (let i = 0; i < nStepsNeeded; i++) { isObjectVertPosDataChanged = animateObjects() || isObjectVertPosDataChanged; }
+        if (PROFILING) { t_animate = performance.now(); }
+        for (let i = 0; i < nStepsNeeded; i++) { physicsStepCPU(); }
+        if (PROFILING) { t_physics = performance.now(); }
+        physicsAccumulator -= nStepsNeeded * PHYSICS_DT;
+
+        // Schedule Buffer writes
         writeDDACameraPoseToGPU();
         if (PROFILING) { t_dda_cam = performance.now(); }
-        // update hypercamera
-        updatePlayerControls();
-        if (PROFILING) { t_player = performance.now(); }
         writeCameraPoseToGPU();
         if (PROFILING) { t_cam_gpu = performance.now(); }
-        // Animate objects
-        let isObjectVertPosDataChanged = animateObjects();
         if (isObjectVertPosDataChanged) { writeObjectVerticesToGPU(); }
-        if (PROFILING) { t_animate = performance.now(); }
-        // update physics
-        physicsStepCPU();
-        if (PROFILING) { t_physics = performance.now(); }
+        if (PROFILING) { t_verts_gpu = performance.now(); }
         writeObjectPosesToGPU();
         if (PROFILING) { t_poses_gpu = performance.now(); }
         writePhysicsTimeToGPU();
@@ -3236,12 +3252,13 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
             const frame = {
                 frameDt: frame_dt,
                 total: t_submit - t_frame_start,
-                ddaCam: t_dda_cam - t_frame_start,
-                player: t_player - t_dda_cam,
-                camGpu: t_cam_gpu - t_player,
-                animate: t_animate - t_cam_gpu,
+                player: t_player - t_frame_start,
+                animate: t_animate - t_player,
                 physics: t_physics - t_animate,
-                posesGpu: t_poses_gpu - t_physics,
+                ddaCam: t_dda_cam - t_physics,
+                camGpu: t_cam_gpu - t_dda_cam,
+                vertsGpu: t_verts_gpu - t_cam_gpu,
+                posesGpu: t_poses_gpu - t_verts_gpu,
                 timeGpu: t_time_gpu - t_poses_gpu,
                 encode: t_encode_end - t_time_gpu,
                 submit: t_submit - t_encode_end,
@@ -3262,13 +3279,15 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                 const fmt = (v) => v.toFixed(2).padStart(6) + " ms";
                 let lines = [];
                 lines.push(`FPS: ${fps.toFixed(1)}`);
+                lines.push(`Sim time: ${engineState.physics_time_s.toFixed(2)} s`);
                 lines.push(`${pad("Frame total", 22)} ${fmt(avg.total)}`);
                 lines.push(`--- CPU ---`);
-                lines.push(`${pad("  DDA cam write", 22)} ${fmt(avg.ddaCam)}`);
                 lines.push(`${pad("  Player controls", 22)} ${fmt(avg.player)}`);
-                lines.push(`${pad("  Cam pose write", 22)} ${fmt(avg.camGpu)}`);
                 lines.push(`${pad("  Animate objects", 22)} ${fmt(avg.animate)}`);
                 lines.push(`${pad("  Physics (CPU)", 22)} ${fmt(avg.physics)}`);
+                lines.push(`${pad("  DDA cam write", 22)} ${fmt(avg.ddaCam)}`);
+                lines.push(`${pad("  Cam pose write", 22)} ${fmt(avg.camGpu)}`);
+                lines.push(`${pad("  Obj verts write", 22)} ${fmt(avg.vertsGpu)}`);
                 lines.push(`${pad("  Obj poses write", 22)} ${fmt(avg.posesGpu)}`);
                 lines.push(`${pad("  Sim time write", 22)} ${fmt(avg.timeGpu)}`);
                 lines.push(`--- GPU cmd encode ---`);

@@ -54,7 +54,7 @@ class FiredBullet {
         let newPos = firedOrigin.add(firedDirection.multiply_by_scalar(2.0));
         this.lastUpdatePos = newPos;
 
-        this.bulletVelocity = 5.0;
+        this.bulletVelocity = 10.0;
         this.bulletRadius = 0.5;
 
         // Move primitive to origin
@@ -183,11 +183,11 @@ class GameState {
         this.playerAmmo = 50;
         this.playerMaxAmmo = 100;
         this.playerInvulnLastHitTime = 0;
-        this.playerInvulnTime = 3.0;
+        this.playerInvulnTime = 1.0;
         // Eye opening animation state
         this.playerEyeMode = "WideOpen->Lidded"; // Lidded or WideOpen
         this.eyeAnimationProgress = 0; // 0 to 1 within current phase
-        this.eyeAnimationSpeed = 1.0; // How fast the animation progresses
+        this.eyeAnimationSpeed = 4.0; // How fast the animation progresses
         this.lastEyeUpdateTime = 0;
         this.rKeyWasPressed = false;
         // bullets
@@ -646,9 +646,10 @@ export class TheBargainManager {
         }
 
         // space to shoot
+        const pistolCooldown = 0.20;
         if (engineState.keys[' ']) {
             let timeSinceCooldown = engineState.physics_time_s - this.gameState.bulletCooldownLastFiredTime;
-            if (timeSinceCooldown > 1.0 && this.gameState.playerAmmo > 0) {
+            if (timeSinceCooldown > pistolCooldown && this.gameState.playerAmmo > 0) {
                 if (this.gameState.bulletPrimitives.length == 0) {
                     this.gameState.playerBullets[0].destroyBullet(this.gameState.bulletPrimitives, this.gameState.playerBullets, 0); // Clear the first (oldest)
                 }
@@ -736,7 +737,7 @@ export class TheBargainManager {
         const jump_height = 1;
         if (engineState.player_is_jumping) {
             // jump height is a parabola
-            const tend = 4; // jump duration
+            const tend = 1; // jump duration
             let dt = engineState.physics_time_s - engineState.last_player_jump_time;
             let jp01 = dt / tend; // jump progress from 0 to 1
             if (dt > tend) {
