@@ -10,7 +10,7 @@ export async function runHyperengine(scene) {
     e.preventDefault();
   });
 
-    const VOX = 64; // 96 128; // Voxel grid size
+    const VOX = 96; // 96 128; // Voxel grid size
 
     const PHYSICS_DT = 0.016; // Fixed ~60Hz physics timestep
     

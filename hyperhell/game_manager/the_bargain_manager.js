@@ -173,7 +173,7 @@ class ShadeEnemy {
 class GameState {
     constructor() {
         // state
-        this.GOD_MODE = true;
+        this.GOD_MODE = false;
         this.playerSpeed = 0.1;
         this.isFirstStep = true; // Used for debugging
         this.bulletCooldownLastFiredTime = 0;
@@ -572,7 +572,6 @@ export class TheBargainManager {
         // First Step callback (debugging)
         if (this.gameState.isFirstStep) {
             this.gameState.isFirstStep = false;
-            if (this.onFirstStepCallback) { this.onFirstStepCallback(engineState); }
             // Set a few things
             engineState.SENSOR_MODE = 2.0;
         }

@@ -331,18 +331,32 @@ objects.push(area1Floor);
 
 // End of Area1 -------------------------------------------
 
-// Area2
-
 // corridor 2 (falling down)
 let c2l = AREA1_ZH;
 let c2c = new Vector4D(R2X, 0, AREA1_ZH / 2.0 + _H, -R2R - C2R / 2.0);
 createCorridorTubeWithHole(objects, c2c, new Vector4D(0,0,-1,0), c2l, new Vector4D(0,0,0,1), new Vector4D(1,0,0,0), C2R, C2R, -c2l / 2.0 + _H / 2.0, _H, new Vector4D(0,1,0,0), C2R, true);
 
+// Area2 ------------------------------------------------ 
+
 // Corridor 3 (-w, gun)
 const c3r = C2R;
-const C3L = 20.0;
+const C3L = 30.0;
 let c3c = new Vector4D(R2X, 0, 0, -R2R - C3L / 2.0);
 createCorridorTubeWithHole(objects, c3c, new Vector4D(0,0,0,-1), C3L, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), c3r, c3r, 0.0, 0.0, new Vector4D(0,0,1,0), _H, false);
+
+// Corridor 4
+const c4r = c3r;
+const C4L = 30.0;
+let c4c = new Vector4D(R2X, 0, 0, -R2R - C3L - C4L / 2.0);
+createCorridorTubeWithHole(objects, c4c, new Vector4D(0,0,0,1), C4L, new Vector4D(0,1,0,0), new Vector4D(1,0,0,0), c4r, c4r, -C4L / 2.0 + c4r, c4r, new Vector4D(0,0,1,0), _H, false);
+
+// Corridor 5a (y+)
+const c5ar1 = c4r;
+const C5A_R2 = 20.0;
+const C5A_L = 30.0;
+let c5c = new Vector4D(R2X, C5A_L / 2.0 + c4r / 2.0, 0, -R2R - C3L - C4L + c4r);
+createCorridorTube(objects, c5c, new Vector4D(0,1,0,0), C5A_L, new Vector4D(0,0,0,1), new Vector4D(1,0,0,0), c5ar1, C5A_R2, _H);
+
 
 
 function the_bargain_floor_heightmap(x, y, w) {
@@ -357,9 +371,10 @@ let poIs = {
   roomCenters: [
     {name: "Room 1", pos: r1c},
     {name: "Room 2", pos: r2c},
+    {name: "Corridor 3", pos: c3c},
   ],
   shadeSpawns: [
-    r2c,
+    c4c,
   ],
 };
 
@@ -380,12 +395,6 @@ let custom_scene = {
 // Player controls, NPCs, Monsters, etc
 let gameManager = new TheBargainManager(custom_scene, poIs);
 custom_scene.gameManager = gameManager;
-
-// Custom first step for spawning modifications
-gameManager.onFirstStepCallback = (engineState) => {
-  engineState.camstand_T.setTranslation(r2c);
-  
-}
 
 runHyperengine(custom_scene).catch(err => {
   console.error(err);
