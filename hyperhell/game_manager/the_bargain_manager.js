@@ -150,6 +150,13 @@ class ShadeEnemy {
             if (Math.abs(rotation) < smolDist) { rotation = 0; }
             let newRotation = -Math.sign(rotation) * shadeRotationSpeed;
             primitive.pose.rotate_self_by_delta('XY', newRotation, false);
+            // Apply colliders to self
+            for (let i = 0; i < engineState.scene.visibleHyperobjects.length; i++) {
+                const obj = engineState.scene.visibleHyperobjects[i];
+                if (obj.collider) {
+                    obj.collider.constrainTransform(primitive.pose);
+                }
+            }
         } else {
             // return home
             let homeDelta = this.returnToPose.origin().subtract(primitive.pose.origin());
