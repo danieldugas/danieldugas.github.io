@@ -364,9 +364,11 @@ const r3_entrance = new Vector4D(R2X, C5A_L + C5A_R2 / 2.0, 0, -R2R - C3L - C4L 
 const R3YL = 40.0;
 const R3WL = 70.0;
 const R3XL = C5A_R2;
-const R3_ENDYL = 10.0;
-const R3_OUTWL = 5.0 / _2;
-const R3_OUTYL = 10.0;
+const R3_ENDYL = 10.0; // wall 5 y length
+const R3_OUTWL = 5.0 / _2; // out opening width in W
+const R3_OUTYL = 10.0; // out corridor (w7) y side
+const R3_OUTXL = R3XL;
+const r3_ref = new Vector4D(R2X, C5A_L + c5ar1 / 2.0, 0, -R2R - C3L - C4L + c4r / 2.0); // ref point
 if (ROOM3) {
   //  \          / |
   // 7 \6      3/  | 1
@@ -374,7 +376,6 @@ if (ROOM3) {
   //  5|___________|   v y
   //         2
   //      w <-- 
-  const r3_ref = new Vector4D(R2X, C5A_L + c5ar1 / 2.0, 0, -R2R - C3L - C4L + c4r / 2.0); // ref point
   const w1_c = r3_ref.add(new Vector4D(0, R3YL / 2.0, 0, 0));
   const w2_c = w1_c.add(new Vector4D(0, R3YL/2.0, 0, R3WL / 2.0));
   const w3_dy = R3YL - R3_ENDYL;
@@ -500,6 +501,17 @@ if (ROOM3) {
 
 }
 
+// Corridor 6
+const c6_ref = r3_ref.add(new Vector4D(0, R3YL - R3_ENDYL - R3_OUTYL, 0, R3WL + R3_OUTYL));
+const c6_yr = R3_OUTWL;
+const C6_XL = 60.0;
+const C6_WR = c6_yr;
+const c6_c = c6_ref.add(new Vector4D(0, -R3_OUTWL / 2.0, 0, C6_WR/2.0));
+// x+ corridor, hole in -w dir
+createCorridorTubeWithHole(objects, c6_c, new Vector4D(1,0,0,0), C6_XL, new Vector4D(0,0,0,-1), new Vector4D(0,1,0,0), C6_WR, c6_yr, 0.0, R3_OUTXL, new Vector4D(0,0,1,0), _H, false);
+
+
+
 
 function the_bargain_floor_heightmap(x, y, w) {
   if (x >= area1xmin && x <= area1xmax && y >= area1ymin && y <= area1ymax && w >= area1wmin && w <= area1wmax) {
@@ -515,6 +527,7 @@ let poIs = {
     {name: "Room 2", pos: r2c},
     {name: "Corridor 3", pos: c3c},
     {name: "Room 3", pos: r3_entrance},
+    {name: "Corridor 6", pos: c6_c},
   ],
   shadeSpawns: [
     c4c,
