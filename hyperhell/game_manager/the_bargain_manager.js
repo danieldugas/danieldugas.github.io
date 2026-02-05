@@ -917,14 +917,35 @@ export class TheBargainManager {
         }
 
         // Box Colliders
+        let collidingObjects = [];
         if (!this.gameState.GOD_MODE) {
             for (let i = 0; i < engineState.scene.visibleHyperobjects.length; i++) {
                 const obj = engineState.scene.visibleHyperobjects[i];
                 if (obj.collider) {
-                    obj.collider.constrainTransform(engineState.camstand_T);
+                    let isCollided = obj.collider.constrainTransform(engineState.camstand_T);
+                    if (isCollided) { collidingObjects.push(`${obj.name || 'unnamed'}[${i}]`); }
                 }
             }
         }
+
+                // Debug: collision info
+                if (!document.getElementById("collision_debug")) {
+                    const div = document.createElement("div");
+                    div.id = "collision_debug";
+                    document.body.appendChild(div);
+                    div.style.position = "absolute";
+                    div.style.top = "10px";
+                    div.style.left = "320px";
+                    div.style.color = "rgb(255, 200, 100)";
+                    div.style.fontFamily = "monospace";
+                    div.style.fontSize = "12px";
+                }
+                const collDiv = document.getElementById("collision_debug");
+                if (collidingObjects.length > 0) {
+                    collDiv.innerHTML = `Colliding:<br>` + collidingObjects.join('<br>');
+                } else {
+                    collDiv.innerHTML = `Colliding:<br>(none)`;
+                }
 
                 // Debug: print the player pose to a div
                 // create div if it doesn't exist

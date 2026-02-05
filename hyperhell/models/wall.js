@@ -98,7 +98,9 @@ class StaticObjectFrameBoxCollider {
             let position_in_world = this.parentObjectStaticPose.transform_point(position);
 
             transform.setTranslation(position_in_world);
+            return true;
         }
+        return false;
     }
 
 }

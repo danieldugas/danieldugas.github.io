@@ -61,9 +61,12 @@ export class AABBoxCollider {
                     position.w = this.max.w;
                     break;
             }
+
+            // Update the translation in the transform matrix
+            transform.setTranslation(position);
+            return true;
         }
 
-        // Update the translation in the transform matrix
-        transform.setTranslation(position);
+        return false;
     }
 } // class AABBoxCollider
