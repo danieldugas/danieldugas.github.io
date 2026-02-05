@@ -1,7 +1,7 @@
 import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4d.js';
 import { createBullet } from '../models/bullet.js';
 import { createCrawler } from '../models/crawler.js';
-import { createDamned } from '../models/damned.js';
+import { createDamned, Hitbox } from '../models/damned.js';
 // Custom controls
 //      (3D / 4D upgrade)
 //       Shooting and guns
@@ -177,6 +177,145 @@ class ShadeEnemy {
     }
 } // ShadeEnemy
 
+class CrawlerEnemy {
+    constructor(primitiveIndex, homePose, volumeMin, volumeMax) {
+        this.primitiveIndex = primitiveIndex;
+        this.homePose = homePose;
+        this.volumeMin = volumeMin;
+        this.volumeMax = volumeMax;
+
+        this.hp = 80;
+        this.state = 'idle'; // 'idle', 'moving', 'shooting'
+        this.lastActionTime = 0;
+        this.idleDuration = 2.0; // seconds between actions
+        this.moveSpeed = 0.03;
+        this.rotateSpeed = 0.01;
+        this.targetPos = null;
+    }
+
+    updateCrawler(gameState, engineState) {
+        let primitive = engineState.scene.visibleHyperobjects[this.primitiveIndex];
+
+        // Check own hitbox against player bullets
+        let i = 0;
+        while (i < gameState.playerBullets.length) {
+            let playerBullet = gameState.playerBullets[i];
+            if (primitive.hitbox && primitive.hitbox.checkBulletCollision(playerBullet.currentPos(), primitive.pose, playerBullet.bulletRadius)) {
+                this.hp -= 10;
+                playerBullet.destroyBullet(gameState.bulletPrimitives, gameState.playerBullets, i);
+            } else {
+                i++;
+            }
+        }
+
+        // Check own hitbox against player
+        const playerRadius = 1.0;
+        if (primitive.hitbox && primitive.hitbox.checkBulletCollision(engineState.hypercamera_T.origin(), primitive.pose, playerRadius)) {
+            if (gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
+                gameState.playerHealth -= 10;
+                gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+            }
+        }
+
+        // Die if hp <= 0
+        if (this.hp <= 0) {
+            primitive.pose.setTranslation(new Vector4D([0, 0, -10000, 0]));
+            return;
+        }
+
+        const smolDist = 0.5;
+        const crawlerAggroDistance = 15.0;
+
+        if (this.state === 'idle') {
+            if (engineState.physics_time_s - this.lastActionTime > this.idleDuration) {
+                // Pick a random point in the constrained volume
+                this.targetPos = new Vector4D(
+                    this.volumeMin.x + Math.random() * (this.volumeMax.x - this.volumeMin.x),
+                    this.volumeMin.y + Math.random() * (this.volumeMax.y - this.volumeMin.y),
+                    0,
+                    this.volumeMin.w + Math.random() * (this.volumeMax.w - this.volumeMin.w)
+                );
+                this.state = 'moving';
+            }
+        } else if (this.state === 'moving') {
+            let delta = this.targetPos.subtract(primitive.pose.origin());
+            delta.z = 0;
+            if (delta.magnitude() < smolDist) {
+                // Arrived at target, switch to shooting
+                this.state = 'shooting';
+                this.lastActionTime = engineState.physics_time_s;
+            } else {
+                let direction = delta.normalize();
+                let newPos = primitive.pose.origin().add(direction.multiply_by_scalar(this.moveSpeed));
+                primitive.pose.setTranslation(newPos);
+
+                // Rotate towards movement direction in XY plane
+                let angle = Math.atan2(direction.y, direction.x);
+                let otherAngle = Math.atan2(primitive.pose.matrix[1][0], primitive.pose.matrix[0][0]);
+                let rotation = angle - otherAngle;
+                if (rotation > Math.PI) rotation -= Math.PI * 2;
+                if (rotation < -Math.PI) rotation += Math.PI * 2;
+                if (Math.abs(rotation) > 0.01) {
+                    primitive.pose.rotate_self_by_delta('XY', -Math.sign(rotation) * this.rotateSpeed, false);
+                }
+
+                // Apply colliders
+                for (let j = 0; j < engineState.scene.visibleHyperobjects.length; j++) {
+                    const obj = engineState.scene.visibleHyperobjects[j];
+                    if (obj.collider) {
+                        obj.collider.constrainTransform(primitive.pose);
+                    }
+                }
+            }
+        } else if (this.state === 'shooting') {
+            // Rotate towards player
+            let playerPos = engineState.hypercamera_T.origin();
+            let delta = playerPos.subtract(primitive.pose.origin());
+            delta.z = 0;
+            if (delta.magnitude() > 0.01) {
+                let direction = delta.normalize();
+                let angle = Math.atan2(direction.y, direction.x);
+                let otherAngle = Math.atan2(primitive.pose.matrix[1][0], primitive.pose.matrix[0][0]);
+                let rotation = angle - otherAngle;
+                if (rotation > Math.PI) rotation -= Math.PI * 2;
+                if (rotation < -Math.PI) rotation += Math.PI * 2;
+                if (Math.abs(rotation) > 0.01) {
+                    primitive.pose.rotate_self_by_delta('XY', -Math.sign(rotation) * this.rotateSpeed, false);
+                }
+            }
+
+            // Fire bullet at player after aiming delay
+            if (engineState.physics_time_s - this.lastActionTime > 0.5) {
+                if (delta.magnitude() < crawlerAggroDistance) {
+                    this.fireBulletAtPlayer(gameState, engineState);
+                }
+                this.state = 'idle';
+                this.lastActionTime = engineState.physics_time_s;
+            }
+        }
+    }
+
+    fireBulletAtPlayer(gameState, engineState) {
+        let primitive = engineState.scene.visibleHyperobjects[this.primitiveIndex];
+        let playerPos = engineState.hypercamera_T.origin();
+        let bulletOrigin = primitive.pose.origin();
+        let direction = playerPos.subtract(bulletOrigin);
+        direction.z = 0;
+        if (direction.magnitude() < 0.01) return;
+        direction = direction.normalize();
+
+        if (gameState.enemyBulletPrimitives.length === 0) return;
+        let primIndex = gameState.enemyBulletPrimitives.pop();
+        let newBullet = new FiredBullet(
+            engineState.scene, primIndex,
+            bulletOrigin, direction,
+            engineState.physics_time_s
+        );
+        newBullet.bulletVelocity = 5.0; // slower than player bullets
+        gameState.enemyBullets.push(newBullet);
+    }
+} // CrawlerEnemy
+
 class GameState {
     constructor() {
         // state
@@ -202,6 +341,10 @@ class GameState {
         this.bulletPrimitives = [];
         // enemies
         this.shadeEnemies = [];
+        this.crawlerEnemies = [];
+        // enemy bullets
+        this.enemyBullets = [];
+        this.enemyBulletPrimitives = [];
         // Debug
         this.pendingTeleport = null;
     }
@@ -246,6 +389,39 @@ export class TheBargainManager {
             creature.pose = pose;
             let primitiveIndex = this.scene.visibleHyperobjects.length; // this line must be before pushing to scene
             this.gameState.shadeEnemies.push(new ShadeEnemy(primitiveIndex, pose.clone()));
+            this.scene.visibleHyperobjects.push(creature);
+        }
+
+        // Pre-allocate 50 enemy bullets (red)
+        for (let i = 0; i < 50; i++) {
+            let pose = new Transform4D([
+                [1, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, -10000],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1]
+            ]);
+            let sphere = createBullet(1, 0xff0000, pose);
+            this.gameState.enemyBulletPrimitives.push(this.scene.visibleHyperobjects.length);
+            this.scene.visibleHyperobjects.push(sphere);
+        }
+
+        // Pre-allocate Crawlers
+        for (let i = 0; i < this.poIs.crawlerSpawns.length; i++) {
+            let spawn = this.poIs.crawlerSpawns[i];
+            let p = spawn.pos;
+            let pose = new Transform4D([
+                [1, 0, 0, 0, p.x],
+                [0, 1, 0, 0, p.y],
+                [0, 0, 1, 0, p.z],
+                [0, 0, 0, 1, p.w],
+                [0, 0, 0, 0, 1]
+            ]);
+            let creature = createCrawler();
+            creature.pose = pose;
+            creature.hitbox = new Hitbox(new Vector4D(-2, -2, -1, -2), new Vector4D(2, 2, 2, 2));
+            let primitiveIndex = this.scene.visibleHyperobjects.length;
+            this.gameState.crawlerEnemies.push(new CrawlerEnemy(primitiveIndex, pose.clone(), spawn.volumeMin, spawn.volumeMax));
             this.scene.visibleHyperobjects.push(creature);
         }
 
@@ -562,6 +738,41 @@ export class TheBargainManager {
         // Shades:
         for (let i = 0; i < this.gameState.shadeEnemies.length; i++) {
             this.gameState.shadeEnemies[i].updateShade(this.gameState, engineState);
+        }
+
+        // Crawlers:
+        for (let i = 0; i < this.gameState.crawlerEnemies.length; i++) {
+            this.gameState.crawlerEnemies[i].updateCrawler(this.gameState, engineState);
+        }
+
+        // Update enemy bullets
+        let eb_i = 0;
+        while (eb_i < this.gameState.enemyBullets.length) {
+            this.gameState.enemyBullets[eb_i].updateBullet(
+                engineState.physics_time_s,
+                this.gameState.enemyBulletPrimitives,
+                this.gameState.enemyBullets,
+                eb_i
+            );
+            eb_i++;
+        }
+
+        // Check enemy bullets against player
+        eb_i = 0;
+        while (eb_i < this.gameState.enemyBullets.length) {
+            let enemyBullet = this.gameState.enemyBullets[eb_i];
+            let bulletPos = enemyBullet.currentPos();
+            let playerPos = engineState.hypercamera_T.origin();
+            let dist = bulletPos.subtract(playerPos).magnitude();
+            if (dist < 1.0 + enemyBullet.bulletRadius) {
+                if (this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
+                    this.gameState.playerHealth -= 15;
+                    this.gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                }
+                enemyBullet.destroyBullet(this.gameState.enemyBulletPrimitives, this.gameState.enemyBullets, eb_i);
+            } else {
+                eb_i++;
+            }
         }
     }
 

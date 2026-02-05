@@ -369,36 +369,33 @@ const R3_OUTWL = 5.0 / _2; // out opening width in W
 const R3_OUTYL = 10.0; // out corridor (w7) y side
 const R3_OUTXL = R3XL;
 const r3_ref = new Vector4D(R2X, C5A_L + c5ar1 / 2.0, 0, -R2R - C3L - C4L + c4r / 2.0); // ref point
+//  \          / |
+// 7 \6      3/  | 1
+//  \ \__4___/   |   |
+//  5|___________|   v y
+//         2
+//      w <-- 
+const w1_c = r3_ref.add(new Vector4D(0, R3YL / 2.0, 0, 0));
+const w2_c = w1_c.add(new Vector4D(0, R3YL/2.0, 0, R3WL / 2.0));
+const w3_dy = R3YL - R3_ENDYL;
+const w3_dw = w3_dy;
+const w3_wyl = Math.sqrt(w3_dw * w3_dw + w3_dy * w3_dy);
+const w3_c = r3_ref.add(new Vector4D(0, w3_dy/2.0, 0, c5ar1 + w3_dw/2.0));
+const w4_wl = R3WL - c5ar1 - w3_dw - R3_OUTWL;
+const w4_c = w3_c.add(new Vector4D(0, w3_dy/2.0, 0, w3_dw/2.0 + w4_wl / 2.0));
+const w5_yl = R3_ENDYL;
+const w5_c = w2_c.add(new Vector4D(0, -w5_yl/2.0, 0, R3WL / 2.0));
+const w7_dy = R3_OUTYL;
+const w7_dw = R3_OUTYL;
+const w7_wyl = Math.sqrt(w7_dw * w7_dw + w7_dy * w7_dy);
+const w6_dw = w7_dw + R3_OUTWL;
+const w6_dy = w6_dw;
+const w6_wyl = Math.sqrt(w6_dw * w6_dw + w6_dy * w6_dy);
+const w6_c = w4_c.add(new Vector4D(0, -w6_dy/2.0, 0, w4_wl / 2.0 + w6_dw / 2.0));
+const w7_c = w5_c.add(new Vector4D(0, -w5_yl/2.0 -w7_dy/2.0, 0, w7_dw/2.0));
+const w8_c = r3_ref.add(new Vector4D(R3XL/2.0, R3YL/2.0, 0, (R3WL + w7_dw)/2.0));
+const w9_c = r3_ref.add(new Vector4D(-R3XL/2.0, R3YL/2.0, 0, (R3WL + w7_dw)/2.0));
 if (ROOM3) {
-  //  \          / |
-  // 7 \6      3/  | 1
-  //  \ \__4___/   |   |
-  //  5|___________|   v y
-  //         2
-  //      w <-- 
-  const w1_c = r3_ref.add(new Vector4D(0, R3YL / 2.0, 0, 0));
-  const w2_c = w1_c.add(new Vector4D(0, R3YL/2.0, 0, R3WL / 2.0));
-  const w3_dy = R3YL - R3_ENDYL;
-  const w3_dw = w3_dy;
-  const w3_wyl = Math.sqrt(w3_dw * w3_dw + w3_dy * w3_dy);
-  const w3_c = r3_ref.add(new Vector4D(0, w3_dy/2.0, 0, c5ar1 + w3_dw/2.0));
-  const w4_wl = R3WL - c5ar1 - w3_dw - R3_OUTWL;
-  const w4_c = w3_c.add(new Vector4D(0, w3_dy/2.0, 0, w3_dw/2.0 + w4_wl / 2.0));
-  const w5_yl = R3_ENDYL;
-  const w5_c = w2_c.add(new Vector4D(0, -w5_yl/2.0, 0, R3WL / 2.0));
-  const w7_dy = R3_OUTYL;
-  const w7_dw = R3_OUTYL;
-  const w7_wyl = Math.sqrt(w7_dw * w7_dw + w7_dy * w7_dy);
-  const w6_dw = w7_dw + R3_OUTWL;
-  const w6_dy = w6_dw;
-  const w6_wyl = Math.sqrt(w6_dw * w6_dw + w6_dy * w6_dy);
-  const w6_c = w4_c.add(new Vector4D(0, -w6_dy/2.0, 0, w4_wl / 2.0 + w6_dw / 2.0));
-  const w7_c = w5_c.add(new Vector4D(0, -w5_yl/2.0 -w7_dy/2.0, 0, w7_dw/2.0));
-  const w8_c = r3_ref.add(new Vector4D(R3XL/2.0, R3YL/2.0, 0, (R3WL + w7_dw)/2.0));
-  const w9_c = r3_ref.add(new Vector4D(-R3XL/2.0, R3YL/2.0, 0, (R3WL + w7_dw)/2.0));
-  const hr = 10.0;
-  const hs = 10.0;
-  const hw = 10.0;
   // 1
   objects.push(createHyperwall(
     new Transform4D([
@@ -531,6 +528,13 @@ let poIs = {
   ],
   shadeSpawns: [
     c4c,
+  ],
+  crawlerSpawns: [
+    {
+      pos: w5_c.add(new Vector4D(0, 0, _H, 0)),
+      volumeMin: new Vector4D(w5_c.x - R3XL / 2.0, w5_c.y - w5_yl / 2.0 + 1, _H, w5_c.w),
+      volumeMax: new Vector4D(w5_c.x + R3XL / 2.0, w5_c.y + w5_yl / 2.0 - 1, _H, w5_c.w),
+    },
   ],
 };
 

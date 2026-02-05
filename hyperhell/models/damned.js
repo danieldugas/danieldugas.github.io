@@ -7,7 +7,7 @@ import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
 // Anima
 // Damnati
 
-class Hitbox {
+export class Hitbox {
     constructor(min, max) {
         // in object frame
         this.min = min;
