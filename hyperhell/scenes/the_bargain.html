@@ -510,25 +510,25 @@ const c6_c = c6_ref.add(new Vector4D(0, -R3_OUTWL / 2.0, 0, C6_WD/2.0));
 createCorridorTubeWithHole(objects, c6_c, new Vector4D(-1,0,0,0), C6_XL, new Vector4D(0,0,0,-1), new Vector4D(0,1,0,0), C6_WD, c6_yd, 0.0, R3_OUTXL, new Vector4D(0,0,1,0), _H, false);
 
 // Room 4         _
-//       /\       
-//     4/  \3     | L
-// ____/8/\7\     _
-//      /|   \ |  _ c7_ref in the middle of the room
-// ___. \|   / |
-//r4ref\5\/6/  v
-//     1\  /2  y
-//       \/
-//    x <-- 
-
-//    11     12
-//    --------
-//    | |   | |
-// -----------
-//   -| |   | |  r4_ref in W middle
-// ------------  
-//    | |   | |
-//    ----. ---   c7_ref in -W
-//     9      10
+//          /\       
+//        4/  \3     | L
+//    ____/8/\7\     _
+//d |      /|.  \ |  _ c7_ref in the middle of the room
+//    ___. \|   / |
+//   r4ref\5\/6/  v
+//        1\  /2  y
+//          \/
+//       x <-- 
+//
+//       11     12
+//       --------
+//       | |   | |
+//    -----------
+//      -| |   | |  r4_ref in W middle
+//    ------------  
+//       | |   | |
+//       ----. ---   c7_ref in -W
+//        9      10
 const R4_L = 15.0;
 const R4_YL = 2 * R4_L + 2 *c6_yd;
 const R4_XL = 2 * R4_L + c6_yd;
@@ -536,10 +536,11 @@ const R4_WL = C6_WD * 3;
 const R4_d = c6_yd / 2.0;
 const R4_l = 10.0;
 const R4_OUTYR = 2.0;
-const C7_RY = 5.0;
-const C7_RX = 5.0;
+const C7_DY = 5.0;
+const C7_DX = 5.0;
 const r4_ref = c6_ref.add(new Vector4D(-C6_XL/2.0, 0, 0, C6_WD/2.0)); // in W middle
 const c7_ref = r4_ref.add(new Vector4D(-R4_L, -R4_d, 0, -R4_WL/2.0)); // at -W end, but X, Y middle
+const r4_entrance = r4_ref.add(new Vector4D(0, -R4_d, 0, 0)); 
 if (true) {
   const w1_xl = R4_L;
   const w1_yl = R4_L;
@@ -689,8 +690,8 @@ if (true) {
     0x7700ff
   ));
   // w9: W- wall with hole (center)
-  const h1f1 = C7_RX / 2.0 / w9_xl;
-  const h1f2 = C7_RY / 2.0 / w9_yl;
+  const h1f1 = C7_DX / w9_xl;
+  const h1f2 = C7_DY / w9_yl;
   createHyperwallWithCenterHole(
     objects,
     new Transform4D([
@@ -759,6 +760,10 @@ if (true) {
   ));
 }
 
+// Corridor 7, -W direction
+const C7_LW = 10.0;
+const c7_c = c7_ref.add(new Vector4D(0, 0, 0, -C7_LW/2.0));
+createCorridorTube(objects, c7_c, new Vector4D(0,0,0,-1), C7_LW, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), C7_DX, C7_DY, _H);
 
 
 
@@ -777,6 +782,8 @@ let poIs = {
     {name: "Corridor 3", pos: c3c},
     {name: "Room 3", pos: r3_entrance},
     {name: "Corridor 6", pos: c6_c},
+    {name: "Room 4", pos: r4_entrance},
+    {name: "Corridor 7", pos: c7_c},
   ],
   shadeSpawns: [
     c4c,
