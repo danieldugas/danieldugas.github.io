@@ -369,12 +369,13 @@ const R3_OUTWL = 5.0 / _2; // out opening width in W
 const R3_OUTYL = 10.0; // out corridor (w7) y side
 const R3_OUTXL = R3XL;
 const r3_ref = new Vector4D(R2X, C5A_L + c5ar1 / 2.0, 0, -R2R - C3L - C4L + c4r / 2.0); // ref point
-//  \          / |
-// 7 \6      3/  | 1
-//  \ \__4___/   |   |
-//  5|___________|   v y
-//         2
-//      w <-- 
+//                     . r3_ref
+//        \          / |
+//c6_ref . \6      3/  | 1
+//       7\ \__4___/   |   |
+//        5|___________|   v y
+//               2
+//            w <-- 
 const w1_c = r3_ref.add(new Vector4D(0, R3YL / 2.0, 0, 0));
 const w2_c = w1_c.add(new Vector4D(0, R3YL/2.0, 0, R3WL / 2.0));
 const w3_dy = R3YL - R3_ENDYL;
@@ -499,13 +500,225 @@ if (ROOM3) {
 }
 
 // Corridor 6
+// see room 3 diagram for ref point
 const c6_ref = r3_ref.add(new Vector4D(0, R3YL - R3_ENDYL - R3_OUTYL, 0, R3WL + R3_OUTYL));
-const c6_yr = R3_OUTWL;
+const c6_yd = R3_OUTWL;
 const C6_XL = 60.0;
-const C6_WR = c6_yr;
-const c6_c = c6_ref.add(new Vector4D(0, -R3_OUTWL / 2.0, 0, C6_WR/2.0));
+const C6_WD = c6_yd;
+const c6_c = c6_ref.add(new Vector4D(0, -R3_OUTWL / 2.0, 0, C6_WD/2.0));
 // x+ corridor, hole in -w dir
-createCorridorTubeWithHole(objects, c6_c, new Vector4D(1,0,0,0), C6_XL, new Vector4D(0,0,0,-1), new Vector4D(0,1,0,0), C6_WR, c6_yr, 0.0, R3_OUTXL, new Vector4D(0,0,1,0), _H, false);
+createCorridorTubeWithHole(objects, c6_c, new Vector4D(-1,0,0,0), C6_XL, new Vector4D(0,0,0,-1), new Vector4D(0,1,0,0), C6_WD, c6_yd, 0.0, R3_OUTXL, new Vector4D(0,0,1,0), _H, false);
+
+// Room 4         _
+//       /\       
+//     4/  \3     | L
+// ____/8/\7\     _
+//      /|   \ |  _ c7_ref in the middle of the room
+// ___. \|   / |
+//r4ref\5\/6/  v
+//     1\  /2  y
+//       \/
+//    x <-- 
+const R4_L = 15.0;
+const R4_YL = 2 * R4_L + 2 *c6_yd;
+const R4_XL = 2 * R4_L + c6_yd;
+const R4_WL = C6_WD;
+const R4_d = c6_yd / 2.0;
+const R4_l = 10.0;
+const R4_OUTYR = 2.0;
+const C7_RY = 5.0;
+const C7_RX = 5.0;
+const r4_ref = c6_ref.add(new Vector4D(-C6_XL/2.0, 0, 0, C6_WD/2.0)); // in W middle
+const c7_ref = r4_ref.add(new Vector4D(-R4_L, -R4_d, 0, -C6_WD/2.0)); // at -W end, but X, Y middle
+if (true) {
+  const w1_xl = R4_L;
+  const w1_yl = R4_L;
+  const w1_xyl = Math.sqrt(w1_xl * w1_xl + w1_yl * w1_yl);
+  const w1_c = r4_ref.add(new Vector4D(-w1_xl/2.0, w1_yl/2.0, 0, 0));
+  const w2_xl = R4_L + R4_d;
+  const w2_yl = R4_L + R4_d;
+  const w2_xyl = Math.sqrt(w2_xl * w2_xl + w2_yl * w2_yl);
+  const w2_c = r4_ref.add(new Vector4D(-w1_xl -w2_xl/2.0, w1_yl - w2_yl/2.0, 0, 0));
+  const ref2 = r4_ref.add(new Vector4D(-w1_xl -w2_xl, w1_yl - w2_yl, 0, 0)); // tip of the room
+  const w3_xl = R4_L + R4_d;
+  const w3_yl = R4_L + R4_d;
+  const w3_xyl = Math.sqrt(w3_xl * w3_xl + w3_yl * w3_yl);
+  const w3_c = ref2.add(new Vector4D(w3_xl/2.0, -w3_yl/2.0, 0, 0));
+  const w4_xl = R4_L;
+  const w4_yl = R4_L;
+  const w4_xyl = Math.sqrt(w4_xl * w4_xl + w4_yl * w4_yl);
+  const w4_c = ref2.add(new Vector4D(w3_xl + w4_xl/2.0, -w3_yl + w4_yl/2.0, 0, 0));
+  const ref3 = c7_ref.add(new Vector4D(R4_l, 0, 0, C6_WD/2.0)); // left tip of inner room
+  const w5_xl = R4_l;
+  const w5_yl = R4_l;
+  const w5_xyl = Math.sqrt(w5_xl * w5_xl + w5_yl * w5_yl);
+  const w5_c = ref3.add(new Vector4D(-w5_xl/2.0, w5_yl/2.0, 0, 0));
+  const w6_xl = R4_l - R4_OUTYR;
+  const w6_yl = R4_l - R4_OUTYR;
+  const w6_xyl = Math.sqrt(w6_xl * w6_xl + w6_yl * w6_yl);
+  const w6_c = ref3.add(new Vector4D(-w5_xl -w6_xl/2.0, w5_yl - w6_yl/2.0, 0, 0));
+  const w8_xl = R4_l;
+  const w8_yl = R4_l;
+  const w8_xyl = Math.sqrt(w8_xl * w8_xl + w8_yl * w8_yl);
+  const w8_c = ref3.add(new Vector4D(-w8_xl/2.0, -w8_yl/2.0, 0, 0));
+  const w7_xl = R4_l - R4_OUTYR;
+  const w7_yl = R4_l - R4_OUTYR;
+  const w7_xyl = Math.sqrt(w7_xl * w7_xl + w7_yl * w7_yl);
+  const w7_c = ref3.add(new Vector4D(-w8_xl -w7_xl/2.0, -w8_yl + w7_yl/2.0, 0, 0));
+  // W- wall with hole
+  const w9_xl = 2 * R4_L;
+  const w9_yl = R4_YL;
+  const w9_c = c7_ref;
+  // W- wall on the side
+  const w10_xl = R4_d;
+  const w10_yl = R4_YL;
+  const w10_c = c7_ref.add(new Vector4D(-R4_L -R4_d / 2.0, 0, 0, 0));
+  // W+ wall in the middle
+  const w11_xl = 2 * R4_L;
+  const w11_yl = R4_YL;
+  const w11_c = c7_ref.add(new Vector4D(0, 0, 0, C6_WD));
+  // W+ wall on the side
+  const w12_xl = R4_d;
+  const w12_yl = R4_YL;
+  const w12_c = c7_ref.add(new Vector4D(-R4_L -R4_d / 2.0, 0, 0, C6_WD));
+
+  // w1: bottom-left diagonal
+  objects.push(createHyperwall(
+    new Transform4D([
+      [-_2, w1_xyl/2.0*_2,  0,        0, w1_c.x],
+      [-_2,-w1_xyl/2.0*_2,  0,        0, w1_c.y],
+      [  0,             0, _H,        0, w1_c.z],
+      [  0,             0,  0, R4_WL/2, w1_c.w],
+      [  0,             0,  0,        0,      1]
+    ]),
+    0xff0000
+  ));
+  // w2: bottom-right diagonal
+  objects.push(createHyperwall(
+    new Transform4D([
+      [-_2,-w2_xyl/2.0*_2,  0,        0, w2_c.x],
+      [ _2,-w2_xyl/2.0*_2,  0,        0, w2_c.y],
+      [  0,             0, _H,        0, w2_c.z],
+      [  0,             0,  0, R4_WL/2, w2_c.w],
+      [  0,             0,  0,        0,      1]
+    ]),
+    0xff7700
+  ));
+  // w3: top-right diagonal
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ _2,-w3_xyl/2.0*_2,  0,        0, w3_c.x],
+      [ _2, w3_xyl/2.0*_2,  0,        0, w3_c.y],
+      [  0,             0, _H,        0, w3_c.z],
+      [  0,             0,  0, R4_WL/2, w3_c.w],
+      [  0,             0,  0,        0,      1]
+    ]),
+    0xffff00
+  ));
+  // w4: top-left diagonal
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ _2, w4_xyl/2.0*_2,  0,        0, w4_c.x],
+      [-_2, w4_xyl/2.0*_2,  0,        0, w4_c.y],
+      [  0,             0, _H,        0, w4_c.z],
+      [  0,             0,  0, R4_WL/2, w4_c.w],
+      [  0,             0,  0,        0,      1]
+    ]),
+    0x00ff00
+  ));
+  // w5: inner bottom-left diagonal
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ _2,-w5_xyl/2.0*_2,  0,        0, w5_c.x],
+      [ _2, w5_xyl/2.0*_2,  0,        0, w5_c.y],
+      [  0,             0, _H,        0, w5_c.z],
+      [  0,             0,  0, R4_WL/2, w5_c.w],
+      [  0,             0,  0,        0,      1]
+    ]),
+    0x00ffff
+  ));
+  // w6: inner bottom-right diagonal
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ _2, w6_xyl/2.0*_2,  0,        0, w6_c.x],
+      [-_2, w6_xyl/2.0*_2,  0,        0, w6_c.y],
+      [  0,             0, _H,        0, w6_c.z],
+      [  0,             0,  0, R4_WL/2, w6_c.w],
+      [  0,             0,  0,        0,      1]
+    ]),
+    0x0077ff
+  ));
+  // w7: inner top-right diagonal
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ _2, w7_xyl/2.0*_2,  0,        0, w7_c.x],
+      [ _2,-w7_xyl/2.0*_2,  0,        0, w7_c.y],
+      [  0,             0, _H,        0, w7_c.z],
+      [  0,             0,  0, R4_WL/2, w7_c.w],
+      [  0,             0,  0,        0,      1]
+    ]),
+    0x77ff00
+  ));
+  // w8: inner top-left diagonal
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ _2,-w8_xyl/2.0*_2,  0,        0, w8_c.x],
+      [-_2,-w8_xyl/2.0*_2,  0,        0, w8_c.y],
+      [  0,             0, _H,        0, w8_c.z],
+      [  0,             0,  0, R4_WL/2, w8_c.w],
+      [  0,             0,  0,        0,      1]
+    ]),
+    0x7700ff
+  ));
+  // w9: W- wall with hole (center)
+  const h1f1 = C7_RX / 2.0 / w9_xl;
+  const h1f2 = C7_RY / 2.0 / w9_yl;
+  createHyperwallWithCenterHole(
+    objects,
+    new Transform4D([
+      [  0, w9_xl/2.0,  0,        0, w9_c.x],
+      [  0,        0,  0, w9_yl/2, w9_c.y],
+      [  0,        0, _H,        0, w9_c.z],
+      [ -1,        0,  0,        0, w9_c.w],
+      [  0,        0,  0,        0,      1]
+    ]),
+    h1f1, h1f2,
+    0x0000ff
+  );
+  // w10: W- wall on the side
+  objects.push(createHyperwall(
+    new Transform4D([
+      [  0, w10_xl/2.0,  0,         0, w10_c.x],
+      [  0,         0,  0, w10_yl/2, w10_c.y],
+      [  0,         0, _H,         0, w10_c.z],
+      [ -1,         0,  0,         0, w10_c.w],
+      [  0,         0,  0,         0,       1]
+    ]),
+    0x000077
+  ));
+  // w11: W+ wall in the middle
+  objects.push(createHyperwall(
+    new Transform4D([
+      [  0, w11_xl/2.0,  0,         0, w11_c.x],
+      [  0,         0,  0, w11_yl/2, w11_c.y],
+      [  0,         0, _H,         0, w11_c.z],
+      [  1,         0,  0,         0, w11_c.w],
+      [  0,         0,  0,         0,       1]
+    ]),
+    0x0000ff
+  ));
+  // w12: W+ wall on the side
+  objects.push(createHyperwall(
+    new Transform4D([
+      [  0, w12_xl/2.0,  0,         0, w12_c.x],
+      [  0,         0,  0, w12_yl/2, w12_c.y],
+      [  0,         0, _H,         0, w12_c.z],
+      [  1,         0,  0,         0, w12_c.w],
+      [  0,         0,  0,         0,       1]
+    ]),
+    0x000077
+  ));
+}
 
 
 

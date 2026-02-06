@@ -2,6 +2,8 @@ import { Transform4D, Vector4D } from '../hyperengine/transform4d.js';
 import { Hyperobject, createHypercube } from '../hyperengine/hyperobject.js';
 import { createIslandFloorShader } from '../floor_shaders/island_floor.js';
 
+const CLIP_FAR_BELOW_GROUND_OBJECTS = "true";
+
 export async function runHyperengine(scene) {
     let canvas = scene.mainCanvas;
 
@@ -526,12 +528,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         v_1uvlstex.v = v_cam.z / v_cam.x;
         v_1uvlstex.l = v_cam.w / v_cam.x;
     }
+
     v_1uvlstex.s = v_cam.x;
     v_1uvlstex.tex_u = prev.tex_u;
     v_1uvlstex.tex_v = prev.tex_v;
     v_1uvlstex.tex_w = prev.tex_w;
     // v_1uvlstex.object_i = prev.object_i;
     v_1uvlstex.object_i = obj_index;
+    
+    // Cull vertices far below ground (e.g. creatures hidden at z=-10000)
+    if (${CLIP_FAR_BELOW_GROUND_OBJECTS}) {
+        if (v_world.z < -1000.0) {
+            v_1uvlstex.s = -1000.0;
+        }
+    }
 
     // Store result
     vertices1uvlstexBuffer[vertex_index] = v_1uvlstex;
