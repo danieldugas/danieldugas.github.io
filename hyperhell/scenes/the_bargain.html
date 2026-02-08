@@ -765,6 +765,52 @@ const C7_LW = 10.0;
 const c7_c = c7_ref.add(new Vector4D(0, 0, 0, -C7_LW/2.0));
 createCorridorTube(objects, c7_c, new Vector4D(0,0,0,-1), C7_LW, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), C7_DX, C7_DY, _H);
 
+// Room 5
+//   ___
+//   |  xxxx
+// --   xxxx
+// --             | y
+//   |__xxxx      v
+//  w <--
+
+const R5_WL = 60.0;
+const R5_DX = 20.0;
+const R5_DY = 20.0;
+const R5_LAVA_WL = 30.0;
+const r5_shore_wl = (R5_WL - R5_LAVA_WL) / 2.0;
+const r5_entrance = c7_c.add(new Vector4D(0, 0, 0, -C7_LW/2.0));
+const r5_c = r5_entrance.add(new Vector4D(0, 0, 0, -R5_WL/2.0));
+const r5_firstshore_c = r5_entrance.add(new Vector4D(0, 0, 0, -r5_shore_wl/2.0));
+const r5_secondshore_c = r5_c.add(new Vector4D(0, 0, 0, -R5_LAVA_WL/2.0 -r5_shore_wl/2.0));
+if (true) {
+  const h1f1 = C7_DX / R5_DX;
+  const h1f2 = C7_DY / R5_DY;
+  createHyperwallWithCenterHole(objects,
+      new Transform4D([
+          [0, R5_DX/2.0,  0,       0, r5_entrance.x],
+          [0,         0,  0, R5_DY/2, r5_entrance.y],
+          [0,         0, _H,       0, r5_entrance.z],
+          [1,         0,  0,       0, r5_entrance.w],
+          [0,         0,  0,       0, 1]
+      ]),
+      h1f1, h1f2,
+      0xff0000
+  );
+  createCorridorTube(objects, r5_firstshore_c, new Vector4D(0,0,0,-1), r5_shore_wl, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX, R5_DY, _H);
+  // Lava surface
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ 0, R5_DX/2.0*3,         0,              0,  r5_c.x],
+      [ 0,         0,   R5_DY/2*100,              0,  r5_c.y],
+      [ 1,         0,         0,              0,  r5_c.z+0.1],
+      [ 0,         0,         0, R5_LAVA_WL/2.0,  r5_c.w],
+      [ 0,         0,         0,              0,  1]
+    ]),
+    0xff7700
+  ));
+  createCorridorTube(objects, r5_secondshore_c, new Vector4D(0,0,0,-1), r5_shore_wl, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX, R5_DY, _H);
+}
+
 
 
 function the_bargain_floor_heightmap(x, y, w) {
