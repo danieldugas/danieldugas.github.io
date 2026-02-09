@@ -61,7 +61,7 @@ export function createDamned() {
                 let circle_R = circle_Rs[j];
                 let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i] * ttx;
                 let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
-                let w = [-R,               -0.707*R,      0.0,        0.707*R,        R][j];
+                let w = [-R,               -0.707*R,      0.0,        0.707*R,        R][j]; // I think this should be Sphere_R
                 let z = [tbz,      tbz + thz * 0.7, tbz + thz][k];
                 grid_vertices.push(new Vector4D(x, y, z, w));
 

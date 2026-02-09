@@ -313,3 +313,93 @@ export function createHyperwallWithCenterHole(objectlist, pose, holeRatio1, hole
 
 
 } // createHyperwallWithCenterHole
+
+// Spherical wall with opening
+// Two XYW spheres, one at z+ and one at z-
+// Collider is just a sphere collider with an exception for the entrance
+
+export function createSphericalWallWithHole(pose, cutoutFactor, color) {
+    // build a hypersphere surface (mesh)
+    let grid_vertices = [];
+    let grid_edges = [];
+    let grid_tetras = [];
+    let grid_vertices_texcoords = [];
+    // Shell
+    const n_i = 9;
+    const n_j = 5; // we cut out the last ring, leaving an entrance in x+
+    const n_k = 2;
+    const R = 1.0;
+    let vertex_index_offset = grid_vertices.length;
+    for (let i = 0; i < n_i; i++) {
+        for (let j = 0; j < n_j; j++) {
+            for (let k = 0; k < n_k; k++) {
+                // Spherical coordinates for the points
+                // a is the circle on xy plane (9)
+                // b is the concentric rings along z (5)
+                // c is the concentric spheres along w (5)
+                let sphere_Rs = [R, R];
+                let sphere_R = sphere_Rs[k];
+                // cos(alpha) = (R - cutoutFactor) / R
+                const openingAlpha = Math.acos((sphere_R - cutoutFactor) / sphere_R);
+                const cutoutRadius = sphere_R * Math.sin(openingAlpha);
+                let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, cutoutRadius*sphere_R];
+                let circle_R = circle_Rs[j];
+                let y = [      0.0,  0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
+                let w = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
+                let x = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R - cutoutFactor][j];
+                let z = [-1.0,  1.0][k];
+                grid_vertices.push(new Vector4D(x, y, z, w));
+
+                // texture coordinates
+                let alpha = k / (n_k - 1.0);
+                let theta = i / (n_i - 1.0);
+                let phi = j / (n_j - 1.0);
+                grid_vertices_texcoords.push(new Vector4D(alpha, theta, phi, 0.0));
+
+                // add 5 tetras between this grid point and the next in x,y,w
+                if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                    let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
+                    let pnn = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + k;
+                    let npn = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + k;
+                    let ppn = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                    let nnp = vertex_index_offset + i * n_j * n_k + j * n_k + (k + 1);
+                    let pnp = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                    let npp = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                    let ppp = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                    let cell_tetras = [
+                        [pnn, nnn, ppn, pnp], // tet at corner p n n
+                        [npn, ppn, nnn, npp], // tet at corner n p n
+                        [nnp, pnp, npp, nnn], // tet at corner n n p
+                        [ppp, npp, pnp, ppn], // tet at corner p p p
+                        [nnn, ppn, npp, pnp]  // tet at center
+                    ];
+                    for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                }
+            }
+        }
+    }
+
+    
+    let damned = new Hyperobject(
+        // vertices in object frame
+        grid_vertices,
+        // edges
+        grid_edges,
+        // tetras
+        grid_tetras,
+        // color
+        color,
+        // simulate_physics
+        false,
+        // show_vertices
+        false,
+        // mass
+        1.0,
+        // pose (Transform4D)
+        pose,
+        // name
+        "SphericalWallWithHole"
+    );
+
+    return damned;
+} // createSphericalWallWithHole

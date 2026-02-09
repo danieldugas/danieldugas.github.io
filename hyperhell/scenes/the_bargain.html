@@ -74,9 +74,10 @@ input[type="range"] {
 <script type="module">
 
 import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4d.js';
+import { createHypercube } from '../../4d_creatures/hyperengine/hyperobject.js';
 import { TheBargainManager } from '../game_manager/the_bargain_manager.js';
 import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
-import { createHyperwall, createHyperwallWithCenterHole  } from '../models/wall.js';
+import { createHyperwall, createHyperwallWithCenterHole, createSphericalWallWithHole  } from '../models/wall.js';
 import { createCorridorTube, createCorridorTubeWithHole } from '../models/corridor.js';
 import { createHypersphere } from '../../4d_creatures/models/hypersphere.js';
 import { createHypercrab } from '../../4d_creatures/models/hypercrab.js';
@@ -776,12 +777,22 @@ createCorridorTube(objects, c7_c, new Vector4D(0,0,0,-1), C7_LW, new Vector4D(1,
 const R5_WL = 60.0;
 const R5_DX = 20.0;
 const R5_DY = 20.0;
+const R5_BX = 5.0;
+const R5_BY = 5.0;
+const R5_BZ = 0.5;
+const R5_BoffsetX = 1.0;
+const R5_BoffsetY = 2.0;
 const R5_LAVA_WL = 30.0;
+const C8_LW = 10.0;
+const C8_DX = 10.0;
+const C8_DY = 10.0;
 const r5_shore_wl = (R5_WL - R5_LAVA_WL) / 2.0;
 const r5_entrance = c7_c.add(new Vector4D(0, 0, 0, -C7_LW/2.0));
 const r5_c = r5_entrance.add(new Vector4D(0, 0, 0, -R5_WL/2.0));
 const r5_firstshore_c = r5_entrance.add(new Vector4D(0, 0, 0, -r5_shore_wl/2.0));
 const r5_secondshore_c = r5_c.add(new Vector4D(0, 0, 0, -R5_LAVA_WL/2.0 -r5_shore_wl/2.0));
+const r5_bc = r5_c.add(new Vector4D(R5_BoffsetX, R5_BoffsetY, 0, 0, -R5_BZ/2.0));
+const r5_exit = r5_c.add(new Vector4D(0, 0, 0, -R5_WL/2.0));
 if (true) {
   const h1f1 = C7_DX / R5_DX;
   const h1f2 = C7_DY / R5_DY;
@@ -808,9 +819,72 @@ if (true) {
     ]),
     0xff7700
   ));
+  objects[objects.length-1].collider = null;
   createCorridorTube(objects, r5_secondshore_c, new Vector4D(0,0,0,-1), r5_shore_wl, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX, R5_DY, _H);
+  // Bridge
+  objects.push(createHypercube(
+    new Transform4D([
+      [ R5_BX/2.0,         0,         0,              0,  r5_bc.x],
+      [         0, R5_BY/2.0,         0,              0,  r5_bc.y],
+      [         0,         0, R5_BZ/2.0,              0,  r5_bc.z],
+      [         0,         0,         0, R5_LAVA_WL/2.0,  r5_bc.w],
+      [         0,         0,         0,              0,  1]
+    ]),
+    0x222222
+  ));
+  objects[objects.length-1].simulate_physics = false; // static object
+  // End wall
+  createHyperwallWithCenterHole(objects,
+      new Transform4D([
+          [0, R5_DX/2.0,  0,       0, r5_exit.x],
+          [0,         0,  0, R5_DY/2, r5_exit.y],
+          [0,         0, _H,       0, r5_exit.z],
+          [1,         0,  0,       0, r5_exit.w],
+          [0,         0,  0,       0, 1]
+      ]),
+      C8_DX / R5_DX,
+      C8_DY / R5_DY,
+      0xff0000
+  );
 }
 
+// Corridor 8
+const c8_c = r5_exit.add(new Vector4D(0, 0, 0, -C8_LW/2.0));
+createCorridorTube(objects, c8_c, new Vector4D(0,0,0,-1), C8_LW, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), C8_DX, C8_DY, _H);
+
+// Room 6
+const R6_R = 60.0;
+const R6_CutW = 2.0;
+const r6_entrance = r5_exit.add(new Vector4D(0, 0, 0, -C8_LW));
+const r6_c = r6_entrance.add(new Vector4D(0, 0, 0, -R6_R + R6_CutW));
+if (true) {
+  // Entrance wall
+  const innerR = R6_R * 0.4;
+  const h1f1 = C8_DX / innerR / 2.0;
+  const h1f2 = C8_DY / innerR / 2.0;
+  createHyperwallWithCenterHole(objects,
+      new Transform4D([
+          [0,  innerR,  0,       0, r6_entrance.x],
+          [0,         0,  0,  innerR, r6_entrance.y],
+          [0,         0, _H,       0, r6_entrance.z],
+          [1,         0,  0,       0, r6_entrance.w],
+          [0,         0,  0,       0, 1]
+      ]),
+      h1f1, h1f2,
+      0xff0000
+  );
+
+  objects.push(createSphericalWallWithHole(new Transform4D([
+        [         0,         0,         0,           R6_R,  r6_c.x],
+        [         0,      R6_R,         0,              0,  r6_c.y],
+        [         0,         0,        _H,              0,  r6_c.z],
+        [      R6_R,         0,         0,              0,  r6_c.w],
+        [         0,         0,         0,              0,  1]
+    ]), 
+    R6_CutW / R6_R,
+    0x00ffff
+  ));
+}
 
 
 function the_bargain_floor_heightmap(x, y, w) {
@@ -830,6 +904,8 @@ let poIs = {
     {name: "Corridor 6", pos: c6_c},
     {name: "Room 4", pos: r4_entrance},
     {name: "Corridor 7", pos: c7_c},
+    {name: "Room 5", pos: r5_entrance},
+    {name: "Room 6", pos: r6_entrance},
   ],
   shadeSpawns: [
     c4c,
