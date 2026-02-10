@@ -784,6 +784,7 @@ const R5_BZ = 0.5;
 const R5_BoffsetX = 1.0;
 const R5_BoffsetY = 2.0;
 const R5_LAVA_WL = 30.0;
+const R5_BWL = 35.0;
 const C8_LW = 10.0;
 const C8_DX = 10.0;
 const C8_DY = 10.0;
@@ -792,7 +793,7 @@ const r5_entrance = c7_c.add(new Vector4D(0, 0, 0, -C7_LW/2.0));
 const r5_c = r5_entrance.add(new Vector4D(0, 0, 0, -R5_WL/2.0));
 const r5_firstshore_c = r5_entrance.add(new Vector4D(0, 0, 0, -r5_shore_wl/2.0));
 const r5_secondshore_c = r5_c.add(new Vector4D(0, 0, 0, -R5_LAVA_WL/2.0 -r5_shore_wl/2.0));
-const r5_bc = r5_c.add(new Vector4D(R5_BoffsetX, R5_BoffsetY, 0, 0, -R5_BZ/2.0));
+const r5_bc = r5_c.add(new Vector4D(R5_BoffsetX, R5_BoffsetY, 0, R5_BZ/2.0, 0));
 const r5_exit = r5_c.add(new Vector4D(0, 0, 0, -R5_WL/2.0));
 if (true) {
   const h1f1 = C7_DX / R5_DX;
@@ -828,7 +829,22 @@ if (true) {
       [ R5_BX/2.0,         0,         0,              0,  r5_bc.x],
       [         0, R5_BY/2.0,         0,              0,  r5_bc.y],
       [         0,         0, R5_BZ/2.0,              0,  r5_bc.z],
-      [         0,         0,         0, R5_LAVA_WL/2.0,  r5_bc.w],
+      [         0,         0,         0, R5_BWL/2.0,  r5_bc.w],
+      [         0,         0,         0,              0,  1]
+    ]),
+    0x222222
+  ));
+  objects[objects.length-1].simulate_physics = false; // static object
+  // To make the player's life easier, add a monolith at the first bridge entrance
+  const r5_m1_r = 2.0;
+  const r5_m1_h = 3.0;
+  const r5_m1c = r5_bc.add(new Vector4D(0, 0, _H + r5_m1_h/2.0, R5_LAVA_WL/2.0));
+  objects.push(createHypercube(
+    new Transform4D([
+      [ r5_m1_r,         0,         0,              0,  r5_m1c.x],
+      [         0, r5_m1_r,         0,              0,  r5_m1c.y],
+      [         0,         0, r5_m1_h/2.0,          0,  r5_m1c.z],
+      [         0,         0,         0,      r5_m1_r,  r5_m1c.w],
       [         0,         0,         0,              0,  1]
     ]),
     0x222222
