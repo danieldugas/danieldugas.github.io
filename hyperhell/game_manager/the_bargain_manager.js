@@ -5,7 +5,7 @@ import { createOphane } from '../models/ophane.js';
 import { createDamned, Hitbox } from '../models/damned.js';
 import { createGem } from '../models/gem.js';
 // TODOs:
-// Jump down / Falling logic
+// Jump down / Falling logic [DONE]
 // Lava damage
 // Death / reset
 // Enemy models
@@ -492,6 +492,11 @@ class GameState {
         // enemy bullets
         this.enemyBullets = [];
         this.enemyBulletPrimitives = [];
+        // Fall tracking
+        this.previousFloorHeight = 0;
+        this.playerIsFalling = false;
+        this.fallStartTime = 0;
+        this.fallFromZ = 0; // absolute Z at start of fall
         // Debug
         this.pendingTeleport = null;
     }
@@ -975,6 +980,14 @@ export class TheBargainManager {
             engineState.camstand_T.matrix[1][4] = this.gameState.pendingTeleport.y;
             engineState.camstand_T.matrix[2][4] = this.gameState.pendingTeleport.z;
             engineState.camstand_T.matrix[3][4] = this.gameState.pendingTeleport.w;
+            // Reset fall state so we don't trigger a spurious fall after teleport
+            this.gameState.previousFloorHeight = engineState.scene.floor_heightmap(
+                this.gameState.pendingTeleport.x,
+                this.gameState.pendingTeleport.y,
+                this.gameState.pendingTeleport.w
+            );
+            this.gameState.playerIsFalling = false;
+            engineState.player_is_jumping = false;
             this.gameState.pendingTeleport = null;
         }
 
@@ -983,6 +996,12 @@ export class TheBargainManager {
             this.gameState.isFirstStep = false;
             // Set a few things
             engineState.SENSOR_MODE = 2.0;
+            // Initialize floor height tracking
+            this.gameState.previousFloorHeight = engineState.scene.floor_heightmap(
+                engineState.camstand_T.matrix[0][4],
+                engineState.camstand_T.matrix[1][4],
+                engineState.camstand_T.matrix[3][4]
+            );
         }
 
         // Update enemies
@@ -1045,9 +1064,9 @@ export class TheBargainManager {
         if (engineState.keys['f']) {
             engineState.camstand_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
         }
-        // c to jump
+        // c to jump (can't jump while falling)
         if (engineState.keys['c']) {
-            if (!engineState.player_is_jumping) {
+            if (!engineState.player_is_jumping && !this.gameState.playerIsFalling) {
                 engineState.last_player_jump_time = engineState.physics_time_s;
                 engineState.player_is_jumping = true;
             }
@@ -1160,26 +1179,71 @@ export class TheBargainManager {
                 document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[3][0].toFixed(2)}, ${engineState.camstand_T.matrix[3][1].toFixed(2)}, ${engineState.camstand_T.matrix[3][2].toFixed(2)}, ${engineState.camstand_T.matrix[3][3].toFixed(2)}, ${engineState.camstand_T.matrix[3][4].toFixed(2)}]<br>`;
 
         // Compute final camera transform from intermediate poses
-        // Jump and camera height
-        // reset camera z to 0
-        let jump_z = 0;
-        const jump_height = 1;
-        if (engineState.player_is_jumping) {
-            // jump height is a parabola
-            const tend = 1; // jump duration
-            let dt = engineState.physics_time_s - engineState.last_player_jump_time;
-            let jp01 = dt / tend; // jump progress from 0 to 1
-            if (dt > tend) {
-                engineState.player_is_jumping = false;
-            } else {
-                jump_z = jump_height * (1.0 - (2.0 * jp01 - 1.0) ** 2);
-            }
-        }
-        engineState.camstand_T.matrix[2][4] = engineState.scene.floor_heightmap(
+        // Floor height, jumping, and falling
+        const currentFloorHeight = engineState.scene.floor_heightmap(
             engineState.camstand_T.matrix[0][4],
             engineState.camstand_T.matrix[1][4],
             engineState.camstand_T.matrix[3][4]
-        ) + jump_z;
+        );
+        const floorDelta = currentFloorHeight - this.gameState.previousFloorHeight;
+
+        // Detect floor transitions
+        if (floorDelta < -0.01 && !this.gameState.playerIsFalling) {
+            // Floor dropped (high → low): start falling from current absolute Z
+            let currentAbsoluteZ;
+            if (engineState.player_is_jumping) {
+                const tend = 1;
+                const jump_height = 1;
+                let jdt = engineState.physics_time_s - engineState.last_player_jump_time;
+                let jp01 = Math.min(jdt / tend, 1.0);
+                let jump_z = jump_height * (1.0 - (2.0 * jp01 - 1.0) ** 2);
+                currentAbsoluteZ = this.gameState.previousFloorHeight + jump_z;
+            } else {
+                currentAbsoluteZ = this.gameState.previousFloorHeight;
+            }
+            this.gameState.playerIsFalling = true;
+            this.gameState.fallStartTime = engineState.physics_time_s;
+            this.gameState.fallFromZ = currentAbsoluteZ;
+            engineState.player_is_jumping = false;
+        } else if (floorDelta > 0.01 && this.gameState.playerIsFalling) {
+            // Floor rose while falling: check if new floor catches us
+            const FALL_GRAVITY = 40.0;
+            const fdt = engineState.physics_time_s - this.gameState.fallStartTime;
+            const fallingZ = this.gameState.fallFromZ - 0.5 * FALL_GRAVITY * fdt * fdt;
+            if (fallingZ <= currentFloorHeight) {
+                this.gameState.playerIsFalling = false;
+            }
+        }
+
+        // Compute player Z
+        let playerAbsoluteZ;
+        if (this.gameState.playerIsFalling) {
+            const FALL_GRAVITY = 40.0;
+            const fdt = engineState.physics_time_s - this.gameState.fallStartTime;
+            playerAbsoluteZ = this.gameState.fallFromZ - 0.5 * FALL_GRAVITY * fdt * fdt;
+            if (playerAbsoluteZ <= currentFloorHeight) {
+                playerAbsoluteZ = currentFloorHeight;
+                this.gameState.playerIsFalling = false;
+            }
+        } else {
+            // Normal: on ground or jumping
+            let jump_z = 0;
+            if (engineState.player_is_jumping) {
+                const tend = 1;
+                const jump_height = 1;
+                let jdt = engineState.physics_time_s - engineState.last_player_jump_time;
+                let jp01 = jdt / tend;
+                if (jdt > tend) {
+                    engineState.player_is_jumping = false;
+                } else {
+                    jump_z = jump_height * (1.0 - (2.0 * jp01 - 1.0) ** 2);
+                }
+            }
+            playerAbsoluteZ = currentFloorHeight + jump_z;
+        }
+
+        engineState.camstand_T.matrix[2][4] = playerAbsoluteZ;
+        this.gameState.previousFloorHeight = currentFloorHeight;
         // sine and cosine of swivel angle
         let ss = Math.sin(engineState.camstandswivel_angle);
         let cs = Math.cos(engineState.camstandswivel_angle);
