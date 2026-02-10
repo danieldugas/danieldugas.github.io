@@ -577,10 +577,10 @@ export class TheBargainManager {
             let spawn = this.poIs.ophaneSpawns[i];
             let p = spawn.pos;
             let pose = new Transform4D([
-                [1, 0, 0, 0, p.x],
-                [0, 1, 0, 0, p.y],
-                [0, 0, 1, 0, p.z],
-                [0, 0, 0, 1, p.w],
+                [4, 0, 0, 0, p.x],
+                [0, 4, 0, 0, p.y],
+                [0, 0, 4, 0, p.z],
+                [0, 0, 0, 4, p.w],
                 [0, 0, 0, 0, 1]
             ]);
             let creature = createOphane();
