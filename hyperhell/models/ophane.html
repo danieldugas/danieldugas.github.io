@@ -82,8 +82,13 @@ import { createOphane } from '../models/ophane.js';
 
 
 let ophane = createOphane();
-ophane.pose.translate_self_by_delta(2, 0, 4, 0);
-
+ophane.pose = new Transform4D([
+  [4, 0, 0, 0, 2],
+  [0, 4, 0, 0, 0],
+  [0, 0, 4, 0, 4],
+  [0, 0, 0, 4, 0],
+  [0, 0, 0, 0, 1]
+]);
 
 // Check WebGPU support
 if (!navigator.gpu) {

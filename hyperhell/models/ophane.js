@@ -6,97 +6,78 @@ export function createOphane() {
     // build a hypersphere surface (mesh)
     const n_i = 9;
     const n_j = 5;
-    const n_k = 5;
+    const n_k = 7;
     let grid_vertices = [];
     let grid_edges = [];
     let grid_tetras = [];
     let grid_vertices_texcoords = [];
-    // Shell
-    const R = 1.0;
-    const shellThickness = 0.2;
+    let bones = [];
     let vertex_index_offset = grid_vertices.length;
-    for (let i = 0; i < n_i; i++) {
-        for (let j = 0; j < n_j; j++) {
-            for (let k = 0; k < n_k; k++) {
-                // Spherical coordinates for the points
-                // a is the circle on xy plane (9)
-                // b is the concentric rings along z (5)
-                // c is the concentric spheres along w (5)
-                let sphere_Rs = [0.0, 0.707*R, R, 0.707*R, 0.0];
-                let sphere_R = sphere_Rs[k];
-                let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
-                let circle_R = circle_Rs[j];
-                let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
-                let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
-                let z = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j] * shellThickness;
-                let w = [-R,               -0.707*R,      0.0,        0.707*R,        R][k];
-                grid_vertices.push(new Vector4D(x, y, z, w));
+    // Shell
+    let n_rings = 3;
+    const ringRs = [0.8, 0.9, 1.0];
+    for (let n = 0; n < n_rings; n++) {
+        vertex_index_offset = grid_vertices.length;
+        let bone_vertex_idx_and_affinity = [];
+        const R = ringRs[n] * 1.5;
+        for (let i = 0; i < n_i; i++) {
+            for (let j = 0; j < n_j; j++) {
+                for (let k = 0; k < n_k; k++) {
+                    // Spherical coordinates for the points
+                    // a is the circle on xy plane (9)
+                    // b is the concentric rings along z (5)
+                    // c is the concentric spheres along w (5)
+                    let sphere_Rs = [0.95*R, R, 0.95*R, 0.9*R, 0.95*R, 0.9*R, 0.95*R];
+                    let sphere_R = sphere_Rs[k];
+                    // let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
+                    let circle_Rs = [0.95*sphere_R, sphere_R, 0.95*sphere_R];
+                    let circle_R = circle_Rs[j];
+                    let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
+                    let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
+                    // let z = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j];
+                    let z = [-0.1*sphere_R,      0.0, 0.1*sphere_R][j];
+                    let w = [-0.05*R,      0.0,        0.05*R,  0.05*R,        0.0, -0.05*R, -0.05*R][k];
+                    grid_vertices.push(new Vector4D(x, y, z, w));
 
-                // texture coordinates
-                let theta = i / (n_i - 1.0);
-                let phi = j / (n_j - 1.0);
-                grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+                    // texture coordinates
+                    let alpha = [0.99, 0.99, 0.99, 0.51, 0.51, 0.51, 0.99][k];
+                    let theta = i / (n_i - 1.0);
+                    let phi = j / (n_j - 1.0);
+                    grid_vertices_texcoords.push(new Vector4D(alpha, theta, phi, 0.0));
 
-                // add an edge to the next vertex in x
-                if (i < n_i - 1) {
-                    let next_index = grid_vertices.length + (n_j * n_k) - 1;
-                    grid_edges.push([grid_vertices.length - 1, next_index]);
-                }
-                // add an edge to the next vertex in y
-                if (j < n_j - 1) {
-                    let next_index = grid_vertices.length + n_k - 1;
-                    grid_edges.push([grid_vertices.length - 1, next_index]);
-                }
-                // add an edge to the next vertex in w
-                if (k < n_k - 1) {
-                    let next_index = grid_vertices.length;
-                    grid_edges.push([grid_vertices.length - 1, next_index]);
-                }
-                // add an edge between next x and next y
-                if (i < n_i - 1 && j < n_j - 1) {
-                    let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
-                    let next_y_index = grid_vertices.length + n_k - 1;
-                    grid_edges.push([next_x_index, next_y_index]);
-                }
-                // add an edge between next x and next w
-                if (i < n_i - 1 && k < n_k - 1) {
-                    let next_x_index = grid_vertices.length + (n_j * n_k) - 1;
-                    let next_w_index = grid_vertices.length;
-                    grid_edges.push([next_x_index, next_w_index]);
-                }
-                // add an edge between next y and next w
-                if (j < n_j - 1 && k < n_k - 1) {
-                    let next_y_index = grid_vertices.length + n_k - 1;
-                    let next_w_index = grid_vertices.length;
-                    grid_edges.push([next_y_index, next_w_index]);
-                }
-                // add 5 tetras between this grid point and the next in x,y,w
-                if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
-                    let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
-                    let pnn = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + k;
-                    let npn = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + k;
-                    let ppn = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + k;
-                    let nnp = vertex_index_offset + i * n_j * n_k + j * n_k + (k + 1);
-                    let pnp = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + (k + 1);
-                    let npp = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + (k + 1);
-                    let ppp = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
-                    let cell_tetras = [
-                        [pnn, nnn, ppn, pnp], // tet at corner p n n
-                        [npn, ppn, nnn, npp], // tet at corner n p n
-                        [nnp, pnp, npp, nnn], // tet at corner n n p
-                        [ppp, npp, pnp, ppn], // tet at corner p p p
-                        [nnn, ppn, npp, pnp]  // tet at center
-                    ];
-                    for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                    // Add this vertex to ring bone
+                    bone_vertex_idx_and_affinity.push([grid_vertices.length - 1, 1.0, new Vector4D(x, y, z, w)]);
+
+                    // add 5 tetras between this grid point and the next in x,y,w
+                    if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                        let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
+                        let pnn = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + k;
+                        let npn = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + k;
+                        let ppn = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                        let nnp = vertex_index_offset + i * n_j * n_k + j * n_k + (k + 1);
+                        let pnp = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                        let npp = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let ppp = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let cell_tetras = [
+                            [pnn, nnn, ppn, pnp], // tet at corner p n n
+                            [npn, ppn, nnn, npp], // tet at corner n p n
+                            [nnp, pnp, npp, nnn], // tet at corner n n p
+                            [ppp, npp, pnp, ppn], // tet at corner p p p
+                            [nnn, ppn, npp, pnp]  // tet at center
+                        ];
+                        for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                    }
                 }
             }
         }
+        bones.push({type: "ring", boneIdx: n, vertex_idx_and_affinity: bone_vertex_idx_and_affinity});
     }
     // Make an eye
     for (let i = 0; i < 6; i++) {
         vertex_index_offset = grid_vertices.length;
-        let eyeR = 0.3;
-        let eyeCenter = new Vector4D(R, 0.6*R, R*shellThickness, R);
+        const R = 0.5;
+        let eyeR = 0.1;
+        let eyeCenter = new Vector4D(R, R, R, R);
         if (i === 1) { eyeCenter.y = -eyeCenter.y; }
         if (i === 2) { eyeCenter.z = -eyeCenter.z; }
         if (i === 3) { eyeCenter.x = -eyeCenter.x; }
@@ -113,11 +94,11 @@ export function createOphane() {
         grid_vertices.push(eyeC);
         grid_vertices.push(eyeD);
         grid_vertices.push(eyeE);
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.75, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.01, 0.75, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.01, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.01, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.01, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.01, 0.25, 0, 0));
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 4]);
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 3, vertex_index_offset + 4]);
@@ -190,7 +171,6 @@ export function createOphane() {
     ];
     let legL = 2.0;
     let legT = 0.4;
-    let bones = [];
     for (let i = 0; i < legDirs.length; i++) {
         let bone_vertex_idx_and_affinity = [];
         let dir = legDirs[i][0];
@@ -202,8 +182,8 @@ export function createOphane() {
         let leg_B = leg_mid.add(dirB.multiply_by_scalar(legT));
         let leg_C = leg_mid.add(dirB.multiply_by_scalar(-legT));
         let tip = stem.add(dir.multiply_by_scalar(legL));
-        leg_mid.z += 0.5;
-        tip.z -= 1.0;
+        leg_mid.z -= 0.5 * legL/2.0;
+        tip.z += 1.0 * legL/2.0;
         // create two tetras, [stem, A, B, C] and [tip, A, B, C]
         let vertex_index_offset = grid_vertices.length;
         grid_vertices.push(stem);
@@ -211,11 +191,11 @@ export function createOphane() {
         grid_vertices.push(leg_B);
         grid_vertices.push(leg_C);
         grid_vertices.push(tip);
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.26, 0.75, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.26, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.26, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.26, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.26, 0.75, 0.0, 0.0));
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         grid_tetras.push([vertex_index_offset + 4, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         bone_vertex_idx_and_affinity.push([vertex_index_offset + 0, 0.0, stem]);
@@ -223,7 +203,7 @@ export function createOphane() {
         bone_vertex_idx_and_affinity.push([vertex_index_offset + 2, 0.5, leg_B]);
         bone_vertex_idx_and_affinity.push([vertex_index_offset + 3, 0.5, leg_C]);
         bone_vertex_idx_and_affinity.push([vertex_index_offset + 4, 1.0, tip]);
-        bones.push(bone_vertex_idx_and_affinity);
+        bones.push({type: "wing", vertex_idx_and_affinity: bone_vertex_idx_and_affinity});
     }
     
     // remove duplicates
@@ -262,8 +242,12 @@ export function createOphane() {
         let obj = ophane;
         let eyeColorLight = 0xffffff;
         let eyeColorDark = 0x000000;
-        let shellColorLight = 0xbb0000;
-        let shellColorDark = 0x770000;
+        let outerRingColorLight = 0xcc0000;
+        let outerRingColorDark = 0x770000;
+        let innerRingColorLight = 0xbbbb00;
+        let innerRingColorDark = 0x777700;
+        let wingColorLight = 0xffffff;
+        let wingColorDark = 0xdddddd;
         let USIZE = 4;
         let VSIZE = 2;
         let WSIZE = 8;
@@ -276,9 +260,15 @@ export function createOphane() {
                     // checkerboard pattern
                     let color = 0xffffff;
                     let isDark = v === 0;
-                    if (u >= USIZE / 2) { // leaves
-                        if (isDark) { color = shellColorDark; }
-                        else { color = shellColorLight; }
+                    if (u >= 0.75 * USIZE) { // outerRing
+                        if (isDark) { color = outerRingColorDark; }
+                        else { color = outerRingColorLight; }
+                    } else if (u >= 0.5 * USIZE) { // innerRing
+                        if (isDark) { color = innerRingColorDark; }
+                        else { color = innerRingColorLight; }
+                    } else if (u >= 0.25 * USIZE) { // wing
+                        if (isDark) { color = wingColorDark; }
+                        else { color = wingColorLight; }
                     } else { // eye
                         if (isDark) { color = eyeColorDark; }
                         else { color = eyeColorLight; }
@@ -301,16 +291,57 @@ export function createOphane() {
     function animationFrame(obj, t) {
         for (let i = 0; i < obj.bones.length; i++) {
             let bone = obj.bones[i];
-            let bone_vertex_idx_and_affinity = bone;
-            for (let j = 0; j < bone_vertex_idx_and_affinity.length; j++) {
-                let vertex_index = bone_vertex_idx_and_affinity[j][0];
-                let affinity = bone_vertex_idx_and_affinity[j][1];
-                let original_vertex = bone_vertex_idx_and_affinity[j][2];
-                let phase = (i % 2 === 0) * Math.PI;
-                let woffset = affinity * Math.sin(Math.PI * 2.0 * t / 10.0 + phase);
-                let bone_xyzw_offset = new Vector4D(0, 0, 0, woffset);
-                let animated_vertex = bone_xyzw_offset.add(original_vertex);
-                obj.vertices_in_object[vertex_index] = animated_vertex;
+            if (bone.type === "wing") {
+                let bone_vertex_idx_and_affinity = bone.vertex_idx_and_affinity;
+                for (let j = 0; j < bone_vertex_idx_and_affinity.length; j++) {
+                    let vertex_index = bone_vertex_idx_and_affinity[j][0];
+                    let affinity = bone_vertex_idx_and_affinity[j][1];
+                    let original_vertex = bone_vertex_idx_and_affinity[j][2];
+                    let phase = (i % 2 === 0) * Math.PI;
+                    let woffset = affinity * Math.sin(Math.PI * 2.0 * t / 10.0 + phase);
+                    let bone_xyzw_offset = new Vector4D(0, 0, 0, woffset);
+                    let animated_vertex = bone_xyzw_offset.add(original_vertex);
+                    obj.vertices_in_object[vertex_index] = animated_vertex;
+                }
+            } else if (bone.type === "ring") {
+                // Rotate ring around axis
+                let phi = Math.PI * 2.0 * t / 10.0;
+                let _c = Math.cos(phi);
+                let _s = Math.sin(phi);
+                let bonesInObject = [
+                    new Transform4D([
+                        [1, 0, 0, 0, 0],
+                        [0, _c, -_s, 0, 0],
+                        [0, _s, _c, 0, 0],
+                        [0, 0, 0, 1, 0],
+                        [0, 0, 0, 0, 1]
+                    ]),
+                    new Transform4D([
+                        [1, 0, 0, 0, 0],
+                        [0, _c, _s, 0, 0],
+                        [0,-_s, _c, 0, 0],
+                        [0, 0, 0, 1, 0],
+                        [0, 0, 0, 0, 1]
+                    ]),
+                    new Transform4D([
+                        [_c, 0,-_s, 0, 0],
+                        [0, 0, 0, 0, 0],
+                        [_s, 0, _c, 0, 0],
+                        [0, 0, 0, 1, 0],
+                        [0, 0, 0, 0, 1]
+                    ])
+                ];
+                let boneInObject = bonesInObject[bone.boneIdx];
+                let bone_vertex_idx_and_affinity = bone.vertex_idx_and_affinity;
+                for (let j = 0; j < bone_vertex_idx_and_affinity.length; j++) {
+                    let vertex_index = bone_vertex_idx_and_affinity[j][0];
+                    let affinity = bone_vertex_idx_and_affinity[j][1];
+                    let original_vertex = bone_vertex_idx_and_affinity[j][2];
+                    let bone_xyzw_offset = boneInObject.transform_point(original_vertex);
+                    let animated_vertex = bone_xyzw_offset;
+                    obj.vertices_in_object[vertex_index] = animated_vertex;
+                }
+                
             }
         }
         // Update pose
