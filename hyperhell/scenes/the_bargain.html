@@ -900,7 +900,7 @@ if (true) {
     ]),
     0xff7700
   ));
-  // Bridge
+  // Spherical Bridge
   objects.push(createSphericalBridge(new Transform4D([
         [         0,         0,         0,       R6_BridgeShellR,  r6_c.x],
         [         0,  R6_BridgeShellR,         0,              0,  r6_c.y],
@@ -911,6 +911,67 @@ if (true) {
     0.9, 1.1,
     0x222222
   ));
+  // Connect Outer Shore to Spherical Bridge (x+)
+  const r6_b1_lx = R6_R - R6_BridgeShellR;
+  const r6_b1_r = R5_BX / 2.0;
+  const r6_b1c = r6_c.add(new Vector4D(r6_b1_lx/2.0 + R6_BridgeShellR, 0, 0, 0));
+  objects.push(createHypercube(
+    new Transform4D([
+      [ r6_b1_lx/2.0,         0,         0,              0,  r6_b1c.x],
+      [         0, r6_b1_r,         0,              0,  r6_b1c.y],
+      [         0,         0, R5_BZ/2.0,              0,  r6_b1c.z],
+      [         0,         0,         0, r6_b1_r,  r6_b1c.w],
+      [         0,         0,         0,              0,  1]
+    ]),
+    0x222222
+  ));
+  objects[objects.length-1].simulate_physics = false; // static object
+  // To make the player's life easier, add a monolith at the first bridge entrance
+  const r6_m1_r = 2.0;
+  const r6_m1_h = 3.0;
+  const r6_m1c = r6_c.add(new Vector4D(r6_b1_lx + R6_BridgeShellR, 0, _H + r6_m1_h/2.0, 0));
+  objects.push(createHypercube(
+    new Transform4D([
+      [ r6_m1_r,         0,         0,              0,  r6_m1c.x],
+      [         0, r6_m1_r,         0,              0,  r6_m1c.y],
+      [         0,         0, r6_m1_h/2.0,              0,  r6_m1c.z],
+      [         0,         0,         0, r6_m1_r,  r6_m1c.w],
+      [         0,         0,         0,              0,  1]
+    ]),
+    0x222222
+  ));
+  objects[objects.length-1].simulate_physics = false; // static object
+  // Connect Spherical Bridge To Pedestal (y+)
+  const r6_b2_ly = R6_BridgeShellR;
+  const r6_b2_r = R5_BX / 2.0;
+  const r6_b2c = r6_c.add(new Vector4D(0, r6_b2_ly/2.0, 0, 0));
+  objects.push(createHypercube(
+    new Transform4D([
+      [ r6_b2_r,         0,         0,              0,  r6_b2c.x],
+      [         0, r6_b2_ly/2.0,         0,              0,  r6_b2c.y],
+      [         0,         0, R5_BZ/2.0,              0,  r6_b2c.z],
+      [         0,         0,         0, r6_b2_r,  r6_b2c.w],
+      [         0,         0,         0,              0,  1]
+    ]),
+    0x222222
+  ));
+  objects[objects.length-1].simulate_physics = false; // static object
+  // To make the player's life easier, add a monolith at the first bridge entrance
+  const r6_m2_r = 2.0;
+  const r6_m2_h = 3.0;
+  const r6_m2c = r6_c.add(new Vector4D(0, r6_b2_ly, _H + r6_m2_h/2.0, 0));
+  objects.push(createHypercube(
+    new Transform4D([
+      [ r6_m2_r,         0,         0,              0,  r6_m2c.x],
+      [         0, r6_m2_r,         0,              0,  r6_m2c.y],
+      [         0,         0, r6_m2_h/2.0,              0,  r6_m2c.z],
+      [         0,         0,         0, r6_m2_r,  r6_m2c.w],
+      [         0,         0,         0,              0,  1]
+    ]),
+    0x222222
+  ));
+  objects[objects.length-1].simulate_physics = false; // static object
+
   // Pedestal
   objects.push(createSphericalBridge(new Transform4D([
         [         0,         0,         0,       R6_PedestalR,  r6_c.x],
