@@ -863,9 +863,6 @@ const R6_PedestalR = 7.0;
 const R6_PedestalHZ = 1.0;
 const r6_entrance = r5_exit.add(new Vector4D(0, 0, 0, -C8_LW));
 const r6_c = r6_entrance.add(new Vector4D(0, 0, 0, -R6_R + R6_CutW));
-const EndGemH = 4.0;
-const EndGemZ = 3.0;
-const EndGemW = 1.0;
 if (true) {
   // Entrance wall
   const innerR = R6_R * 0.4;
@@ -925,17 +922,7 @@ if (true) {
     0.2, 1.0,
     0x222222
   ));
-  // End gem
-  objects.push(createGem(
-    new Transform4D([
-      [EndGemW/2.0,         0,         0,              0,  r6_c.x],
-      [         0,EndGemW/2.0,         0,              0,  r6_c.y],
-      [         0,         0, EndGemH/6.0,              0,  r6_c.z + EndGemZ],
-      [         0,         0,         0,  EndGemW/2.0,  r6_c.w],
-      [         0,         0,         0,              0,  1]
-    ]),
-    0xffff00
-  ));
+  // End gem - created by the game manager
 }
 
 
@@ -969,6 +956,7 @@ let poIs = {
       volumeMax: new Vector4D(w5_c.x + R3XL / 2.0, w5_c.y + w5_yl / 2.0 - 1, _H, w5_c.w),
     },
   ],
+  room6Center: r6_c,
 };
 
 // Check WebGPU support

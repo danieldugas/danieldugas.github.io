@@ -2,6 +2,7 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { createBullet } from '../models/bullet.js';
 import { createCrawler } from '../models/crawler.js';
 import { createDamned, Hitbox } from '../models/damned.js';
+import { createGem } from '../models/gem.js';
 // Custom controls
 //      (3D / 4D upgrade)
 //       Shooting and guns
@@ -423,6 +424,25 @@ export class TheBargainManager {
             let primitiveIndex = this.scene.visibleHyperobjects.length;
             this.gameState.crawlerEnemies.push(new CrawlerEnemy(primitiveIndex, pose.clone(), spawn.volumeMin, spawn.volumeMax));
             this.scene.visibleHyperobjects.push(creature);
+        }
+
+        // End gem
+        if (true) {
+            const EndGemH = 4.0;
+            const EndGemZ = 3.0;
+            const EndGemW = 1.0;
+            const EndGemC = this.poIs.room6Center.add(new Vector4D(0, 0, EndGemZ, 0));
+            let gemPose = new Transform4D([
+                [EndGemW/2.0, 0, 0, 0, EndGemC.x],
+                [0, EndGemW/2.0, 0, 0, EndGemC.y],
+                [0, 0, EndGemH/6.0, 0, EndGemC.z],
+                [0, 0, 0, 1, EndGemC.w],
+                [0, 0, 0, 0, 1]
+            ]);
+            let gem = createGem(gemPose, 0xffff00);
+            this.endGemPrimitiveIndex = this.scene.visibleHyperobjects.length;
+            this.endGemBaseZ = EndGemC.z;
+            this.scene.visibleHyperobjects.push(gem);
         }
 
         // Debug panel
@@ -1001,6 +1021,16 @@ export class TheBargainManager {
             [0, 0, 0, 0, 1]
         ]);
         engineState.hypercamera_T = engineState.camstand_T.transform_transform(hypercam_in_camstand);
+
+        // Animate end gem (rotate + bob up and down)
+        if (this.endGemPrimitiveIndex !== undefined) {
+            let gem = this.scene.visibleHyperobjects[this.endGemPrimitiveIndex];
+            gem.pose.rotate_self_by_delta('XY', 0.02, false);
+            const bobAmplitude = 0.5;
+            const bobSpeed = 2.0;
+            const bobZ = this.endGemBaseZ + Math.sin(engineState.physics_time_s * bobSpeed) * bobAmplitude;
+            gem.pose.matrix[2][4] = bobZ;
+        }
 
         // Update HUD
         this.updateHUD();
