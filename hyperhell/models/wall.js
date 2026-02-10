@@ -341,7 +341,7 @@ class StaticObjectSphericalShellColliderWithHole {
         const closestR = (r - this.innerR) < (this.outerR - r) ? this.innerR : this.outerR;
 
         // For debugging, print position to a div
-        if (true) { // NOCOMMIT
+        if (false) {
           // Debug: print the player pose to a div
           // create div if it doesn't exist
           if (!document.getElementById("collider_debug")) {
