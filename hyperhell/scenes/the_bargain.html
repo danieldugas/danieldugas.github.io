@@ -77,11 +77,12 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { createHypercube } from '../../4d_creatures/hyperengine/hyperobject.js';
 import { TheBargainManager } from '../game_manager/the_bargain_manager.js';
 import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
-import { createHyperwall, createHyperwallWithCenterHole, createSphericalWallWithHole  } from '../models/wall.js';
+import { createHyperwall, createHyperwallWithCenterHole, createSphericalWallWithHole, createSphericalFloor, createSphericalBridge  } from '../models/wall.js';
 import { createCorridorTube, createCorridorTubeWithHole } from '../models/corridor.js';
 import { createHypersphere } from '../../4d_creatures/models/hypersphere.js';
 import { createHypercrab } from '../../4d_creatures/models/hypercrab.js';
 import { createBargainer } from '../models/bargainer.js';
+import { createGem } from '../models/gem.js';
 
 let objects = [];
 
@@ -854,9 +855,17 @@ createCorridorTube(objects, c8_c, new Vector4D(0,0,0,-1), C8_LW, new Vector4D(1,
 
 // Room 6
 const R6_R = 60.0;
+const R6_LavaR = 50.0;
 const R6_CutW = 2.0;
+const R6_BridgeShellR = 30.0;
+const R6_BridgeShellHZ = 0.3;
+const R6_PedestalR = 7.0;
+const R6_PedestalHZ = 1.0;
 const r6_entrance = r5_exit.add(new Vector4D(0, 0, 0, -C8_LW));
 const r6_c = r6_entrance.add(new Vector4D(0, 0, 0, -R6_R + R6_CutW));
+const EndGemH = 4.0;
+const EndGemZ = 3.0;
+const EndGemW = 1.0;
 if (true) {
   // Entrance wall
   const innerR = R6_R * 0.4;
@@ -873,7 +882,7 @@ if (true) {
       h1f1, h1f2,
       0xff0000
   );
-
+  // outer wall
   objects.push(createSphericalWallWithHole(new Transform4D([
         [         0,         0,         0,           R6_R,  r6_c.x],
         [         0,      R6_R,         0,              0,  r6_c.y],
@@ -883,6 +892,49 @@ if (true) {
     ]), 
     R6_CutW / R6_R,
     0x00ffff
+  ));
+  // lava
+  objects.push(createSphericalFloor(new Transform4D([
+        [         0,         0,         0,       R6_LavaR,  r6_c.x],
+        [         0,  R6_LavaR,         0,              0,  r6_c.y],
+        [         0,         0,        _H,              0,  r6_c.z+0.1],
+        [  R6_LavaR,         0,         0,              0,  r6_c.w], // We give this the same rotation as the outer wall to match the discontinuities
+        [         0,         0,         0,              0,  1]
+    ]),
+    0xff7700
+  ));
+  // Bridge
+  objects.push(createSphericalBridge(new Transform4D([
+        [         0,         0,         0,       R6_BridgeShellR,  r6_c.x],
+        [         0,  R6_BridgeShellR,         0,              0,  r6_c.y],
+        [         0,         0, R6_BridgeShellHZ,              0,         r6_c.z],
+        [  R6_BridgeShellR,         0,         0,              0,  r6_c.w], // We give this the same rotation as the outer wall to match the discontinuities
+        [         0,         0,         0,              0,  1]
+    ]),
+    0.9, 1.1,
+    0x222222
+  ));
+  // Pedestal
+  objects.push(createSphericalBridge(new Transform4D([
+        [         0,         0,         0,       R6_PedestalR,  r6_c.x],
+        [         0,  R6_PedestalR,         0,              0,  r6_c.y],
+        [         0,         0, R6_PedestalHZ,              0,         r6_c.z],
+        [  R6_PedestalR,         0,         0,              0,  r6_c.w], // We give this the same rotation as the outer wall to match the discontinuities
+        [         0,         0,         0,              0,  1]
+    ]),
+    0.2, 1.0,
+    0x222222
+  ));
+  // End gem
+  objects.push(createGem(
+    new Transform4D([
+      [EndGemW/2.0,         0,         0,              0,  r6_c.x],
+      [         0,EndGemW/2.0,         0,              0,  r6_c.y],
+      [         0,         0, EndGemH/6.0,              0,  r6_c.z + EndGemZ],
+      [         0,         0,         0,  EndGemW/2.0,  r6_c.w],
+      [         0,         0,         0,              0,  1]
+    ]),
+    0xffff00
   ));
 }
 

@@ -2,9 +2,7 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { Hyperobject, createHypercube, removeDuplicates } from '../../4d_creatures/hyperengine/hyperobject.js';
 
 class StaticObjectFrameBoxCollider {
-    constructor(
-        parentObjectStaticPose,
-    ) {
+    constructor(parentObjectStaticPose) {
         this.parentObjectStaticPose = parentObjectStaticPose; // parent in world
         this.parentObjectStaticPoseInverse = parentObjectStaticPose.inverse();
         console.log("parentObjectStaticPoseInverse", this.parentObjectStaticPoseInverse);
@@ -317,6 +315,75 @@ export function createHyperwallWithCenterHole(objectlist, pose, holeRatio1, hole
 // Spherical wall with opening
 // Two XYW spheres, one at z+ and one at z-
 // Collider is just a sphere collider with an exception for the entrance
+class StaticObjectSphericalShellColliderWithHole {
+    // R=1 is assumed, cutout is in x+
+    constructor(parentObjectStaticPose, cutoutFactor) {
+        this.parentObjectStaticPose = parentObjectStaticPose;
+        this.cutoutFactor = cutoutFactor;
+        this.parentObjectStaticPoseInverse = this.parentObjectStaticPose.inverse();
+        this.innerR = 0.85;
+        this.outerR = 1.1;
+        const openingAlpha = Math.acos((this.innerR - cutoutFactor) / this.innerR);
+        this.cutoutRadius = this.innerR * Math.sin(openingAlpha);
+    }
+
+    constrainTransform(transform) {
+        // player in parent frame = T_world_in_parent * T_player_in_world
+        const pos_in_world = transform.origin();
+        let position = this.parentObjectStaticPoseInverse.transform_point(pos_in_world);
+        const orig_position = position.multiply_by_scalar(1.0); // for debugging
+
+        // Radius check
+        const r = Math.sqrt(position.x * position.x + position.y * position.y + position.w * position.w); // ignore z
+        const is_within_shell = r < this.outerR && r > this.innerR && position.z > -1.0 && position.z < 1.0;
+        const is_inside_entrance = position.x > 0.0 && (position.y * position.y + position.w * position.w) < (this.cutoutRadius * this.cutoutRadius);
+        const is_colliding = is_within_shell && !is_inside_entrance;
+        const closestR = (r - this.innerR) < (this.outerR - r) ? this.innerR : this.outerR;
+
+        // For debugging, print position to a div
+        if (true) { // NOCOMMIT
+          // Debug: print the player pose to a div
+          // create div if it doesn't exist
+          if (!document.getElementById("collider_debug")) {
+              const div = document.createElement("div");
+              div.id = "collider_debug";
+              document.body.appendChild(div);
+              div.style.position = "absolute";
+              div.style.bottom = "400px";
+              div.style.right = "10px";
+              div.style.color = "rgb(156, 156, 156)";
+              div.style.fontFamily = "monospace";
+              div.style.fontSize = "12px";
+              console.log("created div");
+          }
+          // update div
+          document.getElementById("collider_debug").innerHTML = `Player:<br>`;
+          document.getElementById("collider_debug").innerHTML += `[${position.x.toFixed(2)}]<br>`;
+          document.getElementById("collider_debug").innerHTML += `[${position.y.toFixed(2)}]<br>`;
+          document.getElementById("collider_debug").innerHTML += `[${position.z.toFixed(2)}]<br>`;
+          document.getElementById("collider_debug").innerHTML += `[${position.w.toFixed(2)}]<br>`;
+          document.getElementById("collider_debug").innerHTML += `R: ${r.toFixed(2)}<br>`;
+          document.getElementById("collider_debug").innerHTML += `is_colliding: ${is_colliding}<br>`;
+          document.getElementById("collider_debug").innerHTML += `is_inside_entrance: ${is_inside_entrance}<br>`;
+          document.getElementById("collider_debug").innerHTML += `ywRadius: ${Math.sqrt(position.y * position.y + position.w * position.w).toFixed(2)}<br>`;
+          document.getElementById("collider_debug").innerHTML += `cutoutRadius: ${this.cutoutRadius.toFixed(2)}<br>`;
+          document.getElementById("collider_debug").innerHTML += `closestR: ${closestR.toFixed(2)}<br>`;
+        }
+
+        if (is_colliding) {
+            // position = position.normalize().multiply_by_scalar(closestR);
+            position = position.normalize().multiply_by_scalar(this.innerR); // default to teleport inside
+
+            // Update the translation in the transform matrix
+            let position_in_world = this.parentObjectStaticPose.transform_point(position);
+
+            transform.setTranslation(position_in_world);
+            return true;
+        }
+        return false;
+    }
+    
+}
 
 export function createSphericalWallWithHole(pose, cutoutFactor, color) {
     // build a hypersphere surface (mesh)
@@ -380,7 +447,7 @@ export function createSphericalWallWithHole(pose, cutoutFactor, color) {
     }
 
     
-    let damned = new Hyperobject(
+    let object = new Hyperobject(
         // vertices in object frame
         grid_vertices,
         // edges
@@ -400,6 +467,174 @@ export function createSphericalWallWithHole(pose, cutoutFactor, color) {
         // name
         "SphericalWallWithHole"
     );
+    object.collider = new StaticObjectSphericalShellColliderWithHole(pose, cutoutFactor);
 
-    return damned;
+    return object;
 } // createSphericalWallWithHole
+
+export function createSphericalFloor(pose, color) {
+    // build a hypersphere surface (mesh)
+    let grid_vertices = [];
+    let grid_edges = [];
+    let grid_tetras = [];
+    let grid_vertices_texcoords = [];
+    // Shell
+    const n_i = 9;
+    const n_j = 5;
+    const n_k = 2;
+    const R = 1.0;
+    let vertex_index_offset = grid_vertices.length;
+    for (let i = 0; i < n_i; i++) {
+        for (let j = 0; j < n_j; j++) {
+            for (let k = 0; k < n_k; k++) {
+                // Spherical coordinates for the points
+                // a is the circle on xy plane (9)
+                // b is the concentric rings along z (5)
+                // c is the concentric spheres along w (5)
+                let sphere_Rs = [0, R];
+                let sphere_R = sphere_Rs[k];
+                let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
+                let circle_R = circle_Rs[j];
+                let y = [      0.0,  0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
+                let w = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
+                let x = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j];
+                let z = [0.0,  0.0][k];
+                grid_vertices.push(new Vector4D(x, y, z, w));
+
+                // texture coordinates
+                let alpha = k / (n_k - 1.0);
+                let theta = i / (n_i - 1.0);
+                let phi = j / (n_j - 1.0);
+                grid_vertices_texcoords.push(new Vector4D(alpha, theta, phi, 0.0));
+
+                // add 5 tetras between this grid point and the next in x,y,w
+                if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                    let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
+                    let pnn = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + k;
+                    let npn = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + k;
+                    let ppn = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                    let nnp = vertex_index_offset + i * n_j * n_k + j * n_k + (k + 1);
+                    let pnp = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                    let npp = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                    let ppp = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                    let cell_tetras = [
+                        [pnn, nnn, ppn, pnp], // tet at corner p n n
+                        [npn, ppn, nnn, npp], // tet at corner n p n
+                        [nnp, pnp, npp, nnn], // tet at corner n n p
+                        [ppp, npp, pnp, ppn], // tet at corner p p p
+                        [nnn, ppn, npp, pnp]  // tet at center
+                    ];
+                    for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                }
+            }
+        }
+    }
+
+    
+    let object = new Hyperobject(
+        // vertices in object frame
+        grid_vertices,
+        // edges
+        grid_edges,
+        // tetras
+        grid_tetras,
+        // color
+        color,
+        // simulate_physics
+        false,
+        // show_vertices
+        false,
+        // mass
+        1.0,
+        // pose (Transform4D)
+        pose,
+        // name
+        "SphericalFloor"
+    );
+
+    return object;
+} // createSphericalFloor
+
+export function createSphericalBridge(pose, innerRFactor, outerRFactor, color) {
+    // We connect 5 spheres (z-, innerR), (z-, outerR), (z+, outerR), (z+, innerR) (z-, innerR) to create a loop that encloses the spherical shell
+    // build a hypersphere surface (mesh)
+    let grid_vertices = [];
+    let grid_edges = [];
+    let grid_tetras = [];
+    let grid_vertices_texcoords = [];
+    // Shell
+    const n_i = 9;
+    const n_j = 5;
+    const n_k = 5; // this one is a little bit more complicated
+    const R = 1.0;
+    let vertex_index_offset = grid_vertices.length;
+    for (let i = 0; i < n_i; i++) {
+        for (let j = 0; j < n_j; j++) {
+            for (let k = 0; k < n_k; k++) {
+                // Spherical coordinates for the points
+                // a is the circle on xy plane (9)
+                // b is the concentric rings along z (5)
+                // c is the concentric spheres along w (5)
+                let sphere_Rs = [R*innerRFactor, R*outerRFactor, R*outerRFactor, R*innerRFactor, R*innerRFactor];
+                let sphere_R = sphere_Rs[k];
+                let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
+                let circle_R = circle_Rs[j];
+                let y = [      0.0,  0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i];
+                let w = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
+                let x = [-sphere_R, -0.707*sphere_R,      0.0, 0.707*sphere_R, sphere_R][j];
+                let z = [0.0,  0.0, 1.0, 1.0, 0.0][k];
+                grid_vertices.push(new Vector4D(x, y, z, w));
+
+                // texture coordinates
+                let alpha = k / (n_k - 1.0);
+                let theta = i / (n_i - 1.0);
+                let phi = j / (n_j - 1.0);
+                grid_vertices_texcoords.push(new Vector4D(alpha, theta, phi, 0.0));
+
+                // add 5 tetras between this grid point and the next in x,y,w
+                if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                    let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
+                    let pnn = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + k;
+                    let npn = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + k;
+                    let ppn = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                    let nnp = vertex_index_offset + i * n_j * n_k + j * n_k + (k + 1);
+                    let pnp = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                    let npp = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                    let ppp = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                    let cell_tetras = [
+                        [pnn, nnn, ppn, pnp], // tet at corner p n n
+                        [npn, ppn, nnn, npp], // tet at corner n p n
+                        [nnp, pnp, npp, nnn], // tet at corner n n p
+                        [ppp, npp, pnp, ppn], // tet at corner p p p
+                        [nnn, ppn, npp, pnp]  // tet at center
+                    ];
+                    for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                }
+            }
+        }
+    }
+
+    
+    let object = new Hyperobject(
+        // vertices in object frame
+        grid_vertices,
+        // edges
+        grid_edges,
+        // tetras
+        grid_tetras,
+        // color
+        color,
+        // simulate_physics
+        false,
+        // show_vertices
+        false,
+        // mass
+        1.0,
+        // pose (Transform4D)
+        pose,
+        // name
+        "SphericalFloor"
+    );
+
+    return object;
+} // createSphericalFloor
