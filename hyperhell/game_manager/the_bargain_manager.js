@@ -4,25 +4,30 @@ import { createCrawler } from '../models/crawler.js';
 import { createOphane } from '../models/ophane.js';
 import { createDamned, Hitbox } from '../models/damned.js';
 import { createGem } from '../models/gem.js';
+// TODOs:
+// Jump down / Falling logic
+// Lava damage
+// Death / reset
+// Enemy models
+// Visible enemy damage
+// Boss healthbar
+// Door close
+// Dialogue
+// Tips
+// Texturing
+// Per room Floor shader
+// Audio
+
 // Custom controls
 //      (3D / 4D upgrade)
 //       Shooting and guns
 //       Jumping and multiple heights
-// Enemy spawning logic
+// Enemy spawning logic and AI
 // Environment logic (doors, keys, floor damage)
 // Inventory
 // Player Health
 // Dialogue overlays
 // Game Over 
-
-// Other TODOs:
-// One hole corridor model
-// Per room Floor
-// Falling logic
-// Enemy models
-// Texturing
-
-// Modelling tool?
 
 // Bargainer dialogue:
 // [You were not supposed to be here.
