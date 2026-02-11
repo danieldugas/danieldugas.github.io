@@ -31,6 +31,8 @@ export class Hitbox {
     }
 } // Hitbox
 
+const CRAWLING = false;
+
 export function createDamned() {
     // build a hypersphere surface (mesh)
     let grid_vertices = [];
@@ -48,49 +50,56 @@ export function createDamned() {
     const ttx = 0.3;
     const twy = 0.4;
     let vertex_index_offset = grid_vertices.length;
-    for (let i = 0; i < n_i; i++) {
-        for (let j = 0; j < n_j; j++) {
-            for (let k = 0; k < n_k; k++) {
-                // Spherical coordinates for the points
-                // a is the circle on xy plane (9)
-                // b is the concentric rings along z (5)
-                // c is the concentric spheres along w (5)
-                let sphere_Rs = [twy * 0.9, twy, twy * 0.9];
-                let sphere_R = sphere_Rs[k];
-                let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
-                let circle_R = circle_Rs[j];
-                let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i] * ttx;
-                let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
-                let w = [-sphere_R,               -0.707*sphere_R,      0.0,        0.707*sphere_R,        sphere_R][j]; // I think this should be Sphere_R
-                let z = [tbz,      tbz + thz * 0.7, tbz + thz][k];
-                grid_vertices.push(new Vector4D(x, y, z, w));
+    if (true) {
+        let bone_vertex_idx_and_affinity = [];
+        for (let i = 0; i < n_i; i++) {
+            for (let j = 0; j < n_j; j++) {
+                for (let k = 0; k < n_k; k++) {
+                    // Spherical coordinates for the points
+                    // a is the circle on xy plane (9)
+                    // b is the concentric rings along z (5)
+                    // c is the concentric spheres along w (5)
+                    let sphere_Rs = [twy * 0.9, twy, twy * 0.9];
+                    let sphere_R = sphere_Rs[k];
+                    let circle_Rs = [0.0, 0.707*sphere_R, sphere_R, 0.707*sphere_R, 0.0];
+                    let circle_R = circle_Rs[j];
+                    let x = [0.0,        0.707*circle_R, circle_R, 0.707*circle_R,      0.0, -0.707*circle_R, -circle_R, -0.707*circle_R,       0.0][i] * ttx;
+                    let y = [-circle_R, -0.707*circle_R,      0.0, 0.707*circle_R, circle_R,  0.707*circle_R,       0.0, -0.707*circle_R, -circle_R][i];
+                    let w = [-sphere_R,               -0.707*sphere_R,      0.0,        0.707*sphere_R,        sphere_R][j]; // I think this should be Sphere_R
+                    let z = [tbz,      tbz + thz * 0.7, tbz + thz][k];
+                    grid_vertices.push(new Vector4D(x, y, z, w));
 
-                // texture coordinates
-                let theta = i / (n_i - 1.0);
-                let phi = j / (n_j - 1.0);
-                grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+                    // texture coordinates
+                    let theta = i / (n_i - 1.0);
+                    let phi = j / (n_j - 1.0);
+                    grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
 
-                // add 5 tetras between this grid point and the next in x,y,w
-                if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
-                    let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
-                    let pnn = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + k;
-                    let npn = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + k;
-                    let ppn = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + k;
-                    let nnp = vertex_index_offset + i * n_j * n_k + j * n_k + (k + 1);
-                    let pnp = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + (k + 1);
-                    let npp = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + (k + 1);
-                    let ppp = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
-                    let cell_tetras = [
-                        [pnn, nnn, ppn, pnp], // tet at corner p n n
-                        [npn, ppn, nnn, npp], // tet at corner n p n
-                        [nnp, pnp, npp, nnn], // tet at corner n n p
-                        [ppp, npp, pnp, ppn], // tet at corner p p p
-                        [nnn, ppn, npp, pnp]  // tet at center
-                    ];
-                    for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                    // Add this vertex to bone
+                    bone_vertex_idx_and_affinity.push([grid_vertices.length - 1, 1.0, new Vector4D(x, y, z, w)]);
+
+                    // add 5 tetras between this grid point and the next in x,y,w
+                    if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
+                        let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
+                        let pnn = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + k;
+                        let npn = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + k;
+                        let ppn = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + k;
+                        let nnp = vertex_index_offset + i * n_j * n_k + j * n_k + (k + 1);
+                        let pnp = vertex_index_offset + (i + 1) * n_j * n_k + j * n_k + (k + 1);
+                        let npp = vertex_index_offset + i * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let ppp = vertex_index_offset + (i + 1) * n_j * n_k + (j + 1) * n_k + (k + 1);
+                        let cell_tetras = [
+                            [pnn, nnn, ppn, pnp], // tet at corner p n n
+                            [npn, ppn, nnn, npp], // tet at corner n p n
+                            [nnp, pnp, npp, nnn], // tet at corner n n p
+                            [ppp, npp, pnp, ppn], // tet at corner p p p
+                            [nnn, ppn, npp, pnp]  // tet at center
+                        ];
+                        for (let tet of cell_tetras) { grid_tetras.push(tet); }
+                    }
                 }
             }
         }
+        bones.push({type: "torso", vertex_idx_and_affinity: bone_vertex_idx_and_affinity});
     }
 
     // Head
@@ -104,6 +113,7 @@ export function createDamned() {
         const ttx = 0.6;
         const twy = 0.6;
         let vertex_index_offset = grid_vertices.length;
+        let bone_vertex_idx_and_affinity = [];
         for (let i = 0; i < n_i; i++) {
             for (let j = 0; j < n_j; j++) {
                 for (let k = 0; k < n_k; k++) {
@@ -124,6 +134,9 @@ export function createDamned() {
                     let phi = j / (n_j - 1.0);
                     grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
 
+                    // Add this vertex to bone
+                    bone_vertex_idx_and_affinity.push([grid_vertices.length - 1, 1.0, new Vector4D(x, y, z, w)]);
+
                     // add 5 tetras between this grid point and the next in x,y,w
                     if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
                         let nnn = vertex_index_offset + i * n_j * n_k + j * n_k + k;
@@ -146,6 +159,7 @@ export function createDamned() {
                 }
             }
         }
+        bones.push({type: "head", vertex_idx_and_affinity: bone_vertex_idx_and_affinity});
     }
 
     // Arms
@@ -159,6 +173,7 @@ export function createDamned() {
         const twy = 0.18;
         const cy = [-0.3, 0.3][li];
         let vertex_index_offset = grid_vertices.length;
+        let bone_vertex_idx_and_affinity = [];
         for (let i = 0; i < n_i; i++) {
             for (let j = 0; j < n_j; j++) {
                 for (let k = 0; k < n_k; k++) {
@@ -178,6 +193,9 @@ export function createDamned() {
                     let theta = i / (n_i - 1.0);
                     let phi = j / (n_j - 1.0);
                     grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+
+                    // Add this vertex to bone
+                    bone_vertex_idx_and_affinity.push([grid_vertices.length - 1, 1.0, new Vector4D(x, y, z, w)]);
 
                     // add 5 tetras between this grid point and the next in x,y,w
                     if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
@@ -201,6 +219,8 @@ export function createDamned() {
                 }
             }
         }
+        const type = ["left_arm", "right_arm"][li];
+        bones.push({type: type, vertex_idx_and_affinity: bone_vertex_idx_and_affinity});
     }
 
     // Leg
@@ -214,6 +234,7 @@ export function createDamned() {
         const twy = 0.18;
         const cy = [-0.2, -0.2, 0.2, 0.2][li];
         let vertex_index_offset = grid_vertices.length;
+        let bone_vertex_idx_and_affinity = [];
         for (let i = 0; i < n_i; i++) {
             for (let j = 0; j < n_j; j++) {
                 for (let k = 0; k < n_k; k++) {
@@ -233,6 +254,9 @@ export function createDamned() {
                     let theta = i / (n_i - 1.0);
                     let phi = j / (n_j - 1.0);
                     grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+
+                    // Add this vertex to bone
+                    bone_vertex_idx_and_affinity.push([grid_vertices.length - 1, 1.0, new Vector4D(x, y, z, w)]);
 
                     // add 5 tetras between this grid point and the next in x,y,w
                     if (i < n_i - 1 && j < n_j - 1 && k < n_k - 1) {
@@ -256,6 +280,8 @@ export function createDamned() {
                 }
             }
         }
+        const legType = (li % 2 === 0) ? "lower_leg" : "upper_leg";
+        bones.push({type: legType, vertex_idx_and_affinity: bone_vertex_idx_and_affinity});
     }
     
     // remove duplicates
@@ -333,20 +359,54 @@ export function createDamned() {
     // Animator
     damned.bones = bones;
     function animationFrame(obj, t) {
+        function rotateXZ(v, pivotX, pivotZ, angle) {
+            const c = Math.cos(angle);
+            const s = Math.sin(angle);
+            const dx = v.x - pivotX;
+            const dz = v.z - pivotZ;
+            return new Vector4D(pivotX + dx * c - dz * s, v.y, pivotZ + dx * s + dz * c, v.w);
+        }
+
+        const hipZ = 1.0;
+        const kneeZ = 0.5;
+
         for (let i = 0; i < obj.bones.length; i++) {
             let bone = obj.bones[i];
-            let bone_vertex_idx_and_affinity = bone;
-            for (let j = 0; j < bone_vertex_idx_and_affinity.length; j++) {
-                let vertex_index = bone_vertex_idx_and_affinity[j][0];
-                let affinity = bone_vertex_idx_and_affinity[j][1];
-                let original_vertex = bone_vertex_idx_and_affinity[j][2];
-                let phase = (i % 2 === 0) * Math.PI;
-                let woffset = affinity * Math.sin(Math.PI * 2.0 * t / 10.0 + phase);
-                let bone_xyzw_offset = new Vector4D(0, 0, 0, woffset);
-                let animated_vertex = bone_xyzw_offset.add(original_vertex);
-                obj.vertices_in_object[vertex_index] = animated_vertex;
+            for (let j = 0; j < bone.vertex_idx_and_affinity.length; j++) {
+                const vi = bone.vertex_idx_and_affinity[j][0];
+                let v = bone.vertex_idx_and_affinity[j][2]; // original vertex
+                const alpha = Math.sin(Math.PI * 2.0 * t / 10.0) * Math.PI / 8.0;
+
+                if (CRAWLING) {
+                    // Torso, head, arms: tilt forward -90° around hip
+                    if (bone.type === "torso" || bone.type === "head" || bone.type === "left_arm" || bone.type === "right_arm") {
+                        v = rotateXZ(v, 0, hipZ, Math.PI / 2);
+                    }
+                    // Arms: additionally rotate down +90° around shoulder
+                    if (bone.type === "left_arm") {
+                        v = rotateXZ(v, -1.0, hipZ, -Math.PI / 2 + alpha);
+                    }
+                    if (bone.type === "right_arm") {
+                        v = rotateXZ(v, -1.0, hipZ, -Math.PI / 2 - alpha);
+                    }
+                    // Upper legs: rotate backward -90° around hip
+                    if (bone.type === "upper_leg") {
+                        // v = rotateXZ(v, 0, hipZ, Math.PI / 2);
+                    }
+                    // Lower legs: rotate backward around hip, then down around knee
+                    if (bone.type === "lower_leg") {
+                        // v = rotateXZ(v, 0, hipZ, Math.PI / 2);
+                        v = rotateXZ(v, 0, kneeZ, Math.PI / 2);
+                    }
+
+                    // All vertices: shift down
+                    v = new Vector4D(v.x, v.y, v.z - 0.5, v.w);
+                }
+
+                obj.vertices_in_object[vi] = v;
             }
         }
+
         // Update pose
         if (false) {
             const islandR = 20.0;
