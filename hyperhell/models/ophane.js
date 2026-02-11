@@ -306,6 +306,7 @@ export function createOphane() {
             } else if (bone.type === "ring") {
                 // Rotate ring around axis
                 let phi = Math.PI * 2.0 * t / 10.0;
+                phi = phi % (Math.PI * 2.0);
                 // Lerp rotation to a full stop
                 if (!obj.animState.ringsRotating) {
                     let timeSinceStop = t - obj.animState.ringsStopTime;

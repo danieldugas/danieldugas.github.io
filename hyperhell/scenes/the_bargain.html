@@ -77,7 +77,7 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { createHypercube } from '../../4d_creatures/hyperengine/hyperobject.js';
 import { TheBargainManager } from '../game_manager/the_bargain_manager.js';
 import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
-import { createHyperwall, createHyperwallWithCenterHole, createSphericalWallWithHole, createSphericalBridge  } from '../models/wall.js';
+import { createHyperwall, createHyperwallWithCenterHole, createSphericalWallWithHole, createSphericalBridge, createObstacleCube  } from '../models/wall.js';
 import { createCorridorTube, createCorridorTubeWithHole } from '../models/corridor.js';
 import { createHypersphere } from '../../4d_creatures/models/hypersphere.js';
 import { createHypercrab } from '../../4d_creatures/models/hypercrab.js';
@@ -353,7 +353,13 @@ const C4L = 30.0;
 let c4c = new Vector4D(R2X, 0, 0, -R2R - C3L - C4L / 2.0);
 createCorridorTubeWithHole(objects, c4c, new Vector4D(0,0,0,1), C4L, new Vector4D(0,1,0,0), new Vector4D(1,0,0,0), c4r, c4r, -C4L / 2.0 + c4r, c4r, new Vector4D(0,0,1,0), _H, false);
 
-// Corridor 5a (y+)
+// Corridor 5a (y+), wide in x, narrow in w
+//   ______
+// __|    _  
+// __    |_|  | x
+//   |_____   v
+//      <--
+//       y
 const c5ar1 = c4r;
 const C5A_R2 = 20.0;
 const C5A_L = 30.0;
@@ -373,7 +379,18 @@ createHyperwallWithCenterHole(
   0x0000ff
 );
 createCorridorTube(objects, c5c, new Vector4D(0,1,0,0), C5A_L, new Vector4D(0,0,0,1), new Vector4D(1,0,0,0), c5ar1, C5A_R2, _H);
-
+objects.push(createObstacleCube(new Transform4D([
+    [  3,        0,  0,        0, c5c.x],
+    [  0,        3,  0,        0, c5c.y],
+    [  0,        0, _H/2.0,        0, c5c.z],
+    [  0,        0,  0,c5ar1/2.0, c5c.w],
+    [  0,        0,  0,        0,      1]
+  ]),
+  0x00ff00
+));
+// prep two monster spawns
+const c5_monster1 = c5c.add(new Vector4D(6, 0, 0, 0));
+const c5_monster2 = c5c.add(new Vector4D(-6, 0, 0, 0));
 // Room 3
 
 const r3_entrance = new Vector4D(R2X, C5A_L + C5A_R2 / 2.0, 0, -R2R - C3L - C4L + c4r);
@@ -1162,6 +1179,8 @@ let poIs = {
   ],
   shadeSpawns: [
     c4c,
+    c5_monster1,
+    c5_monster2,
   ],
   crawlerSpawns: [
     {

@@ -648,7 +648,12 @@ class GameState {
         this.playerMaxAmmo = 100;
         this.playerInvulnLastHitTime = 0;
         this.playerInvulnTime = 1.0;
+        // Movement mode
+        this.playerMoveMode = "Human";
         // Eye opening animation state
+        this.playerEyeMode = "Human";
+        // DEBUGGING
+        this.playerMoveMode = "4D";
         this.playerEyeMode = "WideOpen->Lidded"; // Lidded or WideOpen
         this.eyeAnimationProgress = 0; // 0 to 1 within current phase
         this.eyeAnimationSpeed = 4.0; // How fast the animation progresses
@@ -695,10 +700,10 @@ export class TheBargainManager {
             let dy = Math.random() * 20 - 10;
             let dw = Math.random() * 20 - 10;
             let pose = new Transform4D([
-                [1, 0, 0, 0, 30 + dx],
-                [0, 1, 0, 0, 0 + dy],
-                [0, 0, 1, 0, 3],
-                [0, 0, 0, 1, 0 + dw],
+                [1, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, -10000],
+                [0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 1]
             ])
             let sphere = createBullet(1, 0xffff00, pose);
@@ -1346,15 +1351,17 @@ export class TheBargainManager {
         if (engineState.keys['d']) {
             engineState.camstand_T.translate_self_by_delta(0,-moveSpeed, 0, 0, RELATIVE_MOVEMENT);
         }
-        if (engineState.keys['q']) {
-            engineState.camstand_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
-        }
-        if (engineState.keys['e']) {
-            engineState.camstand_T.translate_self_by_delta(0, 0, 0, +moveSpeed, RELATIVE_MOVEMENT);
+        if (this.gameState.playerMoveMode === "4D") {
+            if (engineState.keys['q']) {
+                engineState.camstand_T.translate_self_by_delta(0, 0, 0, -moveSpeed, RELATIVE_MOVEMENT);
+            }
+            if (engineState.keys['e']) {
+                engineState.camstand_T.translate_self_by_delta(0, 0, 0, +moveSpeed, RELATIVE_MOVEMENT);
+            }
         }
 
         const rotateSpeed = 0.05;
-        if (this.gameState.playerEyeMode === "Lidded") { // only allow z swivel in lidded mode
+        if (this.gameState.playerEyeMode === "Lidded" || this.gameState.playerEyeMode === "Human") { // only allow z swivel in lidded mode
             if (engineState.keys['i']) {
                 engineState.camstandswivel_angle -= rotateSpeed;
             }
@@ -1368,17 +1375,24 @@ export class TheBargainManager {
         if (engineState.keys['l']) {
             engineState.camstand_T.rotate_self_by_delta('XY', -rotateSpeed, true);
         }
-        if (engineState.keys['u']) {
-            engineState.camstand_T.rotate_self_by_delta('XW', rotateSpeed, true);
+        if (this.gameState.playerMoveMode === "4D") {
+            if (engineState.keys['u']) {
+                engineState.camstand_T.rotate_self_by_delta('XW', rotateSpeed, true);
+            }
+            if (engineState.keys['o']) {
+                engineState.camstand_T.rotate_self_by_delta('XW', -rotateSpeed, true);
+            }
+            if (engineState.keys['y']) {
+                engineState.camstand_T.rotate_self_by_delta('YW', -rotateSpeed, true);
+            }
+            if (engineState.keys['p']) {
+                engineState.camstand_T.rotate_self_by_delta('YW', rotateSpeed, true);
+            }
         }
-        if (engineState.keys['o']) {
-            engineState.camstand_T.rotate_self_by_delta('XW', -rotateSpeed, true);
-        }
-        if (engineState.keys['y']) {
-            engineState.camstand_T.rotate_self_by_delta('YW', -rotateSpeed, true);
-        }
-        if (engineState.keys['p']) {
-            engineState.camstand_T.rotate_self_by_delta('YW', rotateSpeed, true);
+
+        // Constrain player position to w = 0 if in human mode
+        if (this.gameState.playerMoveMode === "Human") {
+            engineState.camstand_T.matrix[3][4] = 0.0;
         }
 
         // Constrain swivel angle
@@ -1622,6 +1636,13 @@ export class TheBargainManager {
     updateEyeMode(engineState) {
         const dt = engineState.physics_time_s - this.gameState.lastEyeUpdateTime;
         this.gameState.lastEyeUpdateTime = engineState.physics_time_s;
+        
+        // Human mode
+        if (this.gameState.playerEyeMode === "Human") {
+            this.gameState.eyeAnimationProgress = 0.0;
+            engineState.SENSOR_MODE = 0;
+            return;
+        }
 
         const rKeyPressed = engineState.keys['r'];
 

@@ -638,3 +638,20 @@ export function createSphericalBridge(pose, innerRFactor, outerRFactor, color) {
 
     return object;
 } // createSphericalFloor
+
+// Create obstacle cube
+export function createObstacleCube(pose, color) {
+    let hypercube = createHypercube(pose, color);
+    hypercube.collider = new StaticObjectFrameBoxCollider(hypercube.pose);
+    // extend collider by +- 1 in all dims to account for player thickness
+    // first figure out the y and w size of the wall in world
+    let xUnitInWorld = pose.transform_vector(new Vector4D(1, 0, 0, 0)).magnitude(); // in world
+    let oneMeterInWallX = 1.0 / xUnitInWorld; // 1 meter in wall = this many wall units
+    let yUnitInWorld = pose.transform_vector(new Vector4D(0, 1, 0, 0)).magnitude(); // in world
+    let oneMeterInWallY = 1.0 / yUnitInWorld; // 1 meter in wall = this many wall units
+    let wUnitInWorld = pose.transform_vector(new Vector4D(0, 0, 0, 1)).magnitude(); // in world
+    let oneMeterInWallW = 1.0 / wUnitInWorld; // 1 meter in wall = this many wall units
+    hypercube.collider.min = new Vector4D(-1 - oneMeterInWallX, -1 - oneMeterInWallY, -1, -1 - oneMeterInWallW); // in object
+    hypercube.collider.max = new Vector4D(1 + oneMeterInWallX, 1 + oneMeterInWallY, 1, 1 + oneMeterInWallW);
+    return hypercube;
+}
