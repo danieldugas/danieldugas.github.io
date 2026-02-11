@@ -303,9 +303,62 @@ export function createCrawler() {
     // Animator
     hypercrab.bones = bones;
     function animationFrame(obj, t) {
+        // Trigger new leg falls when targetLegsLost increases
+        let currentLost = 0;
+        for (let i = 0; i < obj.animState.legStates.length; i++) {
+            if (obj.animState.legStates[i] !== 'attached') currentLost++;
+        }
+        while (currentLost < obj.animState.targetLegsLost && currentLost < obj.bones.length) {
+            let attachedLegs = [];
+            for (let i = 0; i < obj.animState.legStates.length; i++) {
+                if (obj.animState.legStates[i] === 'attached') attachedLegs.push(i);
+            }
+            if (attachedLegs.length === 0) break;
+            let pickIdx = attachedLegs[Math.floor(Math.random() * attachedLegs.length)];
+            obj.animState.legStates[pickIdx] = 'falling';
+            obj.animState.legFallStartTimes[pickIdx] = t;
+            currentLost++;
+        }
+
         for (let i = 0; i < obj.bones.length; i++) {
             let bone = obj.bones[i];
             let bone_vertex_idx_and_affinity = bone;
+
+            if (obj.animState.legStates[i] === 'gone') {
+                for (let j = 0; j < bone_vertex_idx_and_affinity.length; j++) {
+                    let vertex_index = bone_vertex_idx_and_affinity[j][0];
+                    obj.vertices_in_object[vertex_index] = new Vector4D(0, 0, -10000, 0);
+                }
+                continue;
+            }
+
+            if (obj.animState.legStates[i] === 'falling') {
+                let fallTime = t - obj.animState.legFallStartTimes[i];
+                const fallGravity = 5.0;
+                const fallDisappearTime = 2.0;
+
+                if (fallTime > fallDisappearTime) {
+                    obj.animState.legStates[i] = 'gone';
+                    for (let j = 0; j < bone_vertex_idx_and_affinity.length; j++) {
+                        let vertex_index = bone_vertex_idx_and_affinity[j][0];
+                        obj.vertices_in_object[vertex_index] = new Vector4D(0, 0, -10000, 0);
+                    }
+                    continue;
+                }
+
+                let fallZ = -0.5 * fallGravity * fallTime * fallTime;
+                for (let j = 0; j < bone_vertex_idx_and_affinity.length; j++) {
+                    let vertex_index = bone_vertex_idx_and_affinity[j][0];
+                    let original_vertex = bone_vertex_idx_and_affinity[j][2];
+                    obj.vertices_in_object[vertex_index] = new Vector4D(
+                        original_vertex.x, original_vertex.y,
+                        original_vertex.z + fallZ, original_vertex.w
+                    );
+                }
+                continue;
+            }
+
+            // Normal animation (attached legs)
             for (let j = 0; j < bone_vertex_idx_and_affinity.length; j++) {
                 let vertex_index = bone_vertex_idx_and_affinity[j][0];
                 let affinity = bone_vertex_idx_and_affinity[j][1];
@@ -394,5 +447,14 @@ export function createCrawler() {
     }
     hypercrab.animateFunction = animationFrame;
     hypercrab.is_animated = true;
+    hypercrab.animState = {
+        legStates: [],        // 'attached', 'falling', 'gone'
+        legFallStartTimes: [], // sim time when each leg started falling
+        targetLegsLost: 0
+    };
+    for (let i = 0; i < bones.length; i++) {
+        hypercrab.animState.legStates.push('attached');
+        hypercrab.animState.legFallStartTimes.push(0);
+    }
     return hypercrab;
 } // end function createCrawler()

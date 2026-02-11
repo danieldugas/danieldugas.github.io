@@ -277,6 +277,13 @@ class CrawlerEnemy {
             }
         }
 
+        // Update leg-loss animation state based on HP
+        if (primitive.animState) {
+            const maxLegs = primitive.bones.length;
+            const hpFraction = Math.max(0, this.hp) / 80;
+            primitive.animState.targetLegsLost = Math.floor((1 - hpFraction) * maxLegs);
+        }
+
         // Die if hp <= 0
         if (this.hp <= 0) {
             primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
