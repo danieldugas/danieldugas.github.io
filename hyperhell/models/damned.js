@@ -31,7 +31,6 @@ export class Hitbox {
     }
 } // Hitbox
 
-const CRAWLING = false;
 
 export function createDamned() {
     // build a hypersphere surface (mesh)
@@ -377,7 +376,7 @@ export function createDamned() {
                 let v = bone.vertex_idx_and_affinity[j][2]; // original vertex
                 const alpha = Math.sin(Math.PI * 2.0 * t / 10.0) * Math.PI / 8.0;
 
-                if (CRAWLING) {
+                if (obj.animState.isCrawling) {
                     // Torso, head, arms: tilt forward -90° around hip
                     if (bone.type === "torso" || bone.type === "head" || bone.type === "left_arm" || bone.type === "right_arm") {
                         v = rotateXZ(v, 0, hipZ, Math.PI / 2);
@@ -406,83 +405,9 @@ export function createDamned() {
                 obj.vertices_in_object[vi] = v;
             }
         }
-
-        // Update pose
-        if (false) {
-            const islandR = 20.0;
-            obj.pose.translate_self_by_delta(0, 0, 0, 0.01, true);
-            // Start sinking if crab is in the water
-            const crabPos = obj.pose.origin();
-            const waterlineDist = Math.max(0.0, Math.sqrt(crabPos.x * crabPos.x + crabPos.y * crabPos.y + crabPos.w * crabPos.w) - islandR);
-            const z = 2.0 - waterlineDist;
-            obj.pose.matrix[2][4] = z;
-            // Respawn somewhere else if too deep
-            if (z < -2.0) {
-                const randDir = new Vector4D(Math.random() * 2.0 - 1.0, Math.random() * 2.0 - 1.0, 0.0, Math.random() * 2.0 - 1.0).normalize();
-                var randPos = randDir.multiply_by_scalar(islandR + 3.9);
-                obj.pose.matrix[0][4] = randPos.x;
-                obj.pose.matrix[1][4] = randPos.y;
-                obj.pose.matrix[3][4] = randPos.w;
-                // set rotation so that crab w axis faces the island center
-                const newCrabW = randDir.multiply_by_scalar(-1.0);
-                const newCrabZ = new Vector4D(0.0, 0.0, 1.0, 0.0);
-                // pick a random vector and make it orthogonal to newCrabW and Z
-                while (true) {
-                    const randVec = new Vector4D(Math.random(), Math.random(), 0.0, Math.random()).normalize();
-                    if (newCrabW.dot(randVec) > 0.9) { continue; }
-                    const newCrabX = randVec.subtract(newCrabW.multiply_by_scalar(newCrabW.dot(randVec))).normalize();
-                    // Y is perpendicular to X and Z (cross product in xy_w axes)
-                    const newCrabY = new Vector4D(
-                        newCrabX.y * newCrabW.w - newCrabX.w * newCrabW.y,
-                        newCrabX.w * newCrabW.x - newCrabX.x * newCrabW.w,
-                        0.0,
-                        newCrabX.x * newCrabW.y - newCrabX.y * newCrabW.x,
-                    );
-                    obj.pose.matrix[0][0] = newCrabX.x;
-                    obj.pose.matrix[1][0] = newCrabX.y;
-                    obj.pose.matrix[2][0] = newCrabX.z;
-                    obj.pose.matrix[3][0] = newCrabX.w;
-                    obj.pose.matrix[0][1] = newCrabY.x;
-                    obj.pose.matrix[1][1] = newCrabY.y;
-                    obj.pose.matrix[2][1] = newCrabY.z;
-                    obj.pose.matrix[3][1] = newCrabY.w;
-                    obj.pose.matrix[0][2] = newCrabZ.x;
-                    obj.pose.matrix[1][2] = newCrabZ.y;
-                    obj.pose.matrix[2][2] = newCrabZ.z;
-                    obj.pose.matrix[3][2] = newCrabZ.w;
-                    obj.pose.matrix[0][3] = newCrabW.x;
-                    obj.pose.matrix[1][3] = newCrabW.y;
-                    obj.pose.matrix[2][3] = newCrabW.z;
-                    obj.pose.matrix[3][3] = newCrabW.w;
-                    break;
-                }
-            }
-        }
-                // Debug: print the crab pose to a div on the window
-                // create div if it doesn't exist
-            if (false) {
-                if (!document.getElementById("crab_pose")) {
-                    const div = document.createElement("div");
-                    div.id = "crab_pose";
-                    document.body.appendChild(div);
-                    div.style.position = "absolute";
-                    div.style.top = "10px";
-                    div.style.right = "10px";
-                    div.style.color = "rgb(156, 156, 156)";
-                    div.style.fontFamily = "monospace";
-                    div.style.fontSize = "12px";
-                    console.log("created div");
-                }
-                // update div
-                document.getElementById("crab_pose").innerHTML = `Crab:<br>`;
-                document.getElementById("crab_pose").innerHTML += `[${obj.pose.matrix[0][0].toFixed(2)}, ${obj.pose.matrix[0][1].toFixed(2)}, ${obj.pose.matrix[0][2].toFixed(2)}, ${obj.pose.matrix[0][3].toFixed(2)}, ${obj.pose.matrix[0][4].toFixed(2)}]<br>`;
-                document.getElementById("crab_pose").innerHTML += `[${obj.pose.matrix[1][0].toFixed(2)}, ${obj.pose.matrix[1][1].toFixed(2)}, ${obj.pose.matrix[1][2].toFixed(2)}, ${obj.pose.matrix[1][3].toFixed(2)}, ${obj.pose.matrix[1][4].toFixed(2)}]<br>`;
-                document.getElementById("crab_pose").innerHTML += `[${obj.pose.matrix[2][0].toFixed(2)}, ${obj.pose.matrix[2][1].toFixed(2)}, ${obj.pose.matrix[2][2].toFixed(2)}, ${obj.pose.matrix[2][3].toFixed(2)}, ${obj.pose.matrix[2][4].toFixed(2)}]<br>`;
-                document.getElementById("crab_pose").innerHTML += `[${obj.pose.matrix[3][0].toFixed(2)}, ${obj.pose.matrix[3][1].toFixed(2)}, ${obj.pose.matrix[3][2].toFixed(2)}, ${obj.pose.matrix[3][3].toFixed(2)}, ${obj.pose.matrix[3][4].toFixed(2)}]<br>`;
-            }
-
     }
     damned.animateFunction = animationFrame;
     damned.is_animated = true;
+    damned.animState = {isCrawling: false};
     return damned;
 } // end function createDamned()

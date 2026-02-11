@@ -175,6 +175,10 @@ class ShadeEnemy {
             }
         }
 
+        // Change animation state if hp < 20
+        if (this.hp < 20) {
+            primitive.animState.isCrawling = true;
+        }
 
         // Die if hp <= 0
         if (this.hp <= 0) {
