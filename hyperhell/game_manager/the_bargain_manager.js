@@ -504,6 +504,7 @@ class OphaneEnemy {
                 gameState.gemLerpStartTime = engineState.physics_time_s;
                 gameState.gemLerpStartPos = primitive.pose.origin();
             }
+            gameState.bossDefeated = true;
             primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
             return;
         }
@@ -638,6 +639,7 @@ class GameState {
         this.fallFromZ = 0; // absolute Z at start of fall
         // Boss: 0=not started, 1=phase1 active, 2=intermission, 3=phase2 active
         this.bossPhase = 0;
+        this.bossDefeated = false;
         // End gem: 'hidden', 'lerping', 'arrived'
         this.gemState = 'hidden';
         this.gemLerpStartTime = 0;
@@ -1385,6 +1387,15 @@ export class TheBargainManager {
             engineState.camstand_T.rotate_self_by_delta('YW', rotateSpeed, true);
         }
 
+        // Remove magic wall once boss enters phase 2 (half HP reached)
+        if (this.gameState.bossPhase >= 2 && this.poIs.magicWallIndex !== undefined) {
+            let wall = engineState.scene.visibleHyperobjects[this.poIs.magicWallIndex];
+            if (wall.collider) {
+                wall.collider = null;
+            }
+            wall.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
+        }
+
         // Box Colliders
         let collidingObjects = [];
         if (!this.gameState.GOD_MODE) {
@@ -1393,6 +1404,23 @@ export class TheBargainManager {
                 if (obj.collider) {
                     let isCollided = obj.collider.constrainTransform(engineState.camstand_T);
                     if (isCollided) { collidingObjects.push(`${obj.name || 'unnamed'}[${i}]`); }
+                }
+            }
+
+            // Boss arena repulsion sphere: keep player outside R6_BridgeShellR until phase 2
+            if (this.gameState.bossPhase < 2 && this.poIs.room6Center) {
+                let playerPos = engineState.camstand_T.origin();
+                let room6C = this.poIs.room6Center;
+                let dx = playerPos.x - room6C.x;
+                let dy = playerPos.y - room6C.y;
+                let dw = playerPos.w - room6C.w;
+                let distXYW = Math.sqrt(dx * dx + dy * dy + dw * dw);
+                let radius = this.poIs.room6InnerRadius + 4.0;
+                if (distXYW < radius && distXYW > 0.01) {
+                    let pushFactor = radius / distXYW;
+                    engineState.camstand_T.matrix[0][4] = room6C.x + dx * pushFactor;
+                    engineState.camstand_T.matrix[1][4] = room6C.y + dy * pushFactor;
+                    engineState.camstand_T.matrix[3][4] = room6C.w + dw * pushFactor;
                 }
             }
         }

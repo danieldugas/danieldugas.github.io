@@ -894,6 +894,7 @@ const R6_PedestalR = 7.0;
 const R6_PedestalHZ = 1.0;
 const r6_entrance = r5_exit.add(new Vector4D(0, 0, 0, -C8_LW));
 const r6_c = r6_entrance.add(new Vector4D(0, 0, 0, -R6_R + R6_CutW));
+let magicWallIndex = null;
 if (true) {
   // Entrance wall
   const innerR = R6_R * 0.4;
@@ -934,7 +935,7 @@ if (true) {
     0x222222
   ));
   // Connect Outer Shore to Spherical Bridge (x+)
-  const r6_b1_lx = R6_R - R6_BridgeShellR;
+  const r6_b1_lx = R6_R - R6_BridgeShellR - 5.0;
   const r6_b1_r = R5_BX / 2.0;
   const r6_b1c = r6_c.add(new Vector4D(r6_b1_lx/2.0 + R6_BridgeShellR, 0, 0, 0));
   objects.push(createHypercube(
@@ -948,6 +949,19 @@ if (true) {
     0x222222
   ));
   objects[objects.length-1].simulate_physics = false; // static object
+  // Magic wall across bridge 1 that disappears when boss is dead
+  magicWallIndex = objects.length;
+  objects.push(createHyperwall(
+    new Transform4D([
+      [  1,         0,  0,         0, r6_b1c.x],
+      [  0, r6_b1_r*2.0,  0,         0, r6_b1c.y],
+      [  0,         0, _H,         0, r6_b1c.z],
+      [  0,         0,  0, r6_b1_r*2.0, r6_b1c.w],
+      [  0,         0,  0,         0,       1]
+    ]),
+    0xffff00
+  ));
+
   // To make the player's life easier, add a monolith at the first bridge entrance
   const r6_m1_r = 2.0;
   const r6_m1_h = 3.0;
@@ -1049,6 +1063,7 @@ let poIs = {
   room6Center: r6_c,
   room6OuterRadius: R6_R,
   room6InnerRadius: R6_BridgeShellR,
+  magicWallIndex: magicWallIndex,
 };
 
 // Check WebGPU support
