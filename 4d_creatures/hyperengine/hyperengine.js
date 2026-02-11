@@ -291,6 +291,10 @@ export async function runHyperengine(scene) {
     if (scene.floorPreset === 'island') {
        floorShader = createIslandFloorShader();
     }
+    // Custom floor shader (scene can provide its own WGSL floor shader code)
+    if (scene.floorShader) {
+        floorShader = scene.floorShader;
+    }
 
     // Scene pre-processing and setting up static memory
     // Stage 0: Create buffers and gather all vertices and tetras from visible hyperobjects

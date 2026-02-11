@@ -77,7 +77,7 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { createHypercube } from '../../4d_creatures/hyperengine/hyperobject.js';
 import { TheBargainManager } from '../game_manager/the_bargain_manager.js';
 import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
-import { createHyperwall, createHyperwallWithCenterHole, createSphericalWallWithHole, createSphericalFloor, createSphericalBridge  } from '../models/wall.js';
+import { createHyperwall, createHyperwallWithCenterHole, createSphericalWallWithHole, createSphericalBridge  } from '../models/wall.js';
 import { createCorridorTube, createCorridorTubeWithHole } from '../models/corridor.js';
 import { createHypersphere } from '../../4d_creatures/models/hypersphere.js';
 import { createHypercrab } from '../../4d_creatures/models/hypercrab.js';
@@ -781,8 +781,8 @@ const R5_DY = 20.0;
 const R5_BX = 5.0;
 const R5_BY = 5.0;
 const R5_BZ = 0.5;
-const R5_BoffsetX = 1.0;
-const R5_BoffsetY = 2.0;
+const R5_BoffsetX = 6.0;
+const R5_BoffsetY = 7.0;
 const R5_LAVA_WL = 30.0;
 const R5_BWL = 35.0;
 const C8_LW = 10.0;
@@ -810,18 +810,20 @@ if (true) {
       0xff0000
   );
   createCorridorTube(objects, r5_firstshore_c, new Vector4D(0,0,0,-1), r5_shore_wl, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX, R5_DY, _H);
-  // Lava surface
-  objects.push(createHyperwall(
-    new Transform4D([
-      [ 0, R5_DX/2.0*3,         0,              0,  r5_c.x],
-      [ 0,         0,   R5_DY/2*20,              0,  r5_c.y],
-      [ 1,         0,         0,              0,  r5_c.z+0.1],
-      [ 0,         0,         0, R5_LAVA_WL/2.0,  r5_c.w],
-      [ 0,         0,         0,              0,  1]
-    ]),
-    0xff7700
-  ));
-  objects[objects.length-1].collider = null;
+  // Stop the player from jumping out
+  const r5_firstedge_c = r5_firstshore_c.add(new Vector4D(0, 0, 0, -r5_shore_wl/2.0));
+  createHyperwallWithCenterHole(objects,
+      new Transform4D([
+          [0, R5_DX/2.0*2,  0,       0, r5_firstedge_c.x],
+          [0,         0,  0, R5_DY/2*2, r5_firstedge_c.y],
+          [0,         0, _H,       0, r5_firstedge_c.z],
+          [1,         0,  0,       0, r5_firstedge_c.w],
+          [0,         0,  0,       0, 1]
+      ]),
+      1.0/2.0, 1.0/2.0,
+      0xff0000
+  );
+  // Lava surface rendered by floor shader
   createCorridorTube(objects, r5_secondshore_c, new Vector4D(0,0,0,-1), r5_shore_wl, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX, R5_DY, _H);
   // Bridge
   objects.push(createHypercube(
@@ -850,6 +852,19 @@ if (true) {
     0x222222
   ));
   objects[objects.length-1].simulate_physics = false; // static object
+  // Stop the player from jumping out
+  const r5_secondedge_c = r5_secondshore_c.add(new Vector4D(0, 0, 0, r5_shore_wl/2.0));
+  createHyperwallWithCenterHole(objects,
+      new Transform4D([
+          [0, R5_DX/2.0*2,  0,       0, r5_secondedge_c.x],
+          [0,         0,  0, R5_DY/2*2, r5_secondedge_c.y],
+          [0,         0, _H,       0, r5_secondedge_c.z],
+          [1,         0,  0,       0, r5_secondedge_c.w],
+          [0,         0,  0,       0, 1]
+      ]),
+      1.0/2.0, 1.0/2.0,
+      0xff0000
+  );
   // End wall
   createHyperwallWithCenterHole(objects,
       new Transform4D([
@@ -871,7 +886,7 @@ createCorridorTube(objects, c8_c, new Vector4D(0,0,0,-1), C8_LW, new Vector4D(1,
 
 // Room 6
 const R6_R = 60.0;
-const R6_LavaR = 50.0;
+const R6_LavaR = 45.0;
 const R6_CutW = 2.0;
 const R6_BridgeShellR = 30.0;
 const R6_BridgeShellHZ = 0.3;
@@ -906,16 +921,7 @@ if (true) {
     R6_CutW / R6_R,
     0x00ffff
   ));
-  // lava
-  objects.push(createSphericalFloor(new Transform4D([
-        [         0,         0,         0,       R6_LavaR,  r6_c.x],
-        [         0,  R6_LavaR,         0,              0,  r6_c.y],
-        [         0,         0,        _H,              0,  r6_c.z+0.1],
-        [  R6_LavaR,         0,         0,              0,  r6_c.w], // We give this the same rotation as the outer wall to match the discontinuities
-        [         0,         0,         0,              0,  1]
-    ]),
-    0xff7700
-  ));
+  // Lava rendered by floor shader
   // Spherical Bridge
   objects.push(createSphericalBridge(new Transform4D([
         [         0,         0,         0,       R6_BridgeShellR,  r6_c.x],
@@ -945,7 +951,7 @@ if (true) {
   // To make the player's life easier, add a monolith at the first bridge entrance
   const r6_m1_r = 2.0;
   const r6_m1_h = 3.0;
-  const r6_m1c = r6_c.add(new Vector4D(r6_b1_lx + R6_BridgeShellR, 0, _H + r6_m1_h/2.0, 0));
+  const r6_m1c = r6_c.add(new Vector4D(r6_b1_lx + R6_BridgeShellR - 10.0, 0, _H + r6_m1_h/2.0, 0));
   objects.push(createHypercube(
     new Transform4D([
       [ r6_m1_r,         0,         0,              0,  r6_m1c.x],
@@ -1037,7 +1043,7 @@ let poIs = {
     {
       pos: r6_c.add(new Vector4D(0, 0, _H+4, 0)),
       volumeCenter: r6_c,
-      volumeRadius: R6_LavaR,
+      volumeRadius: R6_BridgeShellR,
     },
   ],
   room6Center: r6_c,
@@ -1049,11 +1055,158 @@ if (!navigator.gpu) {
   throw new Error('WebGPU not supported');
 }
 
+// Floor shader with lava lakes
+const bargainFloorShader = `
+    if (true) {
+    let ray_origin_in_world = hypercameraPoseBuffer.tr;
+    let ray_direction_in_world = vec4<f32>(
+        hypercameraPoseBuffer.r0.x * 1.0 + hypercameraPoseBuffer.r1.x * u + hypercameraPoseBuffer.r2.x * v + hypercameraPoseBuffer.r3.x * l,
+        hypercameraPoseBuffer.r0.y * 1.0 + hypercameraPoseBuffer.r1.y * u + hypercameraPoseBuffer.r2.y * v + hypercameraPoseBuffer.r3.y * l,
+        hypercameraPoseBuffer.r0.z * 1.0 + hypercameraPoseBuffer.r1.z * u + hypercameraPoseBuffer.r2.z * v + hypercameraPoseBuffer.r3.z * l,
+        hypercameraPoseBuffer.r0.w * 1.0 + hypercameraPoseBuffer.r1.w * u + hypercameraPoseBuffer.r2.w * v + hypercameraPoseBuffer.r3.w * l
+    );
+    let denominator = ray_direction_in_world.z;
+    if (abs(denominator) > 1e-6) {
+        let t = -ray_origin_in_world.z / denominator;
+        if (t > 0.0) {
+            let intersect_point = vec4<f32>(
+                ray_origin_in_world.x + t * ray_direction_in_world.x,
+                ray_origin_in_world.y + t * ray_direction_in_world.y,
+                0.0,
+                ray_origin_in_world.w + t * ray_direction_in_world.w
+            );
+            let x = intersect_point.x;
+            let y = intersect_point.y;
+            let w = intersect_point.w;
+
+            // Check lava regions
+            var is_lava = false;
+
+            // Room 5 lava: rectangular region in W
+            let r5_cx = f32(${r5_c.x});
+            let r5_cy = f32(${r5_c.y});
+            let r5_cw = f32(${r5_c.w});
+            let r5_hw = f32(${R5_LAVA_WL / 2.0});
+            let r5_hx = f32(${R5_DX / 2.0 * 3});
+            let r5_hy = f32(${R5_DY / 2.0 * 100});
+            if (abs(x - r5_cx) < r5_hx && abs(y - r5_cy) < r5_hy && abs(w - r5_cw) < r5_hw) {
+                is_lava = true;
+            }
+
+            // Room 6 lava: spherical region
+            let r6_cx = f32(${r6_c.x});
+            let r6_cy = f32(${r6_c.y});
+            let r6_cw = f32(${r6_c.w});
+            let r6_r = f32(${R6_LavaR});
+            let r6_dx = x - r6_cx;
+            let r6_dy = y - r6_cy;
+            let r6_dw = w - r6_cw;
+            if (r6_dx*r6_dx + r6_dy*r6_dy + r6_dw*r6_dw < r6_r*r6_r) {
+                is_lava = true;
+            }
+
+            if (is_lava) {
+                // Animated lava effect
+                let wave1 = sin(x * 0.6 + sim_t * 0.5) * 0.5 + 0.5;
+                let wave2 = sin(y * 0.45 - sim_t * 0.3) * 0.5 + 0.5;
+                let wave3 = sin(w * 0.54 + sim_t * 0.7) * 0.5 + 0.5;
+                let wave = (wave1 + wave2 + wave3) / 3.0;
+                var lava_r = 0.8 + 0.2 * wave;
+                var lava_g = 0.3 * wave;
+                var lava_b = 0.0;
+
+                // Bubbles - two layers at different scales
+                var bubble_add = 0.0;
+
+                // Layer 1: small frequent bubbles
+                let bc1 = 3.0;
+                let b1cx = floor(x / bc1);
+                let b1cy = floor(y / bc1);
+                let b1cw = floor(w / bc1);
+                let b1h1 = fract(sin(b1cx * 127.1 + b1cw * 311.7 + b1cy * 74.7) * 43758.5453);
+                let b1h2 = fract(sin(b1cx * 269.5 + b1cw * 183.3 + b1cy * 246.1) * 43758.5453);
+                let b1h3 = fract(sin(b1cx * 419.2 + b1cw * 371.9 + b1cy * 519.3) * 43758.5453);
+                let b1h4 = fract(sin(b1cx * 547.3 + b1cw * 157.9 + b1cy * 323.7) * 43758.5453);
+                let b1x = (b1cx + 0.2 + b1h1 * 0.6) * bc1;
+                let b1y = (b1cy + 0.2 + b1h2 * 0.6) * bc1;
+                let b1w = (b1cw + 0.2 + b1h3 * 0.6) * bc1;
+                let b1per = 3.0 + b1h4 * 7.0;
+                let b1ph = fract((sim_t + b1h1 * 100.0) / b1per);
+                let b1rad = 0.15 + b1h2 * 0.35;
+                let b1d = sqrt((x-b1x)*(x-b1x) + (y-b1y)*(y-b1y) + (w-b1w)*(w-b1w));
+                var b1sz = 0.0;
+                if (b1ph < 0.3) { b1sz = b1ph / 0.3; }
+                else if (b1ph < 0.5) { b1sz = 1.0; }
+                else if (b1ph < 0.7) { b1sz = 1.0 - (b1ph - 0.5) / 0.2; }
+                let b1er = b1rad * b1sz;
+                if (b1d < b1er && b1er > 0.01) {
+                    let b1e = b1d / b1er;
+                    bubble_add = max(bubble_add, (1.0 - b1e * b1e) * 0.5);
+                }
+
+                // Layer 2: larger rare bubbles
+                let bc2 = 7.0;
+                let b2cx = floor(x / bc2);
+                let b2cy = floor(y / bc2);
+                let b2cw = floor(w / bc2);
+                let b2h1 = fract(sin(b2cx * 213.7 + b2cw * 491.3 + b2cy * 167.1) * 43758.5453);
+                let b2h2 = fract(sin(b2cx * 337.9 + b2cw * 259.1 + b2cy * 413.7) * 43758.5453);
+                let b2h3 = fract(sin(b2cx * 571.3 + b2cw * 643.7 + b2cy * 389.1) * 43758.5453);
+                let b2h4 = fract(sin(b2cx * 691.1 + b2cw * 823.3 + b2cy * 197.9) * 43758.5453);
+                let b2x = (b2cx + 0.15 + b2h1 * 0.7) * bc2;
+                let b2y = (b2cy + 0.15 + b2h2 * 0.7) * bc2;
+                let b2w = (b2cw + 0.15 + b2h3 * 0.7) * bc2;
+                let b2per = 5.0 + b2h4 * 10.0;
+                let b2ph = fract((sim_t + b2h1 * 100.0) / b2per);
+                let b2rad = 0.4 + b2h2 * 0.6;
+                let b2d = sqrt((x-b2x)*(x-b2x) + (y-b2y)*(y-b2y) + (w-b2w)*(w-b2w));
+                var b2sz = 0.0;
+                if (b2ph < 0.3) { b2sz = b2ph / 0.3; }
+                else if (b2ph < 0.5) { b2sz = 1.0; }
+                else if (b2ph < 0.7) { b2sz = 1.0 - (b2ph - 0.5) / 0.2; }
+                let b2er = b2rad * b2sz;
+                if (b2d < b2er && b2er > 0.01) {
+                    let b2e = b2d / b2er;
+                    bubble_add = max(bubble_add, (1.0 - b2e * b2e) * 0.7);
+                }
+
+                lava_r = min(1.0, lava_r + bubble_add);
+                lava_g = min(1.0, lava_g + bubble_add * 0.7);
+                lava_b = min(0.3, lava_b + bubble_add * 0.15);
+
+                best_voxel.r = lava_r;
+                best_voxel.g = lava_g;
+                best_voxel.b = lava_b;
+            } else {
+                // Dark checkerboard floor
+                let checker_size = 5.0;
+                let check_x = floor(x / checker_size);
+                let check_y = floor(y / checker_size);
+                let check_w = floor(w / checker_size);
+                let is_white = (i32(check_x) + i32(check_y) + i32(check_w)) % 2 == 0;
+                if (is_white) {
+                    best_voxel.r = 0.15;
+                    best_voxel.g = 0.15;
+                    best_voxel.b = 0.15;
+                } else {
+                    best_voxel.r = 0.05;
+                    best_voxel.g = 0.05;
+                    best_voxel.b = 0.05;
+                }
+            }
+            best_voxel.a = 0.2;
+            best_voxel.s = t;
+        }
+    }
+    }
+`;
+
 const main_canvas = document.getElementById('canvas');
 let custom_scene = {
     visibleHyperobjects: objects,
     mainCanvas: main_canvas,
-    floor_heightmap: the_bargain_floor_heightmap
+    floor_heightmap: the_bargain_floor_heightmap,
+    floorShader: bargainFloorShader
 };
 
 // GameManager

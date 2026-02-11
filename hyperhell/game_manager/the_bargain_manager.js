@@ -370,7 +370,7 @@ class OphaneEnemy {
         }
 
         const smolDist = 0.5;
-        const ophaneAggroDistance = this.volumeRadius;
+        const ophaneAggroDistance = this.volumeRadius*2;
 
         if (this.state === 'idle') {
             if (engineState.physics_time_s - this.lastActionTime > this.idleDuration) {
