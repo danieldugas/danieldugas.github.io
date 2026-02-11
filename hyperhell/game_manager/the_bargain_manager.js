@@ -95,7 +95,7 @@ class FiredBullet {
 
     destroyBullet(bulletPrimitives, parentList, indexInParentList) {
         // Move pose to far away
-        this.scene.visibleHyperobjects[this.primitiveIndex].pose.setTranslation(new Vector4D([0, 0, -10000, 0]));
+        this.scene.visibleHyperobjects[this.primitiveIndex].pose.setTranslation(new Vector4D(0, 0, -10000, 0));
         // Return primitive to pool
         bulletPrimitives.push(this.primitiveIndex);
         // Remove self from parentList
@@ -136,18 +136,16 @@ class ShadeEnemy {
         }
 
         const shadeMoveSpeed = 0.05;
-        const shadeRotationSpeed = 0.005;
+        const shadeRotationSpeed = 0.01;
         const shadeAggroDistance = 10.0;
         const smolDist = 0.01;
         // Move towards the player
-        let playerPos = engineState.hypercamera_T.origin();
+        let playerPos = engineState.camstand_T.origin();
         let delta = playerPos.subtract(primitive.pose.origin());
-        if (delta.magnitude() < smolDist) { // do nothing if close to the player
+        if (delta.magnitude() < playerRadius) { // do nothing if close to the player
         } else if (delta.magnitude() < shadeAggroDistance) {
             let direction = delta.normalize();
             direction.z = 0;
-            let newPos = primitive.pose.origin().add(direction.multiply_by_scalar(shadeMoveSpeed));
-            primitive.pose.setTranslation(newPos);
             // Slowly rotate along XY plane towards the player (until creature X is aligned with direction)
             let angle = Math.atan2(direction.y, direction.x);
             let otherAngle = Math.atan2(primitive.pose.matrix[1][0], primitive.pose.matrix[0][0]);
@@ -155,8 +153,12 @@ class ShadeEnemy {
             if (rotation > Math.PI) { rotation -= Math.PI * 2; }
             if (rotation < -Math.PI) { rotation += Math.PI * 2; }
             if (Math.abs(rotation) < smolDist) { rotation = 0; }
-            let newRotation = -Math.sign(rotation) * shadeRotationSpeed;
+            let newRotation = Math.sign(rotation) * shadeRotationSpeed;
             primitive.pose.rotate_self_by_delta('XY', newRotation, false);
+            // Translate towards player
+            let speedModifier = 1.0 - Math.max(0.0, Math.min(1.0, Math.abs(rotation / Math.PI)));
+            let newPos = primitive.pose.origin().add(direction.multiply_by_scalar(shadeMoveSpeed * speedModifier));
+            primitive.pose.setTranslation(newPos);
             // Apply colliders to self
             for (let i = 0; i < engineState.scene.visibleHyperobjects.length; i++) {
                 const obj = engineState.scene.visibleHyperobjects[i];
@@ -182,9 +184,53 @@ class ShadeEnemy {
 
         // Die if hp <= 0
         if (this.hp <= 0) {
-            primitive.pose.setTranslation(new Vector4D([0, 0, -10000, 0]));
+            primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
         }
-        
+
+        if (false) {
+            // Debug div: shade vs player rotation/translation
+            const debugId = `shade_debug_${this.primitiveIndex}`;
+            if (!document.getElementById(debugId)) {
+                const div = document.createElement("div");
+                div.id = debugId;
+                div.style.position = "absolute";
+                div.style.top = "10px";
+                div.style.left = "10px";
+                div.style.color = "#80ffcc";
+                div.style.fontFamily = "monospace";
+                div.style.fontSize = "12px";
+                div.style.backgroundColor = "rgba(0,0,0,0.6)";
+                div.style.padding = "6px";
+                div.style.borderRadius = "4px";
+                div.style.zIndex = "1001";
+                div.style.whiteSpace = "pre";
+                document.body.appendChild(div);
+            }
+            const shadePos = primitive.pose.origin();
+            const pPos = engineState.camstand_T.origin();
+            const dlt = pPos.subtract(shadePos);
+            const dist = dlt.magnitude();
+            const angleToPlayer = Math.atan2(dlt.y, dlt.x);
+            const shadeFacing = Math.atan2(primitive.pose.matrix[1][0], primitive.pose.matrix[0][0]);
+            let rotDiff = angleToPlayer - shadeFacing;
+            if (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+            if (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+            const deg = (r) => (r * 180 / Math.PI).toFixed(1);
+            const f2 = (v) => v.toFixed(2);
+            const debugDiv = document.getElementById(debugId);
+            debugDiv.innerHTML =
+                `--- Shade #${this.primitiveIndex} (hp:${this.hp}) ---\n` +
+                `Shade pos : (${f2(shadePos.x)}, ${f2(shadePos.y)}, ${f2(shadePos.z)}, ${f2(shadePos.w)})\n` +
+                `Player pos: (${f2(pPos.x)}, ${f2(pPos.y)}, ${f2(pPos.z)}, ${f2(pPos.w)})\n` +
+                `Delta     : (${f2(dlt.x)}, ${f2(dlt.y)}, ${f2(dlt.z)}, ${f2(dlt.w)})\n` +
+                `Distance  : ${f2(dist)}\n` +
+                `Shade facing : ${deg(shadeFacing)}°\n` +
+                `Angle to plyr: ${deg(angleToPlayer)}°\n` +
+                `Rotation diff: ${deg(rotDiff)}°\n` +
+                `Shade matrix row0: [${primitive.pose.matrix[0].map(v => f2(v)).join(', ')}]\n` +
+                `Shade matrix row1: [${primitive.pose.matrix[1].map(v => f2(v)).join(', ')}]`;
+        }
+
     }
 } // ShadeEnemy
 
@@ -230,7 +276,7 @@ class CrawlerEnemy {
 
         // Die if hp <= 0
         if (this.hp <= 0) {
-            primitive.pose.setTranslation(new Vector4D([0, 0, -10000, 0]));
+            primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
             return;
         }
 
@@ -369,7 +415,7 @@ class OphaneEnemy {
 
         // Die if hp <= 0
         if (this.hp <= 0) {
-            primitive.pose.setTranslation(new Vector4D([0, 0, -10000, 0]));
+            primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
             return;
         }
 

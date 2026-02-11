@@ -399,7 +399,7 @@ export function createDamned() {
                     }
 
                     // All vertices: shift down
-                    v = new Vector4D(v.x, v.y, v.z - 0.5, v.w);
+                    v = new Vector4D(v.x + 1.0, v.y, v.z - 0.5, v.w);
                 }
 
                 obj.vertices_in_object[vi] = v;
