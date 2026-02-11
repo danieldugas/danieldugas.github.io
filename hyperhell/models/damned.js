@@ -374,9 +374,30 @@ export function createDamned() {
             for (let j = 0; j < bone.vertex_idx_and_affinity.length; j++) {
                 const vi = bone.vertex_idx_and_affinity[j][0];
                 let v = bone.vertex_idx_and_affinity[j][2]; // original vertex
+                // time based oscillation
                 const alpha = Math.sin(Math.PI * 2.0 * t / 10.0) * Math.PI / 8.0;
 
-                if (obj.animState.isCrawling) {
+                if (obj.animState.isHurt) {
+                    const leanAng = Math.PI / 16.0;
+                    // Torso, head, arms: tilt forward -90° around hip
+                    if (bone.type === "torso" || bone.type === "head" || bone.type === "left_arm" || bone.type === "right_arm") {
+                        v = rotateXZ(v, 0, hipZ, leanAng);
+                    }
+                    // Rotate head around neck
+                    if (bone.type === "head") {
+                        v = rotateXZ(v, -Math.sin(leanAng), hipZ+Math.cos(leanAng), -leanAng);
+                    }
+                    // Arms: additionally rotate down +90° around shoulder
+                    if (bone.type === "left_arm") {
+                        v = rotateXZ(v, -Math.sin(leanAng), hipZ+Math.cos(leanAng), -leanAng);
+                    }
+                    if (bone.type === "right_arm") {
+                        v = rotateXZ(v, -Math.sin(leanAng), hipZ+Math.cos(leanAng), -leanAng);
+                    }
+
+                    // All vertices: shift so that head is at 0
+                    v = new Vector4D(v.x + 0.707, v.y, v.z, v.w);
+                } else if (obj.animState.isCrawling) {
                     // Torso, head, arms: tilt forward -90° around hip
                     if (bone.type === "torso" || bone.type === "head" || bone.type === "left_arm" || bone.type === "right_arm") {
                         v = rotateXZ(v, 0, hipZ, Math.PI / 2);
