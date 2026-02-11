@@ -306,6 +306,18 @@ export function createOphane() {
             } else if (bone.type === "ring") {
                 // Rotate ring around axis
                 let phi = Math.PI * 2.0 * t / 10.0;
+                // Lerp rotation to a full stop
+                if (!obj.animState.ringsRotating) {
+                    let timeSinceStop = t - obj.animState.ringsStopTime;
+                    let lerp_01 = Math.max(0.0, Math.min(1.0, timeSinceStop / 3.0));
+                    phi = phi * (1.0 - lerp_01) + 0 * lerp_01;
+                }
+                // if restarting rings, do the opposite lerp
+                let timeSinceStart = t - obj.animState.ringsStartTime;
+                if (obj.animState.ringsRotating && timeSinceStart < 10.0) {
+                    let lerp_01 = Math.max(0.0, Math.min(1.0, timeSinceStart / 10.0));
+                    phi = 0 * (1.0 - lerp_01) + phi * lerp_01;
+                }
                 let _c = Math.cos(phi);
                 let _s = Math.sin(phi);
                 let bonesInObject = [
@@ -325,7 +337,7 @@ export function createOphane() {
                     ]),
                     new Transform4D([
                         [_c, 0,-_s, 0, 0],
-                        [0, 0, 0, 0, 0],
+                        [0, 1, 0, 0, 0],
                         [_s, 0, _c, 0, 0],
                         [0, 0, 0, 1, 0],
                         [0, 0, 0, 0, 1]
@@ -421,5 +433,6 @@ export function createOphane() {
     }
     ophane.animateFunction = animationFrame;
     ophane.is_animated = true;
+    ophane.animState = {ringsRotating: true, ringsStopTime: 0.0};
     return ophane;
 } // end function createOphane()

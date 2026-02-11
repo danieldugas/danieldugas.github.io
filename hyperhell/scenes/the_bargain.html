@@ -421,6 +421,9 @@ const w6_c = w4_c.add(new Vector4D(0, -w6_dy/2.0, 0, w4_wl / 2.0 + w6_dw / 2.0))
 const w7_c = w5_c.add(new Vector4D(0, -w5_yl/2.0 -w7_dy/2.0, 0, w7_dw/2.0));
 const w8_c = r3_ref.add(new Vector4D(R3XL/2.0, R3YL/2.0, 0, (R3WL + w7_dw)/2.0));
 const w9_c = r3_ref.add(new Vector4D(-R3XL/2.0, R3YL/2.0, 0, (R3WL + w7_dw)/2.0));
+// need to add more x+ end walls to cover extra length of exit corridor
+const w8a_c = r3_ref.add(new Vector4D(R3XL/2.0, -R3YL/2.0, 0, R3WL + w7_dw/2.0));
+const w9a_c = r3_ref.add(new Vector4D(-R3XL/2.0,-R3YL/2.0, 0, R3WL + w7_dw/2.0));
 if (ROOM3) {
   // 1
   objects.push(createHyperwall(
@@ -543,6 +546,16 @@ if (ROOM3) {
     ]),
     0x0000ff
   ));
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ 1,        0,  0,                0, w8a_c.x],
+      [ 0, R3YL/2.0,  0,                0, w8a_c.y],
+      [ 0,        0, _H,                0, w8a_c.z],
+      [ 0,        0,  0,        w7_dw/2.0, w8a_c.w],
+      [ 0,        0,  0,                0,      1]
+    ]),
+    0x0000ff
+  ));
   // w9
   objects.push(createHyperwall(
     new Transform4D([
@@ -550,6 +563,16 @@ if (ROOM3) {
       [ 0, R3YL/2.0,  0,                0, w9_c.y],
       [ 0,        0, _H,                0, w9_c.z],
       [ 0,        0,  0, (R3WL+w7_dw)/2.0, w9_c.w],
+      [ 0,        0,  0,                0,      1]
+    ]),
+    0x0000ff
+  ));
+  objects.push(createHyperwall(
+    new Transform4D([
+      [ 1,        0,  0,                0, w9a_c.x],
+      [ 0, R3YL/2.0,  0,                0, w9a_c.y],
+      [ 0,        0, _H,                0, w9a_c.z],
+      [ 0,        0,  0,        w7_dw/2.0, w9a_c.w],
       [ 0,        0,  0,                0,      1]
     ]),
     0x0000ff
@@ -587,12 +610,12 @@ createCorridorTubeWithHole(objects, c6_c, new Vector4D(-1,0,0,0), C6_XL, new Vec
 //       | |   | |
 //       ----. ---   c7_ref in -W
 //        9      10
-const R4_L = 15.0;
+const R4_L = 15.0; // outer reference length
 const R4_YL = 2 * R4_L + 2 *c6_yd;
 const R4_XL = 2 * R4_L + c6_yd;
 const R4_WL = C6_WD * 3;
-const R4_d = c6_yd / 2.0;
-const R4_l = 10.0;
+const R4_d = c6_yd / 2.0; // half opening
+const R4_l = 10.0; // inner reference length
 const R4_OUTYR = 2.0;
 const C7_DY = 5.0;
 const C7_DX = 5.0;
@@ -657,7 +680,20 @@ if (true) {
   const wt2_xl = 20.0;
   const wt2_yl = 20.0;
   const wt2_c = c7_ref.add(new Vector4D(0, 0, 0, 2 * R4_WL/3.0));
-
+  // wall with hole for entrance
+  const wte_c = r4_ref.add(new Vector4D(0, -R4_d, 0, 0));
+  createHyperwallWithCenterHole(objects,
+    new Transform4D([
+      [ 1,        0,  0,                0, wte_c.x],
+      [ 0,     R4_d,  0,                0, wte_c.y],
+      [ 0,        0, _H,                0, wte_c.z],
+      [ 0,        0,  0,        R4_WL/2.0, wte_c.w],
+      [ 0,        0,  0,                0,      1]
+    ]),
+    R4_d / R4_d,
+    R4_d / R4_WL,
+    0xff0000
+  );
 
   // w1: bottom-left diagonal
   objects.push(createHyperwall(
@@ -880,6 +916,31 @@ if (true) {
       0xff0000
   );
   // Lava surface rendered by floor shader
+  // Lava river is long in Y direction
+  // Add +x and -x wall
+  const r5_xp_c = r5_c.add(new Vector4D(R5_DX/2.0 * 2.0, 0, 0, 0));
+  const r5_xm_c = r5_c.add(new Vector4D(-R5_DX/2.0 * 2.0, 0, 0, 0));
+  objects.push(createHyperwall(
+    new Transform4D([
+      [  1,         0,  0,         0, r5_xp_c.x],
+      [  0, R5_DY,  0,         0, r5_xp_c.y],
+      [  0,         0, _H,         0, r5_xp_c.z],
+      [  0,         0,  0, R5_LAVA_WL/2.0, r5_xp_c.w],
+      [  0,         0,  0,         0,       1]
+    ]),
+    0xffff00
+  ));
+  // objects.push(createHyperwall(
+  //   new Transform4D([
+  //     [  1,         0,  0,         0, r5_xm_c.x],
+  //     [  0, R5_DY,  0,         0, r5_xm_c.y],
+  //     [  0,         0, _H,         0, r5_xm_c.z],
+  //     [  0,         0,  0, R5_LAVA_WL/2.0, r5_xm_c.w],
+  //     [  0,         0,  0,         0,       1]
+  //   ]),
+  //   0xffff00
+  // ));
+  // Second shore wall
   createCorridorTube(objects, r5_secondshore_c, new Vector4D(0,0,0,-1), r5_shore_wl, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX, R5_DY, _H);
   // Bridge
   objects.push(createHypercube(

@@ -395,7 +395,7 @@ class OphaneEnemy {
         this.state = 'idle'; // 'idle', 'moving', 'shooting'
         this.lastActionTime = 0;
         this.idleDuration = 2.0; // seconds between actions
-        this.moveSpeed = 0.03;
+        this.moveSpeed = 0.06;
         this.rotateSpeed = 0.01;
         this.targetPos = null;
 
@@ -410,6 +410,9 @@ class OphaneEnemy {
     }
 
     startRising(engineState) {
+        let primitive = engineState.scene.visibleHyperobjects[this.primitiveIndex];
+        primitive.animState.ringsRotating = true;
+        primitive.animState.ringsStartTime = engineState.physics_time_s;
         this.bossState = 'rising';
         this.riseStartTime = engineState.physics_time_s;
     }
@@ -451,18 +454,22 @@ class OphaneEnemy {
             let t = (engineState.physics_time_s - this.fallStartTime) / fallDuration;
             if (t >= 1.0) {
                 t = 1.0;
-                this.bossState = 'dormant';
-                this.bossPhase = 2;
-                gameState.bossPhase = 2; // waiting for phase 2 trigger
+                if (!this.bossDefeated) {
+                    this.bossState = 'dormant';
+                    this.bossPhase = 2;
+                    gameState.bossPhase = 2; // waiting for phase 2 trigger
+                }
             }
             const easeInOut = (x) => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
             let eased = easeInOut(t);
             let startPos = this.fallStartPos;
-            let centerPos = this.volumeCenter;
-            let newX = startPos.x + (centerPos.x - startPos.x) * eased;
-            let newY = startPos.y + (centerPos.y - startPos.y) * eased;
-            let newZ = startPos.z + (this.floorZ - startPos.z) * eased;
-            let newW = startPos.w + (centerPos.w - startPos.w) * eased;
+            let fallToPos = this.volumeCenter;
+            fallToPos.z = this.floorZ;
+            if (this.bossDefeated) { fallToPos.z = -30.0; }
+            let newX = startPos.x + (fallToPos.x - startPos.x) * eased;
+            let newY = startPos.y + (fallToPos.y - startPos.y) * eased;
+            let newZ = startPos.z + (fallToPos.z - startPos.z) * eased;
+            let newW = startPos.w + (fallToPos.w - startPos.w) * eased;
             primitive.pose.setTranslation(new Vector4D(newX, newY, newZ, newW));
             return;
         }
@@ -471,6 +478,9 @@ class OphaneEnemy {
 
         // Check if phase 1 half-HP threshold reached
         if (this.bossPhase === 1 && this.hp <= this.maxHp / 2) {
+            this.bossDefeated = false;
+            primitive.animState.ringsStopTime = engineState.physics_time_s;
+            primitive.animState.ringsRotating = false;
             this.startFalling(engineState);
             return;
         }
@@ -504,8 +514,9 @@ class OphaneEnemy {
                 gameState.gemLerpStartTime = engineState.physics_time_s;
                 gameState.gemLerpStartPos = primitive.pose.origin();
             }
-            gameState.bossDefeated = true;
-            primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
+            this.bossDefeated = true;
+            this.bossPhase = 4;
+            this.startFalling(engineState);
             return;
         }
 
@@ -515,20 +526,36 @@ class OphaneEnemy {
         if (this.state === 'idle') {
             if (engineState.physics_time_s - this.lastActionTime > this.idleDuration) {
                 // Pick a random point in the constrained volume
-                this.targetPos = new Vector4D(
-                    this.volumeCenter.x + Math.random() * this.volumeRadius,
-                    this.volumeCenter.y + Math.random() * this.volumeRadius,
-                    0,
-                    this.volumeCenter.w + Math.random() * this.volumeRadius
-                );
+                // this.targetPos = new Vector4D(
+                //     this.volumeCenter.x + Math.random() * this.volumeRadius,
+                //     this.volumeCenter.y + Math.random() * this.volumeRadius,
+                //     0,
+                //     this.volumeCenter.w + Math.random() * this.volumeRadius
+                // );
+                // Pick point closest to player within the radius
+                let playerPos = engineState.hypercamera_T.origin();
+                let delta = playerPos.subtract(this.volumeCenter);
+                let dist = delta.magnitude();
+                if (dist > this.volumeRadius) { delta = delta.normalize().multiply_by_scalar(this.volumeRadius); }
+                this.targetPos = this.volumeCenter.add(delta);
+                this.targetPos.z = primitive.pose.origin().z;
+                // if target pos is too close to current pos, move in camera W direction instead
+                let tomovedist = this.targetPos.subtract(primitive.pose.origin()).magnitude();
+                if (tomovedist < 10.0) {
+                    delta = delta.add(engineState.hypercamera_T.transform_vector(new Vector4D(0, 0, 0, 1)).multiply_by_scalar(-50.0));
+                    delta = delta.normalize().multiply_by_scalar(this.volumeRadius);
+                    this.targetPos = this.volumeCenter.add(delta);
+                    this.targetPos.z = primitive.pose.origin().z;
+                }
+
                 this.state = 'moving';
             }
         } else if (this.state === 'moving') {
             let delta = this.targetPos.subtract(primitive.pose.origin());
             delta.z = 0;
             if (delta.magnitude() < smolDist) {
-                // Arrived at target, switch to shooting
-                this.state = 'shooting';
+                // Arrived at target, switch to reorient
+                this.state = 'reorienting';
                 this.lastActionTime = engineState.physics_time_s;
             } else {
                 let direction = delta.normalize();
@@ -552,8 +579,16 @@ class OphaneEnemy {
                         obj.collider.constrainTransform(primitive.pose);
                     }
                 }
+                
+                // Fire bullet at player every 0.5 seconds
+                if (engineState.physics_time_s - this.lastActionTime > 1.0) {
+                    if (delta.magnitude() < ophaneAggroDistance) {
+                        this.fireBulletAtPlayer(gameState, engineState);
+                    }
+                    this.lastActionTime = engineState.physics_time_s;
+                }
             }
-        } else if (this.state === 'shooting') {
+        } else if (this.state === 'reorienting') {
             // Rotate towards player
             let playerPos = engineState.hypercamera_T.origin();
             let delta = playerPos.subtract(primitive.pose.origin());
@@ -570,14 +605,12 @@ class OphaneEnemy {
                 }
             }
 
-            // Fire bullet at player after aiming delay
-            if (engineState.physics_time_s - this.lastActionTime > 0.5) {
-                if (delta.magnitude() < ophaneAggroDistance) {
-                    this.fireBulletAtPlayer(gameState, engineState);
-                }
+            // after delay, switch back to moving
+            if (engineState.physics_time_s - this.lastActionTime > 2.0) {
                 this.state = 'idle';
                 this.lastActionTime = engineState.physics_time_s;
             }
+
         }
     }
 
@@ -586,7 +619,6 @@ class OphaneEnemy {
         let playerPos = engineState.hypercamera_T.origin();
         let bulletOrigin = primitive.pose.origin();
         let direction = playerPos.subtract(bulletOrigin);
-        direction.z = 0;
         if (direction.magnitude() < 0.01) return;
         direction = direction.normalize();
 
@@ -597,7 +629,7 @@ class OphaneEnemy {
             bulletOrigin, direction,
             engineState.physics_time_s
         );
-        newBullet.bulletVelocity = 5.0; // slower than player bullets
+        newBullet.bulletVelocity = 10.0; // slower than player bullets
         gameState.enemyBullets.push(newBullet);
     }
 } // OphaneEnemy
