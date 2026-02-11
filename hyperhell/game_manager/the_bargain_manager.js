@@ -1283,7 +1283,7 @@ export class TheBargainManager {
             const deltaX = engineState.mouseCurrentClickedX - engineState.lastXRight;
             const deltaY = engineState.mouseCurrentClickedY - engineState.lastYRight;
             engineState.camstand_T.rotate_self_by_delta('YW', deltaX * 0.01, true);
-            engineState.camstandswivel_angle += deltaY * 0.01;
+            // engineState.camstandswivel_angle += deltaY * 0.01;
             engineState.lastXRight = engineState.mouseCurrentClickedX;
             engineState.lastYRight = engineState.mouseCurrentClickedY;
         }
@@ -1320,11 +1320,46 @@ export class TheBargainManager {
         if (engineState.keys['e']) {
             engineState.camstand_T.translate_self_by_delta(0, 0, 0, +moveSpeed, RELATIVE_MOVEMENT);
         }
+
+        const rotateSpeed = 0.05;
+        if (this.gameState.playerEyeMode === "Lidded") { // only allow z swivel in lidded mode
+            if (engineState.keys['i']) {
+                engineState.camstandswivel_angle -= rotateSpeed;
+            }
+            if (engineState.keys['k']) {
+                engineState.camstandswivel_angle += rotateSpeed;
+            }
+        }
+        if (engineState.keys['j']) {
+            engineState.camstand_T.rotate_self_by_delta('XY', rotateSpeed, true);
+        }
+        if (engineState.keys['l']) {
+            engineState.camstand_T.rotate_self_by_delta('XY', -rotateSpeed, true);
+        }
+        if (engineState.keys['u']) {
+            engineState.camstand_T.rotate_self_by_delta('XW', rotateSpeed, true);
+        }
+        if (engineState.keys['o']) {
+            engineState.camstand_T.rotate_self_by_delta('XW', -rotateSpeed, true);
+        }
+        if (engineState.keys['y']) {
+            engineState.camstand_T.rotate_self_by_delta('YW', -rotateSpeed, true);
+        }
+        if (engineState.keys['p']) {
+            engineState.camstand_T.rotate_self_by_delta('YW', rotateSpeed, true);
+        }
+
+        // Constrain swivel angle
+        if (engineState.camstandswivel_angle < -0.25 * Math.PI) {
+            engineState.camstandswivel_angle = -0.25 * Math.PI;
+        }
+        if (engineState.camstandswivel_angle > 0.25 * Math.PI) {
+            engineState.camstandswivel_angle = 0.25 * Math.PI;
+        }
+
         // R key: "Unblink" - Eye mode toggle with easing animation
         this.updateEyeMode(engineState);
-        if (engineState.keys['f']) {
-            engineState.camstand_T.translate_self_by_delta(0, 0, -moveSpeed, 0, RELATIVE_MOVEMENT);
-        }
+
         // c to jump (can't jump while falling)
         if (engineState.keys['c']) {
             if (!engineState.player_is_jumping && !this.gameState.playerIsFalling) {
@@ -1361,31 +1396,6 @@ export class TheBargainManager {
             bullet_i++;
         }
 
-        const rotateSpeed = 0.05;
-        if (engineState.keys['i']) {
-            engineState.camstandswivel_angle -= rotateSpeed;
-        }
-        if (engineState.keys['k']) {
-            engineState.camstandswivel_angle += rotateSpeed;
-        }
-        if (engineState.keys['j']) {
-            engineState.camstand_T.rotate_self_by_delta('XY', rotateSpeed, true);
-        }
-        if (engineState.keys['l']) {
-            engineState.camstand_T.rotate_self_by_delta('XY', -rotateSpeed, true);
-        }
-        if (engineState.keys['u']) {
-            engineState.camstand_T.rotate_self_by_delta('XW', rotateSpeed, true);
-        }
-        if (engineState.keys['o']) {
-            engineState.camstand_T.rotate_self_by_delta('XW', -rotateSpeed, true);
-        }
-        if (engineState.keys['y']) {
-            engineState.camstand_T.rotate_self_by_delta('YW', -rotateSpeed, true);
-        }
-        if (engineState.keys['p']) {
-            engineState.camstand_T.rotate_self_by_delta('YW', rotateSpeed, true);
-        }
 
         // Remove magic wall once boss enters phase 2 (half HP reached)
         if (this.gameState.bossPhase >= 2 && this.poIs.magicWallIndex !== undefined) {
