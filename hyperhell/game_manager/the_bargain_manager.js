@@ -498,6 +498,12 @@ class OphaneEnemy {
 
         // Die if hp <= 0
         if (this.hp <= 0) {
+            // Capture death position for gem spawn before teleporting away
+            if (gameState.gemState === 'hidden') {
+                gameState.gemState = 'lerping';
+                gameState.gemLerpStartTime = engineState.physics_time_s;
+                gameState.gemLerpStartPos = primitive.pose.origin();
+            }
             primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
             return;
         }
@@ -632,6 +638,10 @@ class GameState {
         this.fallFromZ = 0; // absolute Z at start of fall
         // Boss: 0=not started, 1=phase1 active, 2=intermission, 3=phase2 active
         this.bossPhase = 0;
+        // End gem: 'hidden', 'lerping', 'arrived'
+        this.gemState = 'hidden';
+        this.gemLerpStartTime = 0;
+        this.gemLerpStartPos = null;
         // Debug
         this.pendingTeleport = null;
     }
@@ -733,7 +743,7 @@ export class TheBargainManager {
             this.scene.visibleHyperobjects.push(creature);
         }
 
-        // End gem
+        // End gem (starts hidden, appears when boss dies)
         if (true) {
             const EndGemH = 4.0;
             const EndGemZ = 3.0;
@@ -742,12 +752,13 @@ export class TheBargainManager {
             let gemPose = new Transform4D([
                 [EndGemW/2.0, 0, 0, 0, EndGemC.x],
                 [0, EndGemW/2.0, 0, 0, EndGemC.y],
-                [0, 0, EndGemH/6.0, 0, EndGemC.z],
+                [0, 0, EndGemH/6.0, 0, -10000],
                 [0, 0, 0, 1, EndGemC.w],
                 [0, 0, 0, 0, 1]
             ]);
             let gem = createGem(gemPose, 0xffff00);
             this.endGemPrimitiveIndex = this.scene.visibleHyperobjects.length;
+            this.endGemTargetPos = EndGemC;
             this.endGemBaseZ = EndGemC.z;
             this.scene.visibleHyperobjects.push(gem);
         }
@@ -1505,14 +1516,33 @@ export class TheBargainManager {
         ]);
         engineState.hypercamera_T = engineState.camstand_T.transform_transform(hypercam_in_camstand);
 
-        // Animate end gem (rotate + bob up and down)
+        // Animate end gem
         if (this.endGemPrimitiveIndex !== undefined) {
             let gem = this.scene.visibleHyperobjects[this.endGemPrimitiveIndex];
-            gem.pose.rotate_self_by_delta('XY', 0.02, false);
-            const bobAmplitude = 0.5;
-            const bobSpeed = 2.0;
-            const bobZ = this.endGemBaseZ + Math.sin(engineState.physics_time_s * bobSpeed) * bobAmplitude;
-            gem.pose.matrix[2][4] = bobZ;
+
+            if (this.gameState.gemState === 'lerping') {
+                const lerpDuration = 4.0;
+                let t = (engineState.physics_time_s - this.gameState.gemLerpStartTime) / lerpDuration;
+                if (t >= 1.0) {
+                    t = 1.0;
+                    this.gameState.gemState = 'arrived';
+                }
+                const easeInOut = (x) => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+                let eased = easeInOut(t);
+                let startPos = this.gameState.gemLerpStartPos;
+                let targetPos = this.endGemTargetPos;
+                gem.pose.matrix[0][4] = startPos.x + (targetPos.x - startPos.x) * eased;
+                gem.pose.matrix[1][4] = startPos.y + (targetPos.y - startPos.y) * eased;
+                gem.pose.matrix[2][4] = startPos.z + (targetPos.z - startPos.z) * eased;
+                gem.pose.matrix[3][4] = startPos.w + (targetPos.w - startPos.w) * eased;
+                gem.pose.rotate_self_by_delta('XY', 0.04, false);
+            } else if (this.gameState.gemState === 'arrived') {
+                gem.pose.rotate_self_by_delta('XY', 0.02, false);
+                const bobAmplitude = 0.5;
+                const bobSpeed = 2.0;
+                const bobZ = this.endGemBaseZ + Math.sin(engineState.physics_time_s * bobSpeed) * bobAmplitude;
+                gem.pose.matrix[2][4] = bobZ;
+            }
         }
 
         // Update HUD
