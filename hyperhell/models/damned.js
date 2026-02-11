@@ -381,12 +381,16 @@ export function createDamned() {
                     if (bone.type === "torso" || bone.type === "head" || bone.type === "left_arm" || bone.type === "right_arm") {
                         v = rotateXZ(v, 0, hipZ, Math.PI / 2);
                     }
+                    // Rotate head around neck
+                    if (bone.type === "head") {
+                        v = rotateXZ(v, -1.0, hipZ, -1.4 );
+                    }
                     // Arms: additionally rotate down +90° around shoulder
                     if (bone.type === "left_arm") {
                         v = rotateXZ(v, -1.0, hipZ, -Math.PI / 2 + alpha);
                     }
                     if (bone.type === "right_arm") {
-                        v = rotateXZ(v, -1.0, hipZ, -Math.PI / 2 - alpha);
+                        v = rotateXZ(v, -1.0, hipZ, -Math.PI / 2 - alpha - 2.2);
                     }
                     // Upper legs: rotate backward -90° around hip
                     if (bone.type === "upper_leg") {
