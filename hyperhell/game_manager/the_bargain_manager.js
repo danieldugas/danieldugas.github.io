@@ -384,23 +384,96 @@ class CrawlerEnemy {
 } // CrawlerEnemy
 
 class OphaneEnemy {
-    constructor(primitiveIndex, homePose, volumeCenter, volumeRadius) {
+    constructor(primitiveIndex, homePose, volumeCenter, volumeRadius, floorZ, flyZ) {
         this.primitiveIndex = primitiveIndex;
         this.homePose = homePose;
         this.volumeCenter = volumeCenter;
         this.volumeRadius = volumeRadius;
 
         this.hp = 80;
+        this.maxHp = 80;
         this.state = 'idle'; // 'idle', 'moving', 'shooting'
         this.lastActionTime = 0;
         this.idleDuration = 2.0; // seconds between actions
         this.moveSpeed = 0.03;
         this.rotateSpeed = 0.01;
         this.targetPos = null;
+
+        // Boss entrance state
+        this.bossState = 'dormant'; // 'dormant', 'rising', 'active', 'falling'
+        this.bossPhase = 1; // 1 = first encounter, 2 = second encounter
+        this.riseStartTime = 0;
+        this.fallStartTime = 0;
+        this.fallStartPos = null; // captured when falling begins
+        this.floorZ = floorZ;
+        this.flyZ = flyZ;
+    }
+
+    startRising(engineState) {
+        this.bossState = 'rising';
+        this.riseStartTime = engineState.physics_time_s;
+    }
+
+    startFalling(engineState) {
+        let primitive = engineState.scene.visibleHyperobjects[this.primitiveIndex];
+        this.bossState = 'falling';
+        this.fallStartTime = engineState.physics_time_s;
+        this.fallStartPos = primitive.pose.origin();
     }
 
     updateOphane(gameState, engineState) {
         let primitive = engineState.scene.visibleHyperobjects[this.primitiveIndex];
+
+        // Dormant: sit on floor, no AI
+        if (this.bossState === 'dormant') {
+            return;
+        }
+
+        // Rising: lerp from current Z to fly height
+        if (this.bossState === 'rising') {
+            const riseDuration = 3.0;
+            let t = (engineState.physics_time_s - this.riseStartTime) / riseDuration;
+            if (t >= 1.0) {
+                t = 1.0;
+                this.bossState = 'active';
+                this.lastActionTime = engineState.physics_time_s;
+            }
+            const easeInOut = (x) => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+            let eased = easeInOut(t);
+            let newZ = this.floorZ + (this.flyZ - this.floorZ) * eased;
+            primitive.pose.matrix[2][4] = newZ;
+            return;
+        }
+
+        // Falling: lerp back to center + floor
+        if (this.bossState === 'falling') {
+            const fallDuration = 3.0;
+            let t = (engineState.physics_time_s - this.fallStartTime) / fallDuration;
+            if (t >= 1.0) {
+                t = 1.0;
+                this.bossState = 'dormant';
+                this.bossPhase = 2;
+                gameState.bossPhase = 2; // waiting for phase 2 trigger
+            }
+            const easeInOut = (x) => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+            let eased = easeInOut(t);
+            let startPos = this.fallStartPos;
+            let centerPos = this.volumeCenter;
+            let newX = startPos.x + (centerPos.x - startPos.x) * eased;
+            let newY = startPos.y + (centerPos.y - startPos.y) * eased;
+            let newZ = startPos.z + (this.floorZ - startPos.z) * eased;
+            let newW = startPos.w + (centerPos.w - startPos.w) * eased;
+            primitive.pose.setTranslation(new Vector4D(newX, newY, newZ, newW));
+            return;
+        }
+
+        // Active: full AI below
+
+        // Check if phase 1 half-HP threshold reached
+        if (this.bossPhase === 1 && this.hp <= this.maxHp / 2) {
+            this.startFalling(engineState);
+            return;
+        }
 
         // Check own hitbox against player bullets
         let i = 0;
@@ -557,6 +630,8 @@ class GameState {
         this.playerIsFalling = false;
         this.fallStartTime = 0;
         this.fallFromZ = 0; // absolute Z at start of fall
+        // Boss: 0=not started, 1=phase1 active, 2=intermission, 3=phase2 active
+        this.bossPhase = 0;
         // Debug
         this.pendingTeleport = null;
     }
@@ -641,20 +716,21 @@ export class TheBargainManager {
         for (let i = 0; i < this.poIs.ophaneSpawns.length; i++) {
             let spawn = this.poIs.ophaneSpawns[i];
             let p = spawn.pos;
+            let flyZ = p.z;
+            let floorZ = spawn.volumeCenter.z;
             let pose = new Transform4D([
-                [4, 0, 0, 0, p.x],
-                [0, 4, 0, 0, p.y],
-                [0, 0, 4, 0, p.z],
-                [0, 0, 0, 4, p.w],
+                [8, 0, 0, 0, p.x],
+                [0, 8, 0, 0, p.y],
+                [0, 0, 8, 0, floorZ],
+                [0, 0, 0, 8, p.w],
                 [0, 0, 0, 0, 1]
             ]);
             let creature = createOphane();
             creature.pose = pose;
             creature.hitbox = new Hitbox(new Vector4D(-2, -2, -1, -2), new Vector4D(2, 2, 2, 2));
             let primitiveIndex = this.scene.visibleHyperobjects.length;
-            this.gameState.ophaneEnemies.push(new OphaneEnemy(primitiveIndex, pose.clone(), spawn.volumeCenter, spawn.volumeRadius));
+            this.gameState.ophaneEnemies.push(new OphaneEnemy(primitiveIndex, pose.clone(), spawn.volumeCenter, spawn.volumeRadius, floorZ, flyZ));
             this.scene.visibleHyperobjects.push(creature);
-            
         }
 
         // End gem
@@ -679,6 +755,7 @@ export class TheBargainManager {
         // Debug panel
         this.createDebugPanel();
         this.createHUDBar();
+        this.createBossHealthBar();
     }
 
     createDebugPanel() {
@@ -943,6 +1020,68 @@ export class TheBargainManager {
         this.hudBar = hud;
     }
 
+    createBossHealthBar() {
+        const container = document.createElement("div");
+        container.id = "boss_health_container";
+        container.style.position = "absolute";
+        container.style.top = "20px";
+        container.style.left = "50%";
+        container.style.transform = "translateX(-50%)";
+        container.style.display = "none";
+        container.style.flexDirection = "column";
+        container.style.alignItems = "center";
+        container.style.gap = "4px";
+        container.style.zIndex = "999";
+        container.style.fontFamily = "monospace";
+        container.style.userSelect = "none";
+
+        const label = document.createElement("div");
+        label.style.fontSize = "14px";
+        label.style.fontWeight = "bold";
+        label.style.color = "#ff6644";
+        label.style.textShadow = "1px 1px 2px #000";
+        label.style.letterSpacing = "4px";
+        label.innerHTML = "OPHANE";
+        container.appendChild(label);
+
+        const barOuter = document.createElement("div");
+        barOuter.style.width = "400px";
+        barOuter.style.height = "20px";
+        barOuter.style.backgroundColor = "rgba(20, 20, 20, 0.85)";
+        barOuter.style.border = "2px solid #666";
+        barOuter.style.borderRadius = "2px";
+        barOuter.style.overflow = "hidden";
+        barOuter.style.position = "relative";
+
+        const barInner = document.createElement("div");
+        barInner.id = "boss_health_bar";
+        barInner.style.width = "100%";
+        barInner.style.height = "100%";
+        barInner.style.backgroundColor = "#c44";
+        barInner.style.transition = "width 0.3s";
+
+        const barValue = document.createElement("div");
+        barValue.id = "boss_health_value";
+        barValue.style.position = "absolute";
+        barValue.style.top = "0";
+        barValue.style.left = "0";
+        barValue.style.width = "100%";
+        barValue.style.height = "100%";
+        barValue.style.display = "flex";
+        barValue.style.alignItems = "center";
+        barValue.style.justifyContent = "center";
+        barValue.style.fontSize = "12px";
+        barValue.style.fontWeight = "bold";
+        barValue.style.color = "#fff";
+        barValue.style.textShadow = "1px 1px 1px #000";
+        barValue.innerHTML = "";
+
+        barOuter.appendChild(barInner);
+        barOuter.appendChild(barValue);
+        container.appendChild(barOuter);
+        document.body.appendChild(container);
+    }
+
     updateHUD() {
         const healthBar = document.getElementById("hud_health_bar");
         const healthValue = document.getElementById("hud_health_value");
@@ -979,6 +1118,25 @@ export class TheBargainManager {
                 eyeIcon.innerHTML = `<img src="../icons/dimensional_eye_lidded_64x64.png"></img>`;
             }
         }
+
+        // Boss health bar
+        const bossContainer = document.getElementById("boss_health_container");
+        const bossBar = document.getElementById("boss_health_bar");
+        const bossValue = document.getElementById("boss_health_value");
+        if (bossContainer && bossBar && bossValue) {
+            if (this.gameState.ophaneEnemies.length > 0) {
+                let boss = this.gameState.ophaneEnemies[0];
+                let showBar = boss.hp > 0 && (boss.bossState === 'rising' || boss.bossState === 'active');
+                if (showBar) {
+                    bossContainer.style.display = "flex";
+                    const bossPercent = (boss.hp / boss.maxHp) * 100;
+                    bossBar.style.width = bossPercent + "%";
+                    bossValue.innerHTML = Math.round(boss.hp) + " / " + boss.maxHp;
+                } else {
+                    bossContainer.style.display = "none";
+                }
+            }
+        }
     }
 
     teleportTo(x, y, z, w) {
@@ -994,6 +1152,36 @@ export class TheBargainManager {
         // Crawlers:
         for (let i = 0; i < this.gameState.crawlerEnemies.length; i++) {
             this.gameState.crawlerEnemies[i].updateCrawler(this.gameState, engineState);
+        }
+
+        // Boss activation: two-phase proximity trigger
+        if (this.poIs.room6Center) {
+            let playerPos = engineState.camstand_T.origin();
+            let room6C = this.poIs.room6Center;
+            let dx = playerPos.x - room6C.x;
+            let dy = playerPos.y - room6C.y;
+            let dw = playerPos.w - room6C.w;
+            let distXYW = Math.sqrt(dx * dx + dy * dy + dw * dw);
+
+            // Phase 1: player enters outer room radius
+            if (this.gameState.bossPhase === 0 && distXYW < this.poIs.room6OuterRadius) {
+                this.gameState.bossPhase = 1;
+                for (let i = 0; i < this.gameState.ophaneEnemies.length; i++) {
+                    if (this.gameState.ophaneEnemies[i].bossState === 'dormant') {
+                        this.gameState.ophaneEnemies[i].startRising(engineState);
+                    }
+                }
+            }
+
+            // Phase 2: player enters inner bridge shell radius
+            if (this.gameState.bossPhase === 2 && distXYW < this.poIs.room6InnerRadius) {
+                this.gameState.bossPhase = 3;
+                for (let i = 0; i < this.gameState.ophaneEnemies.length; i++) {
+                    if (this.gameState.ophaneEnemies[i].bossState === 'dormant') {
+                        this.gameState.ophaneEnemies[i].startRising(engineState);
+                    }
+                }
+            }
         }
 
         // Ophanes
