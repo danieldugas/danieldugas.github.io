@@ -661,6 +661,7 @@ class GameState {
         this.dialogState = 'none'; // 'none', 'showing', 'choosing', 'sealed'
         this.dialogLineIndex = 0;
         this.bargainCompleted = false; // true after first bargain
+        this.bargainRefused = false; // true after refusing bargain
         this.bargainTriggered = false; // true once proximity triggers dialog
         this.room2WallShown = false; // true once player enters room 2
         // Tutorial state
@@ -1280,7 +1281,7 @@ export class TheBargainManager {
     }
 
     startDialog() {
-        const lines = this.gameState.bargainCompleted ? this.dialogLinesReturn : this.dialogLinesFirst;
+        const lines = this.gameState.bargainRefused ? this.dialogLinesReturn : this.dialogLinesFirst;
         this.gameState.dialogState = 'showing';
         this.gameState.dialogLineIndex = 0;
 
@@ -1300,13 +1301,21 @@ export class TheBargainManager {
             // Show icon number 4 for a very short time
             const icon = document.getElementById("dialog_icon");
             icon.src = "../icons/bargainer_4_128x128.png";
-            setTimeout(() => { this.closeDialog(); }, 100);
+            setTimeout(() => {
+                this.closeDialog();
+                const icon = document.getElementById("dialog_icon");
+                icon.src = "../icons/bargainer_2_128x128.png";
+            }, 100);
             // this.closeDialog();
+            return;
+        }
+        if (this.gameState.dialogState === 'refused') {
+            this.closeDialog();
             return;
         }
         if (this.gameState.dialogState !== 'showing') return;
 
-        const lines = this.gameState.bargainCompleted ? this.dialogLinesReturn : this.dialogLinesFirst;
+        const lines = this.gameState.bargainRefused ? this.dialogLinesReturn : this.dialogLinesFirst;
         this.gameState.dialogLineIndex++;
 
         if (this.gameState.dialogLineIndex >= lines.length) {
@@ -1381,7 +1390,8 @@ export class TheBargainManager {
 
         if (action === 'refuse') {
             text.innerHTML = this.dialogLineRefused;
-            this.gameState.dialogState = 'sealed';
+            this.gameState.dialogState = 'refused';
+            this.gameState.bargainRefused = true;
         } else {
             text.innerHTML = this.dialogLineSealed;
             icon.src = "../icons/bargainer_2_128x128.png";

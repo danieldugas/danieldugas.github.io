@@ -86,6 +86,119 @@ import { createGem } from '../models/gem.js';
 
 let objects = [];
 
+// Procedural brick wall texture generator
+function generateBrickWallTexture() {
+    const USIZE = 128; // horizontal (maps to wall y)
+    const VSIZE = 96;  // vertical (maps to wall z / height)
+    const WSIZE = 128; // 4th dim (maps to wall w)
+
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    // Hash function for per-texel noise
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff; // [0, 1]
+    }
+
+    // Dark grey brick base colors
+    const brickBases = [
+        [55, 55, 55],
+        [48, 50, 52],
+        [62, 58, 56],
+        [42, 44, 48],
+        [52, 48, 53],
+        [60, 56, 52],
+        [45, 49, 50],
+        [58, 54, 50],
+        [50, 52, 56],
+    ];
+    const mortarBase = [5, 5, 5]; // near-black mortar
+
+    // Brick dimensions in texels
+    const brickH = 10;  // brick height in v
+    const mortarH = 3;  // mortar thickness in v
+    const brickW = 28;  // brick width in u
+    const mortarW = 3;  // mortar thickness in u
+    const brickD = 28;  // brick depth in w
+    const mortarD = 3;  // mortar thickness in w
+    const rowPeriodV = brickH + mortarH; // 13
+    const colPeriodU = brickW + mortarW; // 31
+    const colPeriodW = brickD + mortarD; // 31
+
+    // Per-brick color hash
+    function brickColorIdx(a, b, c) {
+        return Math.abs(((a * 73 + b * 157 + c * 37) * 2654435761) | 0) % brickBases.length;
+    }
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                let index = u + v * USIZE + w * USIZE * VSIZE;
+
+                // Horizontal mortar
+                let rowInCycle = v % rowPeriodV;
+                let isHMortar = rowInCycle >= brickH;
+                let rowIdx = Math.floor(v / rowPeriodV);
+
+                // U-direction mortar
+                let uOffset = (rowIdx % 2 === 0) ? 0 : Math.floor(colPeriodU / 2);
+                let colInCycleU = (u + uOffset) % colPeriodU;
+                let isUMortar = colInCycleU >= brickW;
+
+                // W-direction mortar
+                let wOffset = (rowIdx % 2 === 0) ? 0 : Math.floor(colPeriodW / 2);
+                let colInCycleW = (w + wOffset) % colPeriodW;
+                let isWMortar = colInCycleW >= brickD;
+
+                let r, g, b;
+                let isMortar = isHMortar || isUMortar || isWMortar;
+
+                if (isMortar) {
+                    // Mortar with slight noise
+                    let n = hash(u, v, w) * 8 - 4;
+                    r = Math.max(0, Math.min(255, mortarBase[0] + n));
+                    g = Math.max(0, Math.min(255, mortarBase[1] + n));
+                    b = Math.max(0, Math.min(255, mortarBase[2] + n));
+                } else {
+                    // Per-brick base color
+                    let brickU = Math.floor((u + uOffset) / colPeriodU);
+                    let brickWi = Math.floor((w + wOffset) / colPeriodW);
+                    let ci = brickColorIdx(rowIdx, brickU, brickWi);
+                    let base = brickBases[ci];
+
+                    // Per-brick tint shift (consistent within a brick)
+                    let brickSeed = hash(brickU * 7 + 31, rowIdx * 13 + 53, brickWi * 19 + 71);
+                    let tintShift = (brickSeed - 0.5) * 16;
+
+                    // Per-texel noise for surface grain
+                    let grain = (hash(u, v, w) - 0.5) * 20;
+
+                    // Subtle edge darkening near mortar lines
+                    let distToHMortar = Math.min(rowInCycle, brickH - 1 - rowInCycle);
+                    let distToUMortar = Math.min(colInCycleU, brickW - 1 - colInCycleU);
+                    let distToWMortar = Math.min(colInCycleW, brickD - 1 - colInCycleW);
+                    let edgeDist = Math.min(distToHMortar, distToUMortar, distToWMortar);
+                    let edgeDarken = edgeDist <= 1 ? -10 : 0;
+
+                    // Occasional darker splotch (stain)
+                    let stain = hash(u ^ 0x55, v ^ 0xAA, w ^ 0x33);
+                    let stainDarken = stain < 0.08 ? -15 : 0;
+
+                    r = Math.max(0, Math.min(255, base[0] + tintShift + grain + edgeDarken + stainDarken));
+                    g = Math.max(0, Math.min(255, base[1] + tintShift + grain + edgeDarken + stainDarken));
+                    b = Math.max(0, Math.min(255, base[2] + tintShift + grain + edgeDarken + stainDarken));
+                }
+
+                let rgba_u32 = (255 << 24) | (b << 16) | (g << 8) | r;
+                texture[index] = rgba_u32;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
 const _H = 3; // wall z height
 const _2 = 1.0 / Math.sqrt(2);
 const AREA1_ZH = 100.0;
@@ -105,6 +218,8 @@ const ROOM3 = true;
 //           | y
 //           v
 //
+const brickTex = generateBrickWallTexture();
+const applyBrick = (wall, su=1, sv=1, sw=1) => { wall.texture = brickTex.texture; wall.texture_info = brickTex.texture_info; wall.vertices_in_texmap = wall.vertices_in_object.map(v => new Vector4D((v.y*.5+.5)*su, (v.z*.5+.5)*sv, (v.w*.5+.5)*sw, 0)); };
 const R1HR = 5; // hexagon radius
 const R1HS = R1HR / (0.5 + _2); // hexagon side
 const R1HW = 10; // w thickness of the room
@@ -124,6 +239,7 @@ if (ROOM1) {
     ]),
     0xff0000
   ));
+  applyBrick(objects[objects.length - 1], 1, 1, 2);
   // 2
   objects.push(createHyperwall(
     new Transform4D([
@@ -135,6 +251,7 @@ if (ROOM1) {
     ]),
     0x777700
   ));
+  applyBrick(objects[objects.length - 1], 1, 1, 2);
   // 3
   objects.push(createHyperwall(
     new Transform4D([
@@ -146,6 +263,7 @@ if (ROOM1) {
     ]),
     0x007700
   ));
+  applyBrick(objects[objects.length - 1], 1, 1, 2);
   // 4
   objects.push(createHyperwall(
     new Transform4D([
@@ -157,6 +275,7 @@ if (ROOM1) {
     ]),
     0x777700
   ));
+  applyBrick(objects[objects.length - 1], 1, 1, 2);
   // missing opposite wall, on to 5
   // 5
   objects.push(createHyperwall(
@@ -169,6 +288,7 @@ if (ROOM1) {
     ]),
     0x777700
   ));
+  applyBrick(objects[objects.length - 1], 1, 1, 2);
   // 6
   objects.push(createHyperwall(
     new Transform4D([
@@ -180,6 +300,7 @@ if (ROOM1) {
     ]),
     0x00ff00
   ));
+  applyBrick(objects[objects.length - 1], 1, 1, 2);
   // 7
   objects.push(createHyperwall(
     new Transform4D([
@@ -191,6 +312,7 @@ if (ROOM1) {
     ]),
     0x777700
   ));
+  applyBrick(objects[objects.length - 1], 1, 1, 2);
   // w+ bounding wall
   objects.push(createHyperwall(
     new Transform4D([
@@ -224,7 +346,10 @@ if (CORRIDOR1) {
   const dir2 = new Vector4D(0,0,0,1);
   const length1 = R1HS;
   const length2 = R1HW;
+  const c1idx = objects.length;
   createCorridorTube(objects, center, main_dir, main_length, dir1, dir2, length1, length2, _H);
+  applyBrick(objects[c1idx + 0], 10, 1, 2); // wall 1 (+y side)
+  applyBrick(objects[c1idx + 2], 10, 1, 1); // wall 2 (-w side)
 }
 
 // Second room, cubic with two exits (+x and -w)
@@ -346,6 +471,48 @@ let area1Floor = createHyperwall(
     0xffffff
   );
 area1Floor.collider = null; // height is handled in the player controller
+// Black and white checkerboard texture with two lights at each end
+{
+  const SU = 32;
+  const SV = 16;
+  const SW = 32;
+  const tex = new Uint32Array(SU * SV * SW);
+  // Two lights at opposite ends of the u-axis (x-direction), centered in v,w
+  const light1 = { u: SU / 8, v: SV / 2, w: SW / 2 };
+  const light2 = { u: SU * 7/8, v: SV/2, w: SW/2 };
+  const lightRadius = SU * 0.15; // falloff radius
+  for (let w = 0; w < SW; w++) {
+    for (let v = 0; v < SV; v++) {
+      for (let u = 0; u < SU; u++) {
+        // Distance to each light
+        let d1 = Math.sqrt((u - light1.u) ** 2 + (v - light1.v) ** 2 + (w - light1.w) ** 2);
+        let d2 = Math.sqrt((u - light2.u) ** 2 + (v - light2.v) ** 2 + (w - light2.w) ** 2);
+        // Smooth falloff: bright near light, dark far away
+        let b1 = Math.max(0, 1.0 - d1 / lightRadius);
+        let b2 = Math.max(0, 1.0 - d2 / lightRadius);
+        let brightness = Math.min(1.0, b1 + b2);
+        // Base checkerboard
+        let isWhite = ((u + v + w) % 2 === 0);
+        let base = isWhite ? 255 : 30;
+        let minBright = isWhite ? 0.35 : 0.05;
+        let lit = base * (minBright + (1.0 - minBright) * brightness);
+        // Per-texel dirt noise
+        let nh = ((u * 374761393 + v * 668265263 + w * 1274126177) | 0);
+        nh = ((nh ^ (nh >> 13)) * 1103515245 + 12345) | 0;
+        let noise = ((nh & 0x7fffffff) / 0x7fffffff - 0.5) * 20;
+        lit = Math.max(0, Math.min(255, lit + noise));
+        // Warm orange tint near lights
+        let r = Math.round(Math.min(255, lit * (1.0 + 0.15 * brightness)));
+        let g = Math.round(Math.min(255, lit * (1.0 + 0.05 * brightness)));
+        let b = Math.round(Math.max(0, lit * (1.0 - 0.10 * brightness)));
+        let rgba_u32 = (255 << 24) | (b << 16) | (g << 8) | r;
+        tex[u + v * SU + w * SU * SV] = rgba_u32;
+      }
+    }
+  }
+  area1Floor.texture = tex;
+  area1Floor.texture_info = { USIZE: SU, VSIZE: SV, WSIZE: SW };
+}
 objects.push(area1Floor);
 
 // End of Area1 -------------------------------------------

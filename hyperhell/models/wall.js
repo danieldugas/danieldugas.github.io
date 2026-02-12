@@ -186,7 +186,7 @@ export function createHyperwall(pose, color=0xff0000) {
         // name
         "Hyperwall"
     );
-    hyperwall.vertices_in_texmap = hyperwall.vertices_in_object.map(v => new Vector4D(v.y, v.z, v.w, 0.0)); // Map 4D surface coords to 3D texture
+    hyperwall.vertices_in_texmap = hyperwall.vertices_in_object.map(v => new Vector4D(v.y*0.5 + 0.5, v.z*0.5 + 0.5, v.w*0.5 + 0.5, 0.0)); // Map 4D surface coords to 3D texture
     hyperwall.collider = new StaticObjectFrameBoxCollider(hyperwall.pose);
     // extend collider by +- 1 in y and w frame, to account for player thickness (fixes clipping through corners)
     //  (there is already +-1 margin in the x dim due to the object frame being [-1 to 1] in x but the actual geom is thin at 0)
