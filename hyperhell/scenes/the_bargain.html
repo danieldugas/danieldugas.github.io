@@ -232,6 +232,8 @@ const R2R = 10.0;
 const R2X = -R1HR - C1ml - R2R; // center of room2 in x
 const C2R = 5.0; // corridor 2 size (both dims)
 const r2c = new Vector4D(R2X, 0, AREA1_ZH, 0); // convenience
+const r2_magicwall1_c = r2c.add(new Vector4D(R2R, 0, 0, 0));
+let r2_magicwall1_idx = null;
 if (ROOM2) {
   const _r = R2R;
   const h1f1 = R1HS / 2.0 / R2R;
@@ -247,6 +249,19 @@ if (ROOM2) {
     h1f1, h1f2,
     0xff0000
   );
+  // magic wall
+  r2_magicwall1_idx = objects.length;
+  objects.push(createHyperwall(
+    new Transform4D([
+      [1, 0, 0, 0,        r2_magicwall1_c.x],
+      [0, R1HS/2.0, 0, 0, r2_magicwall1_c.y],
+      [0, 0, _H, 0,       r2_magicwall1_c.z],
+      [0, 0, 0, R1HW/2.0, r2_magicwall1_c.w],
+      [0, 0, 0, 0, 1]
+    ]),
+    0xff0000
+  ));
+  // other walls
   objects.push(createHyperwall(
     new Transform4D([
       [1, 0, 0, 0, -_r + R2X],
@@ -1203,6 +1218,8 @@ let poIs = {
   magicWallIndex: magicWallIndex,
   bargainerPos: new Vector4D(R2X - R2R, 0, 1.0 + AREA1_ZH, 0),
   bargainerIndex: bargainerIndex,
+  room2MagicWallCenter: r2_magicwall1_c,
+  room2MagicWallIdx: r2_magicwall1_idx,
 };
 
 // Check WebGPU support

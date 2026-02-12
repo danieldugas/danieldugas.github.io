@@ -663,6 +663,7 @@ class GameState {
         this.dialogLineIndex = 0;
         this.bargainCompleted = false; // true after first bargain
         this.bargainTriggered = false; // true once proximity triggers dialog
+        this.room2WallShown = false; // true once player enters room 2
         // bullets
         this.playerBullets = [];
         this.bulletPrimitives = [];
@@ -1355,7 +1356,7 @@ export class TheBargainManager {
 
     updateDialog(engineState) {
         // Check proximity to bargainer
-        if (this.gameState.dialogState === 'none' && this.poIs.bargainerPos) {
+        if (this.gameState.dialogState === 'none' && !this.gameState.bargainCompleted && this.poIs.bargainerPos) {
             let playerPos = engineState.camstand_T.origin();
             let bargainerPos = this.poIs.bargainerPos;
             let dx = playerPos.x - bargainerPos.x;
@@ -1544,10 +1545,29 @@ export class TheBargainManager {
                 engineState.camstand_T.matrix[1][4],
                 engineState.camstand_T.matrix[3][4]
             );
+            // Hide room 2 magic wall initially (save original pose to restore later)
+            if (this.poIs.room2MagicWallIdx !== null) {
+                let wall = this.scene.visibleHyperobjects[this.poIs.room2MagicWallIdx];
+                this.room2WallOriginalPose = wall.pose.clone();
+                wall.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
+                wall.collider.updateParentPose(wall.pose);
+            }
         }
 
         // Update enemies
         this.updateEnemies(engineState);
+
+        // Room 2 magic wall: appears when player enters room 2
+        if (!this.gameState.room2WallShown && this.poIs.room2MagicWallIdx !== null && this.poIs.room2MagicWallCenter) {
+            let playerPos = engineState.camstand_T.origin();
+            let wallC = this.poIs.room2MagicWallCenter;
+            if (playerPos.x < wallC.x - 1.0) {
+                this.gameState.room2WallShown = true;
+                let wall = this.scene.visibleHyperobjects[this.poIs.room2MagicWallIdx];
+                wall.pose = this.room2WallOriginalPose;
+                wall.collider.updateParentPose(wall.pose);
+            }
+        }
 
         // Dialog system
         this.updateDialog(engineState);

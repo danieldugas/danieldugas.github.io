@@ -11,6 +11,11 @@ class StaticObjectFrameBoxCollider {
         this.max = new Vector4D(1, 1, 1, 1); // in object
     }
 
+    updateParentPose(parentObjectStaticPose) {
+        this.parentObjectStaticPose = parentObjectStaticPose;
+        this.parentObjectStaticPoseInverse = parentObjectStaticPose.inverse();
+    }
+
     constrainTransform(transform) {
         // player in parent frame = T_world_in_parent * T_player_in_world
         const pos_in_world = transform.origin();
