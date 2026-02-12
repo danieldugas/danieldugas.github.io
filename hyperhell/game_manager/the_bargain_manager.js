@@ -112,6 +112,7 @@ class ShadeEnemy {
 
         // enemy state
         this.hp = 50;
+        this.isDead = false;
     }
 
     updateShade(gameState, engineState) {
@@ -189,6 +190,10 @@ class ShadeEnemy {
 
         // Die if hp <= 0
         if (this.hp <= 0) {
+            if (!this.isDead) {
+                this.isDead = true;
+                gameState.enemiesKilled++;
+            }
             primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
         }
 
@@ -247,6 +252,7 @@ class CrawlerEnemy {
         this.volumeMax = volumeMax;
 
         this.hp = 80;
+        this.isDead = false;
         this.state = 'idle'; // 'idle', 'moving', 'shooting'
         this.lastActionTime = 0;
         this.idleDuration = 2.0; // seconds between actions
@@ -288,6 +294,10 @@ class CrawlerEnemy {
 
         // Die if hp <= 0
         if (this.hp <= 0) {
+            if (!this.isDead) {
+                this.isDead = true;
+                gameState.enemiesKilled++;
+            }
             primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
             return;
         }
@@ -394,6 +404,7 @@ class OphaneEnemy {
 
         this.hp = 80;
         this.maxHp = 80;
+        this.isDead = false;
         this.state = 'idle'; // 'idle', 'moving', 'shooting'
         this.lastActionTime = 0;
         this.idleDuration = 2.0; // seconds between actions
@@ -510,6 +521,10 @@ class OphaneEnemy {
 
         // Die if hp <= 0
         if (this.hp <= 0) {
+            if (!this.isDead) {
+                this.isDead = true;
+                gameState.enemiesKilled++;
+            }
             // Capture death position for gem spawn before teleporting away
             if (gameState.gemState === 'hidden') {
                 gameState.gemState = 'lerping';
@@ -686,6 +701,10 @@ class GameState {
         this.gemState = 'hidden';
         this.gemLerpStartTime = 0;
         this.gemLerpStartPos = null;
+        // Level stats
+        this.levelStartTime = null;
+        this.enemiesKilled = 0;
+        this.levelComplete = false;
         // Debug
         this.pendingTeleport = null;
     }
@@ -812,6 +831,7 @@ export class TheBargainManager {
         this.createHUDBar();
         this.createBossHealthBar();
         this.createDialogOverlay();
+        this.createLevelCompleteOverlay();
     }
 
     createDebugPanel() {
@@ -1387,6 +1407,120 @@ export class TheBargainManager {
         this.gameState.dialogState = 'none';
     }
 
+    createLevelCompleteOverlay() {
+        const canvas = this.scene.mainCanvas;
+        const wrapper = canvas.parentNode; // reuse wrapper created by createDialogOverlay
+
+        const overlay = document.createElement("div");
+        overlay.id = "level_complete_overlay";
+        overlay.style.position = "absolute";
+        overlay.style.top = "16px";
+        overlay.style.left = "16px";
+        overlay.style.right = "16px";
+        overlay.style.bottom = "16px";
+        overlay.style.display = "none";
+        overlay.style.zIndex = "2000";
+        overlay.style.cursor = "pointer";
+        overlay.style.boxSizing = "border-box";
+        overlay.style.padding = "20px";
+        overlay.style.flexDirection = "column";
+        overlay.style.justifyContent = "center";
+        overlay.style.backgroundColor = "#0f0505";
+        overlay.style.border = "1px solid #442222";
+        overlay.style.borderRadius = "4px";
+        overlay.style.fontFamily = "'Press Start 2P', monospace";
+        overlay.style.fontSize = "12px";
+        overlay.style.color = "#ccaaaa";
+        overlay.style.lineHeight = "1.6";
+        overlay.style.textShadow = "0 0 8px rgba(150, 50, 50, 0.3)";
+        overlay.style.overflow = "auto";
+
+        // Header row
+        const header = document.createElement("div");
+        header.style.display = "flex";
+        header.style.alignItems = "center";
+        header.style.gap = "12px";
+        header.style.marginBottom = "16px";
+
+        // Gem icon (yellow diamond shape using CSS)
+        const icon = document.createElement("div");
+        icon.style.width = "64px";
+        icon.style.height = "64px";
+        icon.style.minWidth = "64px";
+        icon.style.backgroundColor = "#ffff00";
+        icon.style.transform = "rotate(45deg)";
+        icon.style.boxShadow = "0 0 20px rgba(255, 255, 0, 0.5)";
+
+        // Title
+        const title = document.createElement("div");
+        title.style.fontSize = "16px";
+        title.style.color = "#ffdd44";
+        title.style.letterSpacing = "3px";
+        title.innerHTML = "LEVEL COMPLETE";
+
+        header.appendChild(icon);
+        header.appendChild(title);
+
+        // Stats content
+        const stats = document.createElement("div");
+        stats.id = "level_complete_stats";
+        stats.style.marginTop = "16px";
+        stats.style.lineHeight = "2.4";
+        stats.innerHTML = "";
+
+        // Continue hint
+        const hint = document.createElement("div");
+        hint.style.fontSize = "11px";
+        hint.style.color = "#554444";
+        hint.style.marginTop = "24px";
+        hint.style.textAlign = "right";
+        hint.innerHTML = "click to continue...";
+
+        // Content frame
+        const contentFrame = document.createElement("div");
+        contentFrame.style.border = "6px solid #ccaaaa";
+        contentFrame.style.padding = "20px";
+
+        contentFrame.appendChild(header);
+        contentFrame.appendChild(stats);
+        contentFrame.appendChild(hint);
+        overlay.appendChild(contentFrame);
+        wrapper.appendChild(overlay);
+
+        // Click to close
+        overlay.addEventListener("click", () => {
+            overlay.style.display = "none";
+            this.gameState.dialogState = 'none';
+        });
+    }
+
+    showLevelComplete(engineState) {
+        // Calculate stats
+        const elapsedTime = engineState.physics_time_s - (this.gameState.levelStartTime || 0);
+        const minutes = Math.floor(elapsedTime / 60);
+        const seconds = Math.floor(elapsedTime % 60);
+        const timeStr = String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0');
+
+        const totalEnemies = this.gameState.shadeEnemies.length
+            + this.gameState.crawlerEnemies.length
+            + this.gameState.ophaneEnemies.length;
+        const killed = this.gameState.enemiesKilled;
+
+        const bargainStatus = this.gameState.bargainCompleted ? "Accepted" : "Refused";
+
+        // Populate stats
+        const stats = document.getElementById("level_complete_stats");
+        stats.innerHTML =
+            `> Time ........... ${timeStr}<br>` +
+            `> Kills .......... ${killed} / ${totalEnemies}<br>` +
+            `> The Bargain .... ${bargainStatus}`;
+
+        // Show overlay and block input
+        const overlay = document.getElementById("level_complete_overlay");
+        overlay.style.display = "flex";
+        this.gameState.dialogState = 'levelcomplete';
+    }
+
     updateDialog(engineState) {
         // Check proximity to bargainer
         if (this.gameState.dialogState === 'none' && !this.gameState.bargainCompleted && this.poIs.bargainerPos) {
@@ -1578,6 +1712,8 @@ export class TheBargainManager {
             this.gameState.isFirstStep = false;
             // Set a few things
             engineState.SENSOR_MODE = 0;
+            // Record level start time
+            this.gameState.levelStartTime = engineState.physics_time_s;
             // Initialize floor height tracking
             this.gameState.previousFloorHeight = engineState.scene.floor_heightmap(
                 engineState.camstand_T.matrix[0][4],
@@ -1595,6 +1731,20 @@ export class TheBargainManager {
 
         // Update enemies
         this.updateEnemies(engineState);
+
+        // Check if player touches end gem
+        if (this.gameState.gemState === 'arrived' && !this.gameState.levelComplete && this.endGemPrimitiveIndex !== undefined) {
+            let playerPos = engineState.camstand_T.origin();
+            let gemPos = this.scene.visibleHyperobjects[this.endGemPrimitiveIndex].pose.origin();
+            let dx = playerPos.x - gemPos.x;
+            let dy = playerPos.y - gemPos.y;
+            let dw = playerPos.w - gemPos.w;
+            let dist = Math.sqrt(dx * dx + dy * dy + dw * dw);
+            if (dist < 5.0) {
+                this.gameState.levelComplete = true;
+                this.showLevelComplete(engineState);
+            }
+        }
 
         // Room 2 magic wall: appears when player enters room 2
         if (!this.gameState.room2WallShown && this.poIs.room2MagicWallIdx !== null && this.poIs.room2MagicWallCenter) {
