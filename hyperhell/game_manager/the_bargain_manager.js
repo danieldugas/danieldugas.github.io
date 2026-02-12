@@ -1428,6 +1428,12 @@ export class TheBargainManager {
             ammoValue.innerHTML = Math.round(this.gameState.playerAmmo);
         }
 
+        if (this.gameState.playerEyeMode === "Human") {
+            const eyeIcon = document.getElementById("hud_left_icon");
+            if (eyeIcon) {
+                eyeIcon.innerHTML = `<img src="../icons/human_eye_256x256.png" style="width: 64px; height: 64px"></img>`;
+            }
+        }
         if (this.gameState.playerEyeMode === "Lidded") {
             const eyeIcon = document.getElementById("hud_left_icon");
             if (eyeIcon) {
