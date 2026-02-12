@@ -1162,46 +1162,73 @@ export class TheBargainManager {
         this.dialogLineSealed = "Your decision. The bargain is sealed.";
         this.dialogLineRefused = "Then leave. If you can.";
 
-        // Full-screen semi-transparent overlay
+        // Dialog overlay: positioned over the game canvas
+        const canvas = this.scene.mainCanvas;
+        // Wrap canvas in a relative container so the overlay can sit on top
+        const wrapper = document.createElement("div");
+        wrapper.style.position = "relative";
+        wrapper.style.display = "inline-block";
+        canvas.parentNode.insertBefore(wrapper, canvas);
+        wrapper.appendChild(canvas);
+
         const overlay = document.createElement("div");
         overlay.id = "dialog_overlay";
         overlay.style.position = "absolute";
-        overlay.style.top = "0";
-        overlay.style.left = "0";
-        overlay.style.width = "100%";
-        overlay.style.height = "100%";
-        overlay.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
+        overlay.style.top = "16px";
+        overlay.style.left = "16px";
+        overlay.style.right = "16px";
+        overlay.style.bottom = "16px";
         overlay.style.display = "none";
         overlay.style.zIndex = "2000";
         overlay.style.cursor = "pointer";
+        overlay.style.boxSizing = "border-box";
+        overlay.style.padding = "20px";
+        overlay.style.flexDirection = "column";
+        overlay.style.justifyContent = "center";
+        overlay.style.backgroundColor = "#0f0505";
+        overlay.style.border = "1px solid #442222";
+        overlay.style.borderRadius = "4px";
+        // Load pixel font
+        if (!document.getElementById('pixel-font-link')) {
+            const link = document.createElement("link");
+            link.id = "pixel-font-link";
+            link.rel = "stylesheet";
+            link.href = "https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap";
+            document.head.appendChild(link);
+        }
+        overlay.style.fontFamily = "'Press Start 2P', monospace";
+        overlay.style.fontSize = "12px";
+        overlay.style.color = "#ccaaaa";
+        overlay.style.lineHeight = "1.6";
+        overlay.style.textShadow = "0 0 8px rgba(150, 50, 50, 0.3)";
+        overlay.style.overflow = "auto";
 
-        // Dialog box at bottom center
-        const dialogBox = document.createElement("div");
-        dialogBox.id = "dialog_box";
-        dialogBox.style.position = "absolute";
-        dialogBox.style.bottom = "80px";
-        dialogBox.style.left = "50%";
-        dialogBox.style.transform = "translateX(-50%)";
-        dialogBox.style.width = "600px";
-        dialogBox.style.maxWidth = "80%";
-        dialogBox.style.backgroundColor = "rgba(10, 5, 15, 0.95)";
-        dialogBox.style.border = "1px solid #442244";
-        dialogBox.style.borderRadius = "4px";
-        dialogBox.style.padding = "24px 32px";
-        dialogBox.style.fontFamily = "'Courier New', monospace";
-        dialogBox.style.fontSize = "16px";
-        dialogBox.style.color = "#ccaacc";
-        dialogBox.style.lineHeight = "1.6";
-        dialogBox.style.textShadow = "0 0 8px rgba(150, 50, 150, 0.3)";
+        // Header row: character icon + speaker name
+        const header = document.createElement("div");
+        header.style.display = "flex";
+        header.style.alignItems = "center";
+        header.style.gap = "12px";
+        header.style.marginBottom = "16px";
+
+        // Character icon
+        const icon = document.createElement("img");
+        icon.id = "dialog_icon";
+        icon.src = "../icons/bargainer_1_128x128.png";
+        icon.style.width = "128px";
+        icon.style.height = "128px";
+        icon.style.minWidth = "128px";
+        icon.style.imageRendering = "pixelated";
 
         // Speaker name
         const speaker = document.createElement("div");
         speaker.id = "dialog_speaker";
         speaker.style.fontSize = "12px";
-        speaker.style.color = "#886688";
-        speaker.style.marginBottom = "8px";
+        speaker.style.color = "#886666";
         speaker.style.letterSpacing = "3px";
         speaker.innerHTML = "THE BARGAINER";
+
+        header.appendChild(icon);
+        header.appendChild(speaker);
 
         // Text content
         const text = document.createElement("div");
@@ -1212,7 +1239,7 @@ export class TheBargainManager {
         const hint = document.createElement("div");
         hint.id = "dialog_hint";
         hint.style.fontSize = "11px";
-        hint.style.color = "#554455";
+        hint.style.color = "#554444";
         hint.style.marginTop = "12px";
         hint.style.textAlign = "right";
         hint.innerHTML = "click to continue...";
@@ -1223,12 +1250,18 @@ export class TheBargainManager {
         choices.style.display = "none";
         choices.style.marginTop = "16px";
 
-        dialogBox.appendChild(speaker);
-        dialogBox.appendChild(text);
-        dialogBox.appendChild(hint);
-        dialogBox.appendChild(choices);
-        overlay.appendChild(dialogBox);
-        document.body.appendChild(overlay);
+        // Inner content frame with white border
+        const contentFrame = document.createElement("div");
+        contentFrame.id = "dialog_content_frame";
+        contentFrame.style.border = "6px solid #ccaaaa";
+        contentFrame.style.padding = "20px";
+
+        contentFrame.appendChild(header);
+        contentFrame.appendChild(text);
+        contentFrame.appendChild(hint);
+        contentFrame.appendChild(choices);
+        overlay.appendChild(contentFrame);
+        wrapper.appendChild(overlay);
 
         // Click handler for advancing dialog
         overlay.addEventListener("click", (e) => {
@@ -1248,7 +1281,7 @@ export class TheBargainManager {
         const hint = document.getElementById("dialog_hint");
         const choices = document.getElementById("dialog_choices");
 
-        overlay.style.display = "block";
+        overlay.style.display = "flex";
         text.innerHTML = lines[0];
         hint.style.display = "block";
         choices.style.display = "none";
@@ -1296,20 +1329,20 @@ export class TheBargainManager {
             btn.style.padding = "8px 16px";
             btn.style.marginBottom = "6px";
             btn.style.cursor = "pointer";
-            btn.style.color = "#aa88aa";
-            btn.style.fontFamily = "'Courier New', monospace";
-            btn.style.fontSize = "15px";
+            btn.style.color = "#aa8888";
+            btn.style.fontFamily = "'Press Start 2P', monospace";
+            btn.style.fontSize = "12px";
             btn.style.borderLeft = "2px solid transparent";
             btn.style.transition = "all 0.15s";
             btn.innerHTML = c.label;
 
             btn.addEventListener("mouseenter", () => {
-                btn.style.color = "#eeccee";
-                btn.style.borderLeftColor = "#aa44aa";
+                btn.style.color = "#eecccc";
+                btn.style.borderLeftColor = "#aa4444";
                 btn.style.paddingLeft = "24px";
             });
             btn.addEventListener("mouseleave", () => {
-                btn.style.color = "#aa88aa";
+                btn.style.color = "#aa8888";
                 btn.style.borderLeftColor = "transparent";
                 btn.style.paddingLeft = "16px";
             });
