@@ -663,6 +663,9 @@ class GameState {
         this.bargainCompleted = false; // true after first bargain
         this.bargainTriggered = false; // true once proximity triggers dialog
         this.room2WallShown = false; // true once player enters room 2
+        // Tutorial state
+        this.tutorialsShown = new Set(); // IDs of tutorials already shown
+        this.tutorialActive = false; // true while a tutorial overlay is visible
         // bullets
         this.playerBullets = [];
         this.bulletPrimitives = [];
@@ -815,6 +818,7 @@ export class TheBargainManager {
         this.createHUDBar();
         this.createBossHealthBar();
         this.createDialogOverlay();
+        this.createTutorialOverlay();
         this.createLevelCompleteOverlay();
     }
 
@@ -1399,6 +1403,117 @@ export class TheBargainManager {
         this.gameState.dialogState = 'none';
     }
 
+    createTutorialOverlay() {
+        const canvas = this.scene.mainCanvas;
+        const wrapper = canvas.parentNode; // reuse wrapper created by createDialogOverlay
+
+        const overlay = document.createElement("div");
+        overlay.id = "tutorial_overlay";
+        overlay.style.position = "absolute";
+        overlay.style.top = "16px";
+        overlay.style.left = "16px";
+        overlay.style.right = "16px";
+        overlay.style.bottom = "16px";
+        overlay.style.display = "none";
+        overlay.style.zIndex = "2000";
+        overlay.style.cursor = "pointer";
+        overlay.style.boxSizing = "border-box";
+        overlay.style.padding = "20px";
+        overlay.style.flexDirection = "column";
+        overlay.style.justifyContent = "center";
+        overlay.style.backgroundColor = "#0f0505";
+        overlay.style.border = "1px solid #442222";
+        overlay.style.borderRadius = "4px";
+        overlay.style.fontFamily = "'Press Start 2P', monospace";
+        overlay.style.fontSize = "12px";
+        overlay.style.color = "#ccaaaa";
+        overlay.style.lineHeight = "1.6";
+        overlay.style.textShadow = "0 0 8px rgba(150, 50, 50, 0.3)";
+        overlay.style.overflow = "auto";
+
+        // Inner content frame with border
+        const contentFrame = document.createElement("div");
+        contentFrame.id = "tutorial_content_frame";
+        contentFrame.style.border = "6px solid #ccaaaa";
+        contentFrame.style.padding = "20px";
+        contentFrame.style.display = "flex";
+        contentFrame.style.flexDirection = "column";
+        contentFrame.style.alignItems = "center";
+
+        // Title
+        const title = document.createElement("div");
+        title.id = "tutorial_title";
+        title.style.fontSize = "16px";
+        title.style.color = "#886666";
+        title.style.letterSpacing = "3px";
+        title.style.marginBottom = "16px";
+        title.style.textAlign = "center";
+        title.innerHTML = "";
+
+        // Text (above gif)
+        const text = document.createElement("div");
+        text.id = "tutorial_text";
+        text.style.marginBottom = "16px";
+        text.style.textAlign = "center";
+        text.innerHTML = "";
+
+        // GIF placeholder
+        const gifContainer = document.createElement("div");
+        gifContainer.id = "tutorial_gif";
+        gifContainer.style.width = "320px";
+        gifContainer.style.height = "200px";
+        gifContainer.style.border = "2px solid #442222";
+        gifContainer.style.backgroundColor = "#1a0808";
+        gifContainer.style.display = "flex";
+        gifContainer.style.alignItems = "center";
+        gifContainer.style.justifyContent = "center";
+        gifContainer.style.marginBottom = "16px";
+        gifContainer.style.imageRendering = "pixelated";
+        gifContainer.innerHTML = '<div style="color: #554444; font-size: 10px;">[ GIF ]</div>';
+
+        // Continue hint
+        const hint = document.createElement("div");
+        hint.style.fontSize = "11px";
+        hint.style.color = "#554444";
+        hint.style.marginTop = "12px";
+        hint.style.textAlign = "right";
+        hint.style.alignSelf = "stretch";
+        hint.innerHTML = "click to continue...";
+
+        contentFrame.appendChild(title);
+        contentFrame.appendChild(text);
+        contentFrame.appendChild(gifContainer);
+        contentFrame.appendChild(hint);
+        overlay.appendChild(contentFrame);
+        wrapper.appendChild(overlay);
+
+        // Click handler to close
+        overlay.addEventListener("click", () => {
+            this.closeTutorial();
+        });
+    }
+
+    showTutorial(zone) {
+        this.gameState.tutorialsShown.add(zone.id);
+        this.gameState.tutorialActive = true;
+        this.gameState.dialogState = 'tutorial';
+
+        const overlay = document.getElementById("tutorial_overlay");
+        const title = document.getElementById("tutorial_title");
+        const text = document.getElementById("tutorial_text");
+
+        title.innerHTML = zone.title;
+        text.innerHTML = zone.text;
+        overlay.style.display = "flex";
+    }
+
+    closeTutorial() {
+        const overlay = document.getElementById("tutorial_overlay");
+        overlay.style.display = "none";
+        this.gameState.tutorialActive = false;
+        this.gameState.dialogState = 'none';
+    }
+
     createLevelCompleteOverlay() {
         const canvas = this.scene.mainCanvas;
         const wrapper = canvas.parentNode; // reuse wrapper created by createDialogOverlay
@@ -1532,6 +1647,25 @@ export class TheBargainManager {
             } else {
                 // Reset trigger when player walks away
                 this.gameState.bargainTriggered = false;
+            }
+        }
+
+        // Check tutorial zone AABBs
+        if (this.gameState.dialogState === 'none' && this.poIs.tutorialZones) {
+            let playerPos = engineState.camstand_T.origin();
+            for (let i = 0; i < this.poIs.tutorialZones.length; i++) {
+                let zone = this.poIs.tutorialZones[i];
+                if (this.gameState.tutorialsShown.has(zone.id)) continue;
+                if (zone.requireBargain && !this.gameState.bargainCompleted) continue;
+                let min = zone.aabbMin;
+                let max = zone.aabbMax;
+                if (playerPos.x >= min.x && playerPos.x <= max.x &&
+                    playerPos.y >= min.y && playerPos.y <= max.y &&
+                    playerPos.z >= min.z && playerPos.z <= max.z &&
+                    playerPos.w >= min.w && playerPos.w <= max.w) {
+                    this.showTutorial(zone);
+                    break;
+                }
             }
         }
     }

@@ -1220,6 +1220,24 @@ let poIs = {
   bargainerIndex: bargainerIndex,
   room2MagicWallCenter: r2_magicwall1_c,
   room2MagicWallIdx: r2_magicwall1_idx,
+  tutorialZones: [
+    {
+      id: "room2_controls",
+      aabbMin: new Vector4D(R2X - R2R + 1, -R2R + 1, AREA1_ZH - 1, -R2R + 1),
+      aabbMax: new Vector4D(R2X + R2R - 1, R2R - 1, AREA1_ZH + 1, R2R - 1),
+      requireBargain: true,
+      title: "4D MOVEMENT",
+      text: "Placeholder: 4D movement controls will be explained here.",
+    },
+    {
+      id: "corridor3_shooting",
+      aabbMin: new Vector4D(R2X - c3r + 1, -c3r + 1, -1, -R2R - C3L + 1),
+      aabbMax: new Vector4D(R2X + c3r - 1, c3r - 1, _H + 1, -R2R - 1),
+      requireBargain: false,
+      title: "COMBAT",
+      text: "Placeholder: Shooting and combat controls will be explained here.",
+    },
+  ],
 };
 
 // Check WebGPU support
