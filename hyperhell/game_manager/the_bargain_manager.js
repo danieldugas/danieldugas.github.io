@@ -7,16 +7,17 @@ import { createGem } from '../models/gem.js';
 // TODOs:
 // Jump down / Falling logic [DONE]
 // Lava damage
-// Death / reset
-// Enemy models
-// Visible enemy damage
-// Boss healthbar
-// Door close
-// Dialogue
+// Enemy placements
+// Enemy models [DONE]
+// Visible enemy damage [DONE]
+// Boss healthbar [DONE]
+// Door close [DONE]
+// Dialogue [DONE]
 // Tips
 // Texturing
 // Per room Floor shader
 // Audio
+// You wake up alone. And in horrible pain.
 
 // Custom controls
 //      (3D / 4D upgrade)
@@ -28,23 +29,6 @@ import { createGem } from '../models/gem.js';
 // Player Health
 // Dialogue overlays
 // Game Over 
-
-// Bargainer dialogue:
-// [You were not supposed to be here.
-// You will never be able to leave this place. 
-// Unless...]
-//    or if returning: [You have returned]
-// I could make you more, let you see through their eyes. Move in their dimensions.
-// But there is a price.
-// Oh, you may lose your sanity.
-// But that is not what I will require for you.
-// Parts of you must be abandoned. Exchanged. Irreversibly.
-// > Surrender your spleen
-// > Surrender your spleen, and eyes
-// > Refuse
-// Your decision. The bargain is sealed.
-
-// You wake up alone. And in horrible pain.
 
 const liddedCamRot = [-Math.PI / 2.0, 0.1, 40];
 const wideOpenCamRot = [-Math.PI / 2.0, 0.9, 80];
@@ -1117,7 +1101,7 @@ export class TheBargainManager {
         label.style.color = "#ff6644";
         label.style.textShadow = "1px 1px 2px #000";
         label.style.letterSpacing = "4px";
-        label.innerHTML = "OPHANE";
+        label.innerHTML = "OPHANIM";
         container.appendChild(label);
 
         const barOuter = document.createElement("div");
