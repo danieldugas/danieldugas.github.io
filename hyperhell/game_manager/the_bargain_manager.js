@@ -46,6 +46,8 @@ import { createGem } from '../models/gem.js';
 
 // You wake up alone. And in horrible pain.
 
+const liddedCamRot = [-Math.PI / 2.0, 0.1, 40];
+const wideOpenCamRot = [-Math.PI / 2.0, 0.9, 80];
 
 
 class FiredBullet {
@@ -652,13 +654,15 @@ class GameState {
         this.playerMoveMode = "Human";
         // Eye opening animation state
         this.playerEyeMode = "Human";
-        // DEBUGGING
-        this.playerMoveMode = "4D";
-        this.playerEyeMode = "WideOpen->Lidded"; // Lidded or WideOpen
         this.eyeAnimationProgress = 0; // 0 to 1 within current phase
         this.eyeAnimationSpeed = 4.0; // How fast the animation progresses
         this.lastEyeUpdateTime = 0;
         this.rKeyWasPressed = false;
+        // Dialog state
+        this.dialogState = 'none'; // 'none', 'showing', 'choosing', 'sealed'
+        this.dialogLineIndex = 0;
+        this.bargainCompleted = false; // true after first bargain
+        this.bargainTriggered = false; // true once proximity triggers dialog
         // bullets
         this.playerBullets = [];
         this.bulletPrimitives = [];
@@ -806,6 +810,7 @@ export class TheBargainManager {
         this.createDebugPanel();
         this.createHUDBar();
         this.createBossHealthBar();
+        this.createDialogOverlay();
     }
 
     createDebugPanel() {
@@ -1132,6 +1137,245 @@ export class TheBargainManager {
         document.body.appendChild(container);
     }
 
+    createDialogOverlay() {
+        // Dialog lines for first encounter
+        this.dialogLinesFirst = [
+            "You were not supposed to be here.",
+            "You will never be able to leave this place.",
+            "Unless...",
+            "I could make you more, let you see through their eyes. Move in their dimensions.",
+            "But there is a price.",
+            "Oh, you may lose your sanity.",
+            "But that is not what I will require of you.",
+            "Parts of you must be abandoned. Exchanged. Irreversibly.",
+        ];
+        // Dialog lines for returning
+        this.dialogLinesReturn = [
+            "You have returned.",
+            "I could make you more, let you see through their eyes. Move in their dimensions.",
+            "But there is a price.",
+            "Oh, you may lose your sanity.",
+            "But that is not what I will require of you.",
+            "Parts of you must be abandoned. Exchanged. Irreversibly.",
+        ];
+        this.dialogLineSealed = "Your decision. The bargain is sealed.";
+        this.dialogLineRefused = "Then leave. If you can.";
+
+        // Full-screen semi-transparent overlay
+        const overlay = document.createElement("div");
+        overlay.id = "dialog_overlay";
+        overlay.style.position = "absolute";
+        overlay.style.top = "0";
+        overlay.style.left = "0";
+        overlay.style.width = "100%";
+        overlay.style.height = "100%";
+        overlay.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
+        overlay.style.display = "none";
+        overlay.style.zIndex = "2000";
+        overlay.style.cursor = "pointer";
+
+        // Dialog box at bottom center
+        const dialogBox = document.createElement("div");
+        dialogBox.id = "dialog_box";
+        dialogBox.style.position = "absolute";
+        dialogBox.style.bottom = "80px";
+        dialogBox.style.left = "50%";
+        dialogBox.style.transform = "translateX(-50%)";
+        dialogBox.style.width = "600px";
+        dialogBox.style.maxWidth = "80%";
+        dialogBox.style.backgroundColor = "rgba(10, 5, 15, 0.95)";
+        dialogBox.style.border = "1px solid #442244";
+        dialogBox.style.borderRadius = "4px";
+        dialogBox.style.padding = "24px 32px";
+        dialogBox.style.fontFamily = "'Courier New', monospace";
+        dialogBox.style.fontSize = "16px";
+        dialogBox.style.color = "#ccaacc";
+        dialogBox.style.lineHeight = "1.6";
+        dialogBox.style.textShadow = "0 0 8px rgba(150, 50, 150, 0.3)";
+
+        // Speaker name
+        const speaker = document.createElement("div");
+        speaker.id = "dialog_speaker";
+        speaker.style.fontSize = "12px";
+        speaker.style.color = "#886688";
+        speaker.style.marginBottom = "8px";
+        speaker.style.letterSpacing = "3px";
+        speaker.innerHTML = "THE BARGAINER";
+
+        // Text content
+        const text = document.createElement("div");
+        text.id = "dialog_text";
+        text.innerHTML = "";
+
+        // Continue hint
+        const hint = document.createElement("div");
+        hint.id = "dialog_hint";
+        hint.style.fontSize = "11px";
+        hint.style.color = "#554455";
+        hint.style.marginTop = "12px";
+        hint.style.textAlign = "right";
+        hint.innerHTML = "click to continue...";
+
+        // Choice container (hidden by default)
+        const choices = document.createElement("div");
+        choices.id = "dialog_choices";
+        choices.style.display = "none";
+        choices.style.marginTop = "16px";
+
+        dialogBox.appendChild(speaker);
+        dialogBox.appendChild(text);
+        dialogBox.appendChild(hint);
+        dialogBox.appendChild(choices);
+        overlay.appendChild(dialogBox);
+        document.body.appendChild(overlay);
+
+        // Click handler for advancing dialog
+        overlay.addEventListener("click", (e) => {
+            // Don't advance if clicking on a choice button
+            if (e.target.classList.contains('dialog-choice-btn')) return;
+            this.advanceDialog();
+        });
+    }
+
+    startDialog() {
+        const lines = this.gameState.bargainCompleted ? this.dialogLinesReturn : this.dialogLinesFirst;
+        this.gameState.dialogState = 'showing';
+        this.gameState.dialogLineIndex = 0;
+
+        const overlay = document.getElementById("dialog_overlay");
+        const text = document.getElementById("dialog_text");
+        const hint = document.getElementById("dialog_hint");
+        const choices = document.getElementById("dialog_choices");
+
+        overlay.style.display = "block";
+        text.innerHTML = lines[0];
+        hint.style.display = "block";
+        choices.style.display = "none";
+    }
+
+    advanceDialog() {
+        if (this.gameState.dialogState === 'sealed') {
+            this.closeDialog();
+            return;
+        }
+        if (this.gameState.dialogState !== 'showing') return;
+
+        const lines = this.gameState.bargainCompleted ? this.dialogLinesReturn : this.dialogLinesFirst;
+        this.gameState.dialogLineIndex++;
+
+        if (this.gameState.dialogLineIndex >= lines.length) {
+            // Show choices
+            this.showChoices();
+        } else {
+            const text = document.getElementById("dialog_text");
+            text.innerHTML = lines[this.gameState.dialogLineIndex];
+        }
+    }
+
+    showChoices() {
+        this.gameState.dialogState = 'choosing';
+        const hint = document.getElementById("dialog_hint");
+        const choices = document.getElementById("dialog_choices");
+        const text = document.getElementById("dialog_text");
+
+        text.innerHTML = "";
+        hint.style.display = "none";
+        choices.style.display = "block";
+        choices.innerHTML = "";
+
+        const choiceData = [
+            { label: "> Surrender your spleen", action: 'spleen' },
+            { label: "> Surrender your spleen, and eyes", action: 'spleen_and_eyes' },
+            { label: "> Refuse", action: 'refuse' },
+        ];
+
+        choiceData.forEach(c => {
+            const btn = document.createElement("div");
+            btn.className = "dialog-choice-btn";
+            btn.style.padding = "8px 16px";
+            btn.style.marginBottom = "6px";
+            btn.style.cursor = "pointer";
+            btn.style.color = "#aa88aa";
+            btn.style.fontFamily = "'Courier New', monospace";
+            btn.style.fontSize = "15px";
+            btn.style.borderLeft = "2px solid transparent";
+            btn.style.transition = "all 0.15s";
+            btn.innerHTML = c.label;
+
+            btn.addEventListener("mouseenter", () => {
+                btn.style.color = "#eeccee";
+                btn.style.borderLeftColor = "#aa44aa";
+                btn.style.paddingLeft = "24px";
+            });
+            btn.addEventListener("mouseleave", () => {
+                btn.style.color = "#aa88aa";
+                btn.style.borderLeftColor = "transparent";
+                btn.style.paddingLeft = "16px";
+            });
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                this.selectChoice(c.action);
+            });
+
+            choices.appendChild(btn);
+        });
+    }
+
+    selectChoice(action) {
+        const text = document.getElementById("dialog_text");
+        const hint = document.getElementById("dialog_hint");
+        const choices = document.getElementById("dialog_choices");
+
+        choices.style.display = "none";
+        hint.style.display = "block";
+        hint.innerHTML = "click to close...";
+
+        if (action === 'refuse') {
+            text.innerHTML = this.dialogLineRefused;
+            this.gameState.dialogState = 'sealed';
+        } else {
+            text.innerHTML = this.dialogLineSealed;
+            this.gameState.dialogState = 'sealed';
+            this.gameState.bargainCompleted = true;
+            // Apply the bargain
+            this.gameState.playerMoveMode = "4D";
+            this.gameState.playerEyeMode = "WideOpen->Lidded";
+            // Hide the bargainer
+            if (this.poIs.bargainerIndex !== undefined) {
+                this.scene.visibleHyperobjects[this.poIs.bargainerIndex].pose.setTranslation(new Vector4D(0, 0, -10000, 0));
+            }
+        }
+    }
+
+    closeDialog() {
+        const overlay = document.getElementById("dialog_overlay");
+        overlay.style.display = "none";
+        this.gameState.dialogState = 'none';
+    }
+
+    updateDialog(engineState) {
+        // Check proximity to bargainer
+        if (this.gameState.dialogState === 'none' && this.poIs.bargainerPos) {
+            let playerPos = engineState.camstand_T.origin();
+            let bargainerPos = this.poIs.bargainerPos;
+            let dx = playerPos.x - bargainerPos.x;
+            let dy = playerPos.y - bargainerPos.y;
+            let dw = playerPos.w - bargainerPos.w;
+            let dist = Math.sqrt(dx * dx + dy * dy + dw * dw);
+
+            const triggerDistance = 8.0;
+            if (dist < triggerDistance) {
+                if (!this.gameState.bargainTriggered) {
+                    this.gameState.bargainTriggered = true;
+                    this.startDialog();
+                }
+            } else {
+                // Reset trigger when player walks away
+                this.gameState.bargainTriggered = false;
+            }
+        }
+    }
+
     updateHUD() {
         const healthBar = document.getElementById("hud_health_bar");
         const healthValue = document.getElementById("hud_health_value");
@@ -1293,7 +1537,7 @@ export class TheBargainManager {
         if (this.gameState.isFirstStep) {
             this.gameState.isFirstStep = false;
             // Set a few things
-            engineState.SENSOR_MODE = 2.0;
+            engineState.SENSOR_MODE = 0;
             // Initialize floor height tracking
             this.gameState.previousFloorHeight = engineState.scene.floor_heightmap(
                 engineState.camstand_T.matrix[0][4],
@@ -1304,7 +1548,16 @@ export class TheBargainManager {
 
         // Update enemies
         this.updateEnemies(engineState);
-        
+
+        // Dialog system
+        this.updateDialog(engineState);
+        if (this.gameState.dialogState !== 'none') {
+            // Block all player input during dialog - skip to camera/floor computation
+            this.updateCameraAndFloor(engineState);
+            this.updateHUD();
+            return;
+        }
+
         // Mouse
         if (engineState.isDraggingLeftClick) {
             const deltaX = engineState.mouseCurrentClickedX - engineState.lastX;
@@ -1521,6 +1774,12 @@ export class TheBargainManager {
                 document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[2][0].toFixed(2)}, ${engineState.camstand_T.matrix[2][1].toFixed(2)}, ${engineState.camstand_T.matrix[2][2].toFixed(2)}, ${engineState.camstand_T.matrix[2][3].toFixed(2)}, ${engineState.camstand_T.matrix[2][4].toFixed(2)}]<br>`;
                 document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[3][0].toFixed(2)}, ${engineState.camstand_T.matrix[3][1].toFixed(2)}, ${engineState.camstand_T.matrix[3][2].toFixed(2)}, ${engineState.camstand_T.matrix[3][3].toFixed(2)}, ${engineState.camstand_T.matrix[3][4].toFixed(2)}]<br>`;
 
+        // Camera, floor, gem, HUD
+        this.updateCameraAndFloor(engineState);
+        this.updateHUD();
+    }
+
+    updateCameraAndFloor(engineState) {
         // Compute final camera transform from intermediate poses
         // Floor height, jumping, and falling
         const currentFloorHeight = engineState.scene.floor_heightmap(
@@ -1628,9 +1887,6 @@ export class TheBargainManager {
                 gem.pose.matrix[2][4] = bobZ;
             }
         }
-
-        // Update HUD
-        this.updateHUD();
     }
 
     updateEyeMode(engineState) {
@@ -1672,8 +1928,6 @@ export class TheBargainManager {
         if (this.gameState.playerEyeMode === "Lidded->WideOpen" || this.gameState.playerEyeMode === "WideOpen->Lidded") {
             this.gameState.eyeAnimationProgress += dt * this.gameState.eyeAnimationSpeed;
 
-            const liddedCamRot = [-Math.PI / 2.0, 0.1, 40];
-            const wideOpenCamRot = [-Math.PI / 2.0, 0.9, 80];
 
             if (this.gameState.eyeAnimationProgress >= 1.0) {
                 this.gameState.eyeAnimationProgress = 0;
@@ -1681,9 +1935,15 @@ export class TheBargainManager {
                 if (this.gameState.playerEyeMode === "Lidded->WideOpen") {
                     this.gameState.playerEyeMode = "WideOpen";
                     engineState.SENSOR_MODE = 3.0;
+                    engineState.sensorCamRotX = wideOpenCamRot[0];
+                    engineState.sensorCamRotY = wideOpenCamRot[1];
+                    engineState.sensorCamDist = wideOpenCamRot[2];
                 } else if (this.gameState.playerEyeMode === "WideOpen->Lidded") {
                     this.gameState.playerEyeMode = "Lidded";
                     engineState.SENSOR_MODE = 2.0;
+                    engineState.sensorCamRotX = liddedCamRot[0];
+                    engineState.sensorCamRotY = liddedCamRot[1];
+                    engineState.sensorCamDist = liddedCamRot[2];
                 }
             } else {
                 // Set the sensor mode according to current anim

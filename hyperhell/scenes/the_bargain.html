@@ -302,6 +302,7 @@ if (ROOM2) {
   objects.push(bargainer);
 
 } // ROOM 2
+let bargainerIndex = objects.length - 1;
 
 // First area is elevated and so needs a floor surface
 const area1xmax = R1HR;
@@ -1200,6 +1201,8 @@ let poIs = {
   room6OuterRadius: R6_R,
   room6InnerRadius: R6_BridgeShellR,
   magicWallIndex: magicWallIndex,
+  bargainerPos: new Vector4D(R2X - R2R, 0, 1.0 + AREA1_ZH, 0),
+  bargainerIndex: bargainerIndex,
 };
 
 // Check WebGPU support
