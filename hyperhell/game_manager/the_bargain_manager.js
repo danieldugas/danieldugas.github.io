@@ -1648,7 +1648,7 @@ export class TheBargainManager {
             let dw = playerPos.w - bargainerPos.w;
             let dist = Math.sqrt(dx * dx + dy * dy + dw * dw);
 
-            const triggerDistance = 8.0;
+            const triggerDistance = 3.0;
             if (dist < triggerDistance) {
                 if (!this.gameState.bargainTriggered) {
                     this.gameState.bargainTriggered = true;
@@ -1909,7 +1909,9 @@ export class TheBargainManager {
             const deltaY = engineState.mouseCurrentClickedY - engineState.lastY;
             
             engineState.camstand_T.rotate_self_by_delta('XY', deltaX * 0.01, true);
-            engineState.camstand_T.rotate_self_by_delta('XW', deltaY * 0.01, true);
+            if (this.gameState.playerMoveMode === "4D") {
+                engineState.camstand_T.rotate_self_by_delta('XW', deltaY * 0.01, true);
+            }
             
             engineState.lastX = engineState.mouseCurrentClickedX;
             engineState.lastY = engineState.mouseCurrentClickedY;
@@ -1917,7 +1919,9 @@ export class TheBargainManager {
         if (engineState.isDraggingRightClick) {
             const deltaX = engineState.mouseCurrentClickedX - engineState.lastXRight;
             const deltaY = engineState.mouseCurrentClickedY - engineState.lastYRight;
-            engineState.camstand_T.rotate_self_by_delta('YW', deltaX * 0.01, true);
+            if (this.gameState.playerMoveMode === "4D") {
+                engineState.camstand_T.rotate_self_by_delta('YW', deltaX * 0.01, true);
+            }
             // engineState.camstandswivel_angle += deltaY * 0.01;
             engineState.lastXRight = engineState.mouseCurrentClickedX;
             engineState.lastYRight = engineState.mouseCurrentClickedY;

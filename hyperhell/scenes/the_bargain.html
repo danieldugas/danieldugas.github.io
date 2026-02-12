@@ -374,6 +374,10 @@ if (ROOM2) {
     h1f1, h1f2,
     0xff0000
   );
+  applyBrick(objects[objects.length - 4], 2, 1, 2);
+  applyBrick(objects[objects.length - 3], 2, 1, 2);
+  applyBrick(objects[objects.length - 2], 2, 1, 2);
+  applyBrick(objects[objects.length - 1], 2, 1, 2);
   // magic wall
   r2_magicwall1_idx = objects.length;
   objects.push(createHyperwall(
@@ -386,6 +390,7 @@ if (ROOM2) {
     ]),
     0xff0000
   ));
+  applyBrick(objects[objects.length - 1], 2, 1, 2);
   // other walls
   objects.push(createHyperwall(
     new Transform4D([
@@ -397,6 +402,7 @@ if (ROOM2) {
     ]),
     0x770000
   ));
+  applyBrick(objects[objects.length - 1], 2, 1, 2);
   objects.push(createHyperwall(new Transform4D([
       [0, _r, 0, 0, R2X],
       [1, 0, 0, 0, _r],
@@ -404,6 +410,7 @@ if (ROOM2) {
       [0, 0, 0, _r, 0],
       [0, 0, 0, 0, 1]
   ]), 0x00ff00));
+  applyBrick(objects[objects.length - 1], 2, 1, 2);
   objects.push(createHyperwall(new Transform4D([
       [0, _r, 0, 0, R2X],
       [1, 0, 0, 0, -_r],
@@ -411,6 +418,7 @@ if (ROOM2) {
       [0, 0, 0, _r, 0],
       [0, 0, 0, 0, 1]
   ]), 0x007700));
+  applyBrick(objects[objects.length - 1], 2, 1, 2);
   objects.push(createHyperwall(new Transform4D([
       [0, _r, 0, 0, R2X],
       [0, 0, 0, _r, 0],
@@ -473,13 +481,15 @@ let area1Floor = createHyperwall(
 area1Floor.collider = null; // height is handled in the player controller
 // Black and white checkerboard texture with two lights at each end
 {
-  const SU = 32;
-  const SV = 16;
+  const SU = 320;
+  const SV = 160;
   const SW = 32;
   const tex = new Uint32Array(SU * SV * SW);
   // Two lights at opposite ends of the u-axis (x-direction), centered in v,w
-  const light1 = { u: SU / 8, v: SV / 2, w: SW / 2 };
+  const light1 = { u: SU * 2/5, v: SV / 2, w: SW / 2 };
   const light2 = { u: SU * 7/8, v: SV/2, w: SW/2 };
+  const light3 = { u: 0, v: SV/4, w: SW/2 };
+  const light4 = { u: 0, v: SV*3/4, w: SW/2 };
   const lightRadius = SU * 0.15; // falloff radius
   for (let w = 0; w < SW; w++) {
     for (let v = 0; v < SV; v++) {
@@ -487,12 +497,16 @@ area1Floor.collider = null; // height is handled in the player controller
         // Distance to each light
         let d1 = Math.sqrt((u - light1.u) ** 2 + (v - light1.v) ** 2 + (w - light1.w) ** 2);
         let d2 = Math.sqrt((u - light2.u) ** 2 + (v - light2.v) ** 2 + (w - light2.w) ** 2);
+        let d3 = Math.sqrt((u - light3.u) ** 2 + (v - light3.v) ** 2 + (w - light3.w) ** 2);
+        let d4 = Math.sqrt((u - light4.u) ** 2 + (v - light4.v) ** 2 + (w - light4.w) ** 2);
         // Smooth falloff: bright near light, dark far away
         let b1 = Math.max(0, 1.0 - d1 / lightRadius);
         let b2 = Math.max(0, 1.0 - d2 / lightRadius);
-        let brightness = Math.min(1.0, b1 + b2);
+        let b3 = Math.max(0, 1.0 - d3 / lightRadius);
+        let b4 = Math.max(0, 1.0 - d4 / lightRadius);
+        let brightness = Math.min(1.0, b1 + b2 + b3 + b4);
         // Base checkerboard
-        let isWhite = ((u + v + w) % 2 === 0);
+        let isWhite = ((Math.ceil(u/10) + Math.ceil(v/10) + w) % 2 === 0);
         let base = isWhite ? 255 : 30;
         let minBright = isWhite ? 0.35 : 0.05;
         let lit = base * (minBright + (1.0 - minBright) * brightness);
@@ -1383,7 +1397,7 @@ let poIs = {
   room6OuterRadius: R6_R,
   room6InnerRadius: R6_BridgeShellR,
   magicWallIndex: magicWallIndex,
-  bargainerPos: new Vector4D(R2X - R2R, 0, 1.0 + AREA1_ZH, 0),
+  bargainerPos: new Vector4D(R2X - R2R + 1.7, 0, 1.0 + AREA1_ZH, 0),
   bargainerIndex: bargainerIndex,
   room2MagicWallCenter: r2_magicwall1_c,
   room2MagicWallIdx: r2_magicwall1_idx,
