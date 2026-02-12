@@ -1293,7 +1293,11 @@ export class TheBargainManager {
 
     advanceDialog() {
         if (this.gameState.dialogState === 'sealed') {
-            this.closeDialog();
+            // Show icon number 4 for a very short time
+            const icon = document.getElementById("dialog_icon");
+            icon.src = "../icons/bargainer_4_128x128.png";
+            setTimeout(() => { this.closeDialog(); }, 100);
+            // this.closeDialog();
             return;
         }
         if (this.gameState.dialogState !== 'showing') return;
@@ -1307,6 +1311,8 @@ export class TheBargainManager {
         } else {
             const text = document.getElementById("dialog_text");
             text.innerHTML = lines[this.gameState.dialogLineIndex];
+            const icon = document.getElementById("dialog_icon");
+            icon.src = "../icons/bargainer_2_128x128.png";
         }
     }
 
@@ -1363,6 +1369,7 @@ export class TheBargainManager {
         const text = document.getElementById("dialog_text");
         const hint = document.getElementById("dialog_hint");
         const choices = document.getElementById("dialog_choices");
+        const icon = document.getElementById("dialog_icon");
 
         choices.style.display = "none";
         hint.style.display = "block";
@@ -1373,6 +1380,7 @@ export class TheBargainManager {
             this.gameState.dialogState = 'sealed';
         } else {
             text.innerHTML = this.dialogLineSealed;
+            icon.src = "../icons/bargainer_2_128x128.png";
             this.gameState.dialogState = 'sealed';
             this.gameState.bargainCompleted = true;
             // Apply the bargain
