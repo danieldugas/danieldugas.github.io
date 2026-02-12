@@ -221,7 +221,7 @@ const ROOM3 = true;
 //           v
 //
 const brickTex = generateBrickWallTexture();
-const applyBrick = (wall, su=1, sv=1, sw=1) => { 
+const applyBrick = (wall, su=1, sv=1, sw=1) => {
   if (!APPLY_TEXTURES) return; wall.texture = brickTex.texture; wall.texture_info = brickTex.texture_info; wall.vertices_in_texmap = wall.vertices_in_object.map(v => new Vector4D((v.y*.5+.5)*su, (v.z*.5+.5)*sv, (v.w*.5+.5)*sw, 0));
 };
 const R1HR = 5; // hexagon radius
@@ -423,6 +423,7 @@ if (ROOM2) {
       [0, 0, 0, 0, 1]
   ]), 0x007700));
   applyBrick(objects[objects.length - 1], 2, 1, 2);
+  // Room2 W+ Wall
   objects.push(createHyperwall(new Transform4D([
       [0, _r, 0, 0, R2X],
       [0, 0, 0, _r, 0],
