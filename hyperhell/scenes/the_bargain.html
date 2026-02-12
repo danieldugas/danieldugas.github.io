@@ -86,6 +86,8 @@ import { createGem } from '../models/gem.js';
 
 let objects = [];
 
+const APPLY_TEXTURES = true;
+
 // Procedural brick wall texture generator
 function generateBrickWallTexture() {
     const USIZE = 128; // horizontal (maps to wall y)
@@ -219,7 +221,9 @@ const ROOM3 = true;
 //           v
 //
 const brickTex = generateBrickWallTexture();
-const applyBrick = (wall, su=1, sv=1, sw=1) => { wall.texture = brickTex.texture; wall.texture_info = brickTex.texture_info; wall.vertices_in_texmap = wall.vertices_in_object.map(v => new Vector4D((v.y*.5+.5)*su, (v.z*.5+.5)*sv, (v.w*.5+.5)*sw, 0)); };
+const applyBrick = (wall, su=1, sv=1, sw=1) => { 
+  if (!APPLY_TEXTURES) return; wall.texture = brickTex.texture; wall.texture_info = brickTex.texture_info; wall.vertices_in_texmap = wall.vertices_in_object.map(v => new Vector4D((v.y*.5+.5)*su, (v.z*.5+.5)*sv, (v.w*.5+.5)*sw, 0));
+};
 const R1HR = 5; // hexagon radius
 const R1HS = R1HR / (0.5 + _2); // hexagon side
 const R1HW = 10; // w thickness of the room

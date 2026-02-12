@@ -320,43 +320,44 @@ export async function runHyperengine(scene) {
     // Create texture buffers
     let object_texture_header_data = new Uint32Array(scene.visibleHyperobjects.length * 4); // offset, USIZE, VSIZE, WSIZE
     let vertices_texcoords_data = new Float32Array(vertices_in_world.length * 3); // u,v,l per vertex
-    // Create global texture data buffer and figure out offsets
+    // Create global texture data buffer and figure out offsets (dedup shared textures)
     let texture_data_offset = 0;
+    let textureOffsetMap = new Map(); // texture array reference -> offset in global buffer
+    let bytes_saved = 0;
+    let n_textures_saved = 0;
     for (let obj_index = 0; obj_index < scene.visibleHyperobjects.length; obj_index++) {
         let obj = scene.visibleHyperobjects[obj_index];
         let USIZE = obj.texture_info.USIZE;
         let VSIZE = obj.texture_info.VSIZE;
         let WSIZE = obj.texture_info.WSIZE;
-        // compute data size
-        let data_size = USIZE * VSIZE * WSIZE; // RGBA
-        // set header data
-        object_texture_header_data[obj_index * 4 + 0] = texture_data_offset; // offset
-        object_texture_header_data[obj_index * 4 + 1] = USIZE; // USIZE
-        object_texture_header_data[obj_index * 4 + 2] = VSIZE; // VSIZE
-        object_texture_header_data[obj_index * 4 + 3] = WSIZE; // WSIZE
-        // update offsets
-        texture_data_offset += data_size;
+        let data_size = USIZE * VSIZE * WSIZE;
+        // reuse offset if this texture was already added
+        let offset;
+        if (textureOffsetMap.has(obj.texture)) {
+            offset = textureOffsetMap.get(obj.texture);
+            bytes_saved += data_size;
+            n_textures_saved++;
+        } else {
+            offset = texture_data_offset;
+            textureOffsetMap.set(obj.texture, offset);
+            texture_data_offset += data_size;
+        }
+        object_texture_header_data[obj_index * 4 + 0] = offset;
+        object_texture_header_data[obj_index * 4 + 1] = USIZE;
+        object_texture_header_data[obj_index * 4 + 2] = VSIZE;
+        object_texture_header_data[obj_index * 4 + 3] = WSIZE;
     }
     let total_texture_data_size = texture_data_offset;
-    // fill global texture data with object textures
+    // fill global texture data with unique textures only
     let global_texture_data = new Uint32Array(total_texture_data_size);
-    for (let obj_index = 0; obj_index < scene.visibleHyperobjects.length; obj_index++) {
-        let obj = scene.visibleHyperobjects[obj_index];
-        let offset = object_texture_header_data[obj_index * 4 + 0];
-        let USIZE = object_texture_header_data[obj_index * 4 + 1];
-        let VSIZE = object_texture_header_data[obj_index * 4 + 2];
-        let WSIZE = object_texture_header_data[obj_index * 4 + 3];
-        for (let u = 0; u < USIZE; u++) {
-            for (let v = 0; v < VSIZE; v++) {
-                for (let w = 0; w < WSIZE; w++) {
-                    let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
-                    let global_index = offset + index;
-                    let rgba_u32 = obj.texture[index];
-                    global_texture_data[global_index] = rgba_u32;
-                }
-            }
-        }
+    for (let [texture, offset] of textureOffsetMap) {
+        // texture layout is index = (u + (v * USIZE) + (w * USIZE * VSIZE));
+        // Make sure the same indexing is used at creation and in the shaders
+        // each value is a rgba_u32
+        global_texture_data.set(texture, offset);
     }
+    console.log(`Loaded ${textureOffsetMap.size} unique textures in ${total_texture_data_size} bytes`);
+    console.log(`Saved ${bytes_saved} bytes by deduping ${n_textures_saved} textures`);
     // Create buffers with 1. all vertices in object frame, 2. all object poses 3. the object index of each vertex
     let all_vertices_in_object_data = new Float32Array(vertices_in_world.length * 4);
     let all_object_poses_data = new Float32Array(scene.visibleHyperobjects.length * 5 * 5);
