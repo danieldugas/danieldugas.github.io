@@ -281,6 +281,155 @@ function generateDarkEyesTexture() {
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
 
+// Metal pipes converging toward center hole
+// Concentric square rings (L-inf distance) with alternating pipe direction per ring
+function generateMetalPipesTexture() {
+    const USIZE = 128;
+    const VSIZE = 96;
+    const WSIZE = 128;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    const pipePeriod = 4;    // center-to-center spacing in u-w plane
+    const vPipePeriod = 4;   // center-to-center spacing in v (height) direction
+    const pipeRadius = 1.6;  // pipe cross-section radius (used for both directions)
+    const ringWidth = 12;    // L-inf ring width before direction alternates (~3 pipes per ring)
+    const segLen = 10;       // length of each random pipe segment block along axis
+
+    // Max L-inf distance from center (for gradient)
+    const maxDist = Math.max(USIZE, WSIZE) / 2;
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+
+                const cu = u - USIZE / 2;
+                const cw = w - WSIZE / 2;
+
+                // L-inf distance gives concentric square rings
+                const linfDist = Math.max(Math.abs(cu), Math.abs(cw));
+                const ring = Math.floor(linfDist / ringWidth);
+
+                // Dark-to-light gradient: bright near center, dark at edges
+                const gradientT = Math.min(1.0, linfDist / maxDist);
+                const gradient = 1.0 - gradientT * gradientT; // quadratic falloff
+
+                // Alternating pipe direction per ring
+                // Even rings: pipes run along u (axis), spaced in w (perp)
+                // Odd rings: pipes run along w (axis), spaced in u (perp)
+                let perpCoord, axisCoord;
+                if (ring % 2 === 0) {
+                    perpCoord = cw;
+                    axisCoord = cu;
+                } else {
+                    perpCoord = cu;
+                    axisCoord = cw;
+                }
+
+                // Which pipe are we near? (in u-w plane)
+                const pipeIdx = Math.floor((perpCoord + 1000 * pipePeriod) / pipePeriod);
+                const pipePhase = ((perpCoord % pipePeriod) + pipePeriod) % pipePeriod;
+                const perpDist = Math.abs(pipePhase - pipePeriod / 2);
+
+                // Which pipe row in v?
+                const vPipeIdx = Math.floor((v + 1000 * vPipePeriod) / vPipePeriod);
+                const vPipePhase = ((v % vPipePeriod) + vPipePeriod) % vPipePeriod;
+                const vPerpDist = Math.abs(vPipePhase - vPipePeriod / 2);
+
+                // Combined cylindrical distance (circular cross-section in perp x v)
+                const combinedDist = Math.sqrt(
+                    (perpDist / pipeRadius) * (perpDist / pipeRadius) +
+                    (vPerpDist / pipeRadius) * (vPerpDist / pipeRadius)
+                );
+
+                // Random pipe segments along axis
+                const segIdx = Math.floor((axisCoord + 1000 * segLen) / segLen);
+                const segPresent = hash(pipeIdx, segIdx, ring * 7 + vPipeIdx * 19 + 3) > 0.08;
+
+                const n = hash(u, v, w);
+                let r, g, b;
+
+                // Per-pipe color seed
+                const pipeColorSeed = hash(pipeIdx * 23 + vPipeIdx * 37, ring * 41, 99);
+                const vNorm = v / VSIZE;
+                const vWarmth = vNorm * 0.3 + pipeColorSeed * 0.15;
+
+                if (combinedDist < 1.0 && segPresent) {
+                    // On a pipe segment - combinedDist 0=center, 1=edge
+                    const t = combinedDist;
+
+                    // Cylindrical shading
+                    const shade = Math.cos(t * Math.PI * 0.5);
+                    const shade2 = shade * shade;
+
+                    const baseIntensity = 30 + shade2 * 140;
+                    r = baseIntensity * (0.82 + vWarmth) + n * 8;
+                    g = baseIntensity * (0.88 + vWarmth * 0.3) + n * 6;
+                    b = baseIntensity * (1.02 - vWarmth * 0.4) + n * 5;
+
+                    // End-caps: darken near segment boundaries (axis direction)
+                    const posInSeg = ((axisCoord % segLen) + segLen) % segLen;
+                    if (posInSeg < 1.0 || posInSeg > segLen - 1.0) {
+                        r *= 0.5; g *= 0.5; b *= 0.5;
+                    }
+
+                    // Edge shadow
+                    if (t > 0.75) {
+                        const edgeFade = (t - 0.75) / 0.25;
+                        r *= (1.0 - edgeFade * 0.6);
+                        g *= (1.0 - edgeFade * 0.6);
+                        b *= (1.0 - edgeFade * 0.6);
+                    }
+
+                } else {
+                    // Dark gap / missing pipe segment
+                    r = 4 + n * 4;
+                    g = 5 + n * 4;
+                    b = 8 + n * 3;
+                }
+
+                // Ring boundary seam (darker line where pipe direction changes)
+                const ringPos = linfDist % ringWidth;
+                if (ringPos < 0.7 || ringPos > ringWidth - 0.7) {
+                    r = r * 0.5 + 12;
+                    g = g * 0.5 + 14;
+                    b = b * 0.5 + 20;
+                }
+
+                // Apply dark-to-light gradient (bright near center hole)
+                const gradMin = 0.15; // don't go fully black at edges
+                const gradMul = gradMin + gradient * (1.0 - gradMin);
+                r *= gradMul;
+                g *= gradMul;
+                b *= gradMul;
+
+                // Additive orange glow very close to center (on top of gradient)
+                if (linfDist < 16) {
+                    const glowIntensity = (1.0 - linfDist / 16);
+                    const glow2 = glowIntensity * glowIntensity;
+                    r = Math.min(255, r + glow2 * 140);
+                    g = Math.min(255, g + glow2 * 50);
+                    b = Math.min(255, b + glow2 * 10);
+                }
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
 // Starry sky texture - mostly black with white and slightly colored dots
 function generateStarryTexture() {
     const USIZE = 128;
@@ -608,6 +757,7 @@ if (ROOM2) {
       v => new Vector4D((v.y * .5 + .5), (v.z * .5 + .5), (v.w * .5 + .5), 0)
     );
   }
+  // Room2 W- Wall (with exit)
   const h2f = C2R / 2.0 / R2R;
   createHyperwallWithCenterHole(objects,
     new Transform4D([
@@ -620,6 +770,14 @@ if (ROOM2) {
     h2f, h2f,
     0x000077
   );
+  if (APPLY_TEXTURES) {
+    const pipesTex = generateMetalPipesTexture();
+    for (let i = 4; i >= 1; i--) {
+      const wall = objects[objects.length - i];
+      wall.texture = pipesTex.texture;
+      wall.texture_info = pipesTex.texture_info;
+    }
+  }
 
   // Bargainer
   let bargainer = createBargainer();

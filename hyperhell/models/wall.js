@@ -309,7 +309,7 @@ export function createHyperwallWithCenterHole(objectlist, pose, holeRatio1, hole
         subwall.vertices_in_object = subwall.vertices_in_object.map(vertex => subwallPoseInWallFrame.transform_point(vertex));
         subwall.collider.min = [wall1ColliderMin, wall2ColliderMin, wall3ColliderMin, wall4ColliderMin][i];
         subwall.collider.max = [wall1ColliderMax, wall2ColliderMax, wall3ColliderMax, wall4ColliderMax][i];
-        subwall.vertices_in_texmap = subwall.vertices_in_object.map(vertex => new Vector4D(vertex.y, vertex.z, vertex.w, 1.0));
+        subwall.vertices_in_texmap = subwall.vertices_in_object.map(vertex => new Vector4D(vertex.y*0.5+0.5, vertex.z*0.5+0.5, vertex.w*0.5+0.5, 1.0)); // scale to [0-1] in all directions
         objectlist.push(subwall);
     }
     
