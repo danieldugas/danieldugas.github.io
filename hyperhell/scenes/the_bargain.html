@@ -1081,9 +1081,9 @@ createCorridorTubeWithHole(objects, c6_c, new Vector4D(-1,0,0,0), C6_XL, new Vec
 //
 //       11     12
 //       --------
-//       | |   | |
-//    -----------
-//      -| |   | |  r4_ref in W middle
+//       | |   | | w
+//    -----------  ^
+//      -| |   | | | r4_ref in W middle
 //    ------------  
 //       | |   | |
 //       ----. ---   c7_ref in -W
@@ -1169,7 +1169,7 @@ if (true) {
       [ 0,        0,  0,                0,      1]
     ]),
     R4_d / R4_d,
-    R4_d / R4_WL,
+    R4_d * 2.0 / R4_WL,
     0xff0000
   );
 
@@ -1820,6 +1820,9 @@ let poIs = {
     c4c.add(new Vector4D(0, 0, 0, C4L/2.0)),
     c5_monster1,
     c5_monster2,
+    pill_ref,
+    pill_ref.add(new Vector4D(5, 0, 0, 5)),
+    pill_ref.add(new Vector4D(-5, 0, 0, 5)),
   ],
   crawlerSpawns: [
     {
@@ -1832,6 +1835,12 @@ let poIs = {
       volumeMin: new Vector4D(w5_c.x - R3XL / 2.0, w5_c.y - w5_yl / 2.0 + 1, _H, w5_c.w),
       volumeMax: new Vector4D(w5_c.x + R3XL / 2.0, w5_c.y + w5_yl / 2.0 - 1, _H, w5_c.w),
     },
+    {
+      pos: w4_c.add(new Vector4D(0, 0, _H, 0)),
+      volumeMin: new Vector4D(w4_c.x - R3XL / 2.0, w4_c.y, _H, w4_c.w),
+      volumeMax: new Vector4D(w4_c.x + R3XL / 2.0, w4_c.y, _H, w4_c.w + w4_wl / 2.0),
+    },
+
   ],
   ophaneSpawns: [
     {
