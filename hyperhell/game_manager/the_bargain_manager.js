@@ -1831,6 +1831,12 @@ export class TheBargainManager {
                         this.gameState.ophaneEnemies[i].startRising(engineState);
                     }
                 }
+                // Show boss entrance magic wall to trap player in the arena
+                if (this.poIs.bossEntranceWallIdx !== null && this.bossEntranceWallOriginalPose) {
+                    let wall = this.scene.visibleHyperobjects[this.poIs.bossEntranceWallIdx];
+                    wall.pose = this.bossEntranceWallOriginalPose;
+                    wall.collider.updateParentPose(wall.pose);
+                }
             }
 
             // Phase 2: player enters inner bridge shell radius
@@ -1914,6 +1920,13 @@ export class TheBargainManager {
                 engineState.camstand_T.matrix[1][4],
                 engineState.camstand_T.matrix[3][4]
             );
+            // Hide boss entrance magic wall initially (save original pose to restore later)
+            if (this.poIs.bossEntranceWallIdx !== null) {
+                let wall = this.scene.visibleHyperobjects[this.poIs.bossEntranceWallIdx];
+                this.bossEntranceWallOriginalPose = wall.pose.clone();
+                wall.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
+                wall.collider.updateParentPose(wall.pose);
+            }
             // Hide room 2 magic wall initially (save original pose to restore later)
             if (this.poIs.room2MagicWallIdx !== null) {
                 let wall = this.scene.visibleHyperobjects[this.poIs.room2MagicWallIdx];
@@ -2153,6 +2166,15 @@ export class TheBargainManager {
         // Remove magic wall once boss enters phase 2 (half HP reached)
         if (this.gameState.bossPhase >= 2 && this.poIs.magicWallIndex !== undefined) {
             let wall = engineState.scene.visibleHyperobjects[this.poIs.magicWallIndex];
+            if (wall.collider) {
+                wall.collider = null;
+            }
+            wall.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
+        }
+
+        // Remove boss entrance wall once boss is fully defeated
+        if (this.gameState.bossPhase >= 4 && this.poIs.bossEntranceWallIdx !== null) {
+            let wall = engineState.scene.visibleHyperobjects[this.poIs.bossEntranceWallIdx];
             if (wall.collider) {
                 wall.collider = null;
             }
