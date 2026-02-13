@@ -1100,6 +1100,8 @@ const C7_DX = 5.0;
 const r4_ref = c6_ref.add(new Vector4D(-C6_XL/2.0, 0, 0, C6_WD/2.0)); // in W middle
 const c7_ref = r4_ref.add(new Vector4D(-R4_L, -R4_d, 0, -R4_WL/2.0)); // at -W end, but X, Y middle
 const r4_entrance = r4_ref.add(new Vector4D(0, -R4_d, 0, 0)); 
+const r4_spawn1 = c7_ref.add(new Vector4D(0, 0, 0, C6_WD * 1.5)); // at inner middle of w+ floor
+const r4_spawn2 = c7_ref.add(new Vector4D(0, 0, 0, C6_WD * 2.5));
 if (true) {
   const w1_xl = R4_L;
   const w1_yl = R4_L;
@@ -1823,6 +1825,9 @@ let poIs = {
     pill_ref,
     pill_ref.add(new Vector4D(5, 0, 0, 5)),
     pill_ref.add(new Vector4D(-5, 0, 0, 5)),
+    r4_entrance,
+    r4_spawn1,
+    r4_spawn2,
   ],
   crawlerSpawns: [
     {
