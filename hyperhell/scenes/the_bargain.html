@@ -1896,6 +1896,22 @@ let poIs = {
       title: "UNBLINK",
       text: "Open your Eye...<br><br>Press and hold R to Unblink,<br>allowing you to see more of the 4th dimension.<br>While unblinking, some enemies are easier to shoot.",
     },
+    {
+      id: "corridor5_rotate",
+      aabbMin: c5c.add(new Vector4D(-C5A_R2/2, -C5A_L/2, -_H, -c5ar1/2)),
+      aabbMax: c5c.add(new Vector4D(C5A_R2/2, C5A_L/2, _H, c5ar1/2)),
+      requireBargain: false,
+      title: "ROTATE",
+      text: "Some disorientation is expected.<br><br>Hold right-click and drag left/right to get a better angle while in Unblink.",
+    },
+    {
+      id: "room5_lava",
+      aabbMin: r5_c.add(new Vector4D(-R5_DX/2, -R5_DY/2, -_H, -R5_WL/2)),
+      aabbMax: r5_c.add(new Vector4D(R5_DX/2, R5_DY/2, _H, R5_WL/2 - r5_shore_wl / 2.)),
+      requireBargain: false,
+      title: "LAVA",
+      text: "The careless burn to a crisp down here.<br><br>Stepping in lava can be fatal.<br>Lava is easier to see without Unblink.<br>Locate bridges to cross safely.",
+    },
   ],
 };
 
