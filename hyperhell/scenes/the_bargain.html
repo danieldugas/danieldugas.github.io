@@ -1395,6 +1395,12 @@ if (true) {
       1.0/2.0, 1.0/2.0,
       0xff0000
   );
+  // Invisible walls to stop the player from going through the lava
+  createCorridorTube(objects, r5_c, new Vector4D(0,0,0,-1), R5_LAVA_WL, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX*2, R5_DY*2, _H);
+  objects[objects.length - 4].tetras = []; // make wall invisible but keep collider
+  objects[objects.length - 3].tetras = []; // make wall invisible but keep collider
+  objects[objects.length - 2].tetras = []; // make wall invisible but keep collider
+  objects[objects.length - 1].tetras = []; // make wall invisible but keep collider
   // Lava surface rendered by floor shader
   // Lava river is long in Y direction
   // Add +x and -x wall
