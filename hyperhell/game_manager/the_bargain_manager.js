@@ -420,12 +420,17 @@ class OphaneEnemy {
         this.flyZ = flyZ;
     }
 
-    startRising(engineState) {
+    startRising(gameState, engineState) {
         let primitive = engineState.scene.visibleHyperobjects[this.primitiveIndex];
         primitive.animState.ringsRotating = true;
         primitive.animState.ringsStartTime = engineState.physics_time_s;
         this.bossState = 'rising';
         this.riseStartTime = engineState.physics_time_s;
+        // Force the camera to look at the ophane as it rises
+        gameState.forceLookAtPos = primitive.pose.origin();
+        gameState.forceLookAtPos.z = this.flyZ;
+        gameState.forceLookAtStartTime = engineState.physics_time_s;
+        gameState.forceLookAtOriginalPose = engineState.camstand_T.clone();
     }
 
     startFalling(engineState) {
@@ -445,7 +450,7 @@ class OphaneEnemy {
 
         // Rising: lerp from current Z to fly height
         if (this.bossState === 'rising') {
-            const riseDuration = 3.0;
+            const riseDuration = 7.0;
             let t = (engineState.physics_time_s - this.riseStartTime) / riseDuration;
             if (t >= 1.0) {
                 t = 1.0;
@@ -501,7 +506,10 @@ class OphaneEnemy {
         while (i < gameState.playerBullets.length) {
             let playerBullet = gameState.playerBullets[i];
             if (primitive.hitbox && primitive.hitbox.checkBulletCollision(playerBullet.currentPos(), primitive.pose, playerBullet.bulletRadius)) {
-                this.hp -= 10;
+                // invulnerable during cutscenes
+                if (this.bossState === 'active') {
+                    this.hp -= 10;
+                }
                 playerBullet.destroyBullet(gameState.bulletPrimitives, gameState.playerBullets, i);
             } else {
                 i++;
@@ -1828,7 +1836,7 @@ export class TheBargainManager {
                 this.gameState.bossPhase = 1;
                 for (let i = 0; i < this.gameState.ophaneEnemies.length; i++) {
                     if (this.gameState.ophaneEnemies[i].bossState === 'dormant') {
-                        this.gameState.ophaneEnemies[i].startRising(engineState);
+                        this.gameState.ophaneEnemies[i].startRising(this.gameState, engineState);
                     }
                 }
                 // Show boss entrance magic wall to trap player in the arena
@@ -1844,7 +1852,7 @@ export class TheBargainManager {
                 this.gameState.bossPhase = 3;
                 for (let i = 0; i < this.gameState.ophaneEnemies.length; i++) {
                     if (this.gameState.ophaneEnemies[i].bossState === 'dormant') {
-                        this.gameState.ophaneEnemies[i].startRising(engineState);
+                        this.gameState.ophaneEnemies[i].startRising(this.gameState, engineState);
                     }
                 }
             }
