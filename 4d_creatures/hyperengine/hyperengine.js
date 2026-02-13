@@ -2876,6 +2876,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
     function animateObjects() {
         let isObjectVertPosDataChanged = false;
+        let isTexcoordsChanged = false;
         for (let obj_index = 0; obj_index < scene.visibleHyperobjects.length; obj_index++) {
             let obj = scene.visibleHyperobjects[obj_index];
             if (obj.is_animated) {
@@ -2889,10 +2890,19 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                     all_vertices_in_object_data[vertex_counter * 4 + 1] = v.y;
                     all_vertices_in_object_data[vertex_counter * 4 + 2] = v.z;
                     all_vertices_in_object_data[vertex_counter * 4 + 3] = v.w;
+                    // Also update texcoords (animation may shift them, e.g. hit flash)
+                    let v_tex = obj.vertices_in_texmap[i_v];
+                    vertices1uvlstexData[vertex_counter * 8 + 4] = v_tex.x;
+                    vertices1uvlstexData[vertex_counter * 8 + 5] = v_tex.y;
+                    vertices1uvlstexData[vertex_counter * 8 + 6] = v_tex.z;
                     // increment counter
                     vertex_counter++;
                 }
+                isTexcoordsChanged = true;
             }
+        }
+        if (isTexcoordsChanged) {
+            device.queue.writeBuffer(vertices1uvlstexBuffer, 0, vertices1uvlstexData);
         }
         return isObjectVertPosDataChanged;
     }

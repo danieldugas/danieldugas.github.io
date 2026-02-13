@@ -40,7 +40,7 @@ export function createOphane() {
                     grid_vertices.push(new Vector4D(x, y, z, w));
 
                     // texture coordinates
-                    let alpha = [0.99, 0.99, 0.99, 0.51, 0.51, 0.51, 0.99][k];
+                    let alpha = [0.495, 0.495, 0.495, 0.255, 0.255, 0.255, 0.495][k];
                     let theta = i / (n_i - 1.0);
                     let phi = j / (n_j - 1.0);
                     grid_vertices_texcoords.push(new Vector4D(alpha, theta, phi, 0.0));
@@ -94,11 +94,11 @@ export function createOphane() {
         grid_vertices.push(eyeC);
         grid_vertices.push(eyeD);
         grid_vertices.push(eyeE);
-        grid_vertices_texcoords.push(new Vector4D(0.01, 0.75, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.01, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.01, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.01, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.01, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.005, 0.75, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.005, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.005, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.005, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.005, 0.25, 0, 0));
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 4]);
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 3, vertex_index_offset + 4]);
@@ -191,11 +191,11 @@ export function createOphane() {
         grid_vertices.push(leg_B);
         grid_vertices.push(leg_C);
         grid_vertices.push(tip);
-        grid_vertices_texcoords.push(new Vector4D(0.26, 0.75, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.26, 0.25, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.26, 0.25, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.26, 0.25, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.26, 0.75, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.13, 0.75, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.13, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.13, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.13, 0.25, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.13, 0.75, 0.0, 0.0));
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         grid_tetras.push([vertex_index_offset + 4, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         bone_vertex_idx_and_affinity.push([vertex_index_offset + 0, 0.0, stem]);
@@ -248,7 +248,9 @@ export function createOphane() {
         let innerRingColorDark = 0x777700;
         let wingColorLight = 0xffffff;
         let wingColorDark = 0xdddddd;
-        let USIZE = 4;
+        let hitColorLight = 0xffffff;
+        let hitColorDark = 0xcccccc;
+        let USIZE = 8; // doubled: first half normal, second half hit flash
         let VSIZE = 2;
         let WSIZE = 8;
         let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
@@ -257,21 +259,18 @@ export function createOphane() {
                 for (let w = 0; w < WSIZE; w++) {
                     // important to use the same indexing as in the shader!
                     let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
-                    // checkerboard pattern
                     let color = 0xffffff;
                     let isDark = v === 0;
-                    if (u >= 0.75 * USIZE) { // outerRing
-                        if (isDark) { color = outerRingColorDark; }
-                        else { color = outerRingColorLight; }
-                    } else if (u >= 0.5 * USIZE) { // innerRing
-                        if (isDark) { color = innerRingColorDark; }
-                        else { color = innerRingColorLight; }
-                    } else if (u >= 0.25 * USIZE) { // wing
-                        if (isDark) { color = wingColorDark; }
-                        else { color = wingColorLight; }
+                    if (u >= 4) { // hit flash (second half)
+                        color = isDark ? hitColorDark : hitColorLight;
+                    } else if (u >= 3) { // outerRing
+                        color = isDark ? outerRingColorDark : outerRingColorLight;
+                    } else if (u >= 2) { // innerRing
+                        color = isDark ? innerRingColorDark : innerRingColorLight;
+                    } else if (u >= 1) { // wing
+                        color = isDark ? wingColorDark : wingColorLight;
                     } else { // eye
-                        if (isDark) { color = eyeColorDark; }
-                        else { color = eyeColorLight; }
+                        color = isDark ? eyeColorDark : eyeColorLight;
                     }
                     // pack color into one u32 RGBA
                     let r_u8 = (color >> 16) & 0xFF;
@@ -431,9 +430,17 @@ export function createOphane() {
                 document.getElementById("crab_pose").innerHTML += `[${obj.pose.matrix[3][0].toFixed(2)}, ${obj.pose.matrix[3][1].toFixed(2)}, ${obj.pose.matrix[3][2].toFixed(2)}, ${obj.pose.matrix[3][3].toFixed(2)}, ${obj.pose.matrix[3][4].toFixed(2)}]<br>`;
             }
 
+        // Hit flash: shift texture U coords into the flash half when recently hit
+        const hitFlashDuration = 0.15;
+        const isFlashing = (obj.animState.damageTakenTime >= 0) &&
+                           (t - obj.animState.damageTakenTime < hitFlashDuration);
+        const texUShift = isFlashing ? 0.5 : 0.0;
+        for (let i = 0; i < obj.vertices_in_texmap.length; i++) {
+            obj.vertices_in_texmap[i].x = obj.vertices_in_texmap[i].x % 0.5 + texUShift;
+        }
     }
     ophane.animateFunction = animationFrame;
     ophane.is_animated = true;
-    ophane.animState = {ringsRotating: true, ringsStopTime: 0.0};
+    ophane.animState = {ringsRotating: true, ringsStopTime: 0.0, damageTakenTime: -1};
     return ophane;
 } // end function createOphane()

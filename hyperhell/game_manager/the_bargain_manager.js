@@ -108,6 +108,7 @@ class ShadeEnemy {
             let playerBullet = gameState.playerBullets[i];
             if (primitive.hitbox.checkBulletCollision(playerBullet.currentPos(), primitive.pose, playerBullet.bulletRadius)) {
                 this.hp -= 10; // hit
+                primitive.animState.damageTakenTime = engineState.physics_time_s;
                 playerBullet.destroyBullet(gameState.bulletPrimitives, gameState.playerBullets, i);
             }
             i++;
@@ -268,6 +269,7 @@ class CrawlerEnemy {
             let playerBullet = gameState.playerBullets[i];
             if (primitive.hitbox && primitive.hitbox.checkBulletCollision(playerBullet.currentPos(), primitive.pose, playerBullet.bulletRadius)) {
                 this.hp -= 10;
+                primitive.animState.damageTakenTime = engineState.physics_time_s;
                 playerBullet.destroyBullet(gameState.bulletPrimitives, gameState.playerBullets, i);
             } else {
                 i++;
@@ -509,6 +511,7 @@ class OphaneEnemy {
                 // invulnerable during cutscenes
                 if (this.bossState === 'active') {
                     this.hp -= 10;
+                    primitive.animState.damageTakenTime = engineState.physics_time_s;
                 }
                 playerBullet.destroyBullet(gameState.bulletPrimitives, gameState.playerBullets, i);
             } else {

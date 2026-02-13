@@ -71,7 +71,7 @@ export function createDamned() {
                     // texture coordinates
                     let theta = i / (n_i - 1.0);
                     let phi = j / (n_j - 1.0);
-                    grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+                    grid_vertices_texcoords.push(new Vector4D(0.375, theta, phi, 0.0));
 
                     // Add this vertex to bone
                     bone_vertex_idx_and_affinity.push([grid_vertices.length - 1, 1.0, new Vector4D(x, y, z, w)]);
@@ -131,7 +131,7 @@ export function createDamned() {
                     // texture coordinates
                     let theta = i / (n_i - 1.0);
                     let phi = j / (n_j - 1.0);
-                    grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+                    grid_vertices_texcoords.push(new Vector4D(0.375, theta, phi, 0.0));
 
                     // Add this vertex to bone
                     bone_vertex_idx_and_affinity.push([grid_vertices.length - 1, 1.0, new Vector4D(x, y, z, w)]);
@@ -191,7 +191,7 @@ export function createDamned() {
                     // texture coordinates
                     let theta = i / (n_i - 1.0);
                     let phi = j / (n_j - 1.0);
-                    grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+                    grid_vertices_texcoords.push(new Vector4D(0.375, theta, phi, 0.0));
 
                     // Add this vertex to bone
                     bone_vertex_idx_and_affinity.push([grid_vertices.length - 1, 1.0, new Vector4D(x, y, z, w)]);
@@ -252,7 +252,7 @@ export function createDamned() {
                     // texture coordinates
                     let theta = i / (n_i - 1.0);
                     let phi = j / (n_j - 1.0);
-                    grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+                    grid_vertices_texcoords.push(new Vector4D(0.375, theta, phi, 0.0));
 
                     // Add this vertex to bone
                     bone_vertex_idx_and_affinity.push([grid_vertices.length - 1, 1.0, new Vector4D(x, y, z, w)]);
@@ -323,7 +323,9 @@ export function createDamned() {
         let eyeColorDark = 0x000000;
         let shellColorLight = 0xbb0000;
         let shellColorDark = 0x770000;
-        let USIZE = 4;
+        let hitColorLight = 0xffffff;
+        let hitColorDark = 0xcccccc;
+        let USIZE = 8; // doubled: first half normal, second half hit flash
         let VSIZE = 2;
         let WSIZE = 8;
         let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
@@ -332,15 +334,16 @@ export function createDamned() {
                 for (let w = 0; w < WSIZE; w++) {
                     // important to use the same indexing as in the shader!
                     let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
-                    // checkerboard pattern
                     let color = 0xffffff;
                     let isDark = v === 0;
-                    if (u >= USIZE / 2) { // leaves
-                        if (isDark) { color = shellColorDark; }
-                        else { color = shellColorLight; }
+                    let isHitHalf = u >= 4; // second half of U dimension = hit flash
+                    let uNorm = u % 4; // map back to original 0-3 range
+                    if (isHitHalf) {
+                        color = isDark ? hitColorDark : hitColorLight;
+                    } else if (uNorm >= 2) { // shell
+                        color = isDark ? shellColorDark : shellColorLight;
                     } else { // eye
-                        if (isDark) { color = eyeColorDark; }
-                        else { color = eyeColorLight; }
+                        color = isDark ? eyeColorDark : eyeColorLight;
                     }
                     // pack color into one u32 RGBA
                     let r_u8 = (color >> 16) & 0xFF;
@@ -430,9 +433,18 @@ export function createDamned() {
                 obj.vertices_in_object[vi] = v;
             }
         }
+
+        // Hit flash: shift texture U coords into the flash half when recently hit
+        const hitFlashDuration = 0.15;
+        const isFlashing = (obj.animState.damageTakenTime >= 0) &&
+                           (t - obj.animState.damageTakenTime < hitFlashDuration);
+        const texU = isFlashing ? 0.875 : 0.375;
+        for (let i = 0; i < obj.vertices_in_texmap.length; i++) {
+            obj.vertices_in_texmap[i].x = texU;
+        }
     }
     damned.animateFunction = animationFrame;
     damned.is_animated = true;
-    damned.animState = {isCrawling: false};
+    damned.animState = {isCrawling: false, damageTakenTime: -1};
     return damned;
 } // end function createDamned()

@@ -39,7 +39,7 @@ export function createCrawler() {
                 // texture coordinates
                 let theta = i / (n_i - 1.0);
                 let phi = j / (n_j - 1.0);
-                grid_vertices_texcoords.push(new Vector4D(0.75, theta, phi, 0.0));
+                grid_vertices_texcoords.push(new Vector4D(0.375, theta, phi, 0.0));
 
                 // add an edge to the next vertex in x
                 if (i < n_i - 1) {
@@ -117,11 +117,11 @@ export function createCrawler() {
         grid_vertices.push(eyeC);
         grid_vertices.push(eyeD);
         grid_vertices.push(eyeE);
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.75, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
-        grid_vertices_texcoords.push(new Vector4D(0.25, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.125, 0.75, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.125, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.125, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.125, 0.25, 0, 0));
+        grid_vertices_texcoords.push(new Vector4D(0.125, 0.25, 0, 0));
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 4]);
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 3, vertex_index_offset + 4]);
@@ -215,11 +215,11 @@ export function createCrawler() {
         grid_vertices.push(leg_B);
         grid_vertices.push(leg_C);
         grid_vertices.push(tip);
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
-        grid_vertices_texcoords.push(new Vector4D(0.75, 0.0, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.375, 0.0, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.375, 0.0, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.375, 0.0, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.375, 0.0, 0.0, 0.0));
+        grid_vertices_texcoords.push(new Vector4D(0.375, 0.0, 0.0, 0.0));
         grid_tetras.push([vertex_index_offset + 0, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         grid_tetras.push([vertex_index_offset + 4, vertex_index_offset + 1, vertex_index_offset + 2, vertex_index_offset + 3]);
         bone_vertex_idx_and_affinity.push([vertex_index_offset + 0, 0.0, stem]);
@@ -268,7 +268,9 @@ export function createCrawler() {
         let eyeColorDark = 0x000000;
         let shellColorLight = 0xbb0000;
         let shellColorDark = 0x770000;
-        let USIZE = 4;
+        let hitColorLight = 0xffffff;
+        let hitColorDark = 0xcccccc;
+        let USIZE = 8; // doubled: first half normal, second half hit flash
         let VSIZE = 2;
         let WSIZE = 8;
         let object_texture = new Uint32Array(USIZE * VSIZE * WSIZE); // RGBA
@@ -277,15 +279,16 @@ export function createCrawler() {
                 for (let w = 0; w < WSIZE; w++) {
                     // important to use the same indexing as in the shader!
                     let index = (u + (v * USIZE) + (w * USIZE * VSIZE));
-                    // checkerboard pattern
                     let color = 0xffffff;
                     let isDark = v === 0;
-                    if (u >= USIZE / 2) { // leaves
-                        if (isDark) { color = shellColorDark; }
-                        else { color = shellColorLight; }
+                    let isHitHalf = u >= 4; // second half of U dimension = hit flash
+                    let uNorm = u % 4; // map back to original 0-3 range
+                    if (isHitHalf) {
+                        color = isDark ? hitColorDark : hitColorLight;
+                    } else if (uNorm >= 2) { // shell
+                        color = isDark ? shellColorDark : shellColorLight;
                     } else { // eye
-                        if (isDark) { color = eyeColorDark; }
-                        else { color = eyeColorLight; }
+                        color = isDark ? eyeColorDark : eyeColorLight;
                     }
                     // pack color into one u32 RGBA
                     let r_u8 = (color >> 16) & 0xFF;
@@ -444,13 +447,22 @@ export function createCrawler() {
                 document.getElementById("crab_pose").innerHTML += `[${obj.pose.matrix[3][0].toFixed(2)}, ${obj.pose.matrix[3][1].toFixed(2)}, ${obj.pose.matrix[3][2].toFixed(2)}, ${obj.pose.matrix[3][3].toFixed(2)}, ${obj.pose.matrix[3][4].toFixed(2)}]<br>`;
             }
 
+        // Hit flash: shift texture U coords into the flash half when recently hit
+        const hitFlashDuration = 0.15;
+        const isFlashing = (obj.animState.damageTakenTime >= 0) &&
+                           (t - obj.animState.damageTakenTime < hitFlashDuration);
+        const texUShift = isFlashing ? 0.5 : 0.0;
+        for (let i = 0; i < obj.vertices_in_texmap.length; i++) {
+            obj.vertices_in_texmap[i].x = obj.vertices_in_texmap[i].x % 0.5 + texUShift;
+        }
     }
     hypercrab.animateFunction = animationFrame;
     hypercrab.is_animated = true;
     hypercrab.animState = {
         legStates: [],        // 'attached', 'falling', 'gone'
         legFallStartTimes: [], // sim time when each leg started falling
-        targetLegsLost: 0
+        targetLegsLost: 0,
+        damageTakenTime: -1
     };
     for (let i = 0; i < bones.length; i++) {
         hypercrab.animState.legStates.push('attached');
