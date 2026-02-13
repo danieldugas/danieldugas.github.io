@@ -119,6 +119,10 @@ class ShadeEnemy {
             if (gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
                 gameState.playerHealth -= 10;
                 gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                // Request camstand to smoothly turn toward the shade
+                gameState.forceLookAtPos = primitive.pose.origin();
+                gameState.forceLookAtStartTime = engineState.physics_time_s;
+                gameState.forceLookAtOriginalPose = engineState.camstand_T.clone();
                 // Force player out of unblink and lock it for 2 seconds
                 if (gameState.playerEyeMode === "WideOpen" || gameState.playerEyeMode === "Lidded->WideOpen") {
                     gameState.playerEyeMode = "WideOpen->Lidded";
@@ -668,6 +672,10 @@ class GameState {
         this.lastEyeUpdateTime = 0;
         this.rKeyWasPressed = false;
         this.unblinkLockoutUntil = 0; // timestamp until which unblink is disabled (shade hit)
+        this.forceLookAtPos = null; // when set, camstand smoothly turns to face this position
+        this.forceLookAtStartTime = 0;
+        this.forceLookAtDuration = 0.5; // seconds
+        this.forceLookAtOriginalPose = null; // camstand rotation rows [X,Y,Z,W] at moment of hit
         // Dialog state
         this.dialogState = 'none'; // 'none', 'showing', 'choosing', 'sealed'
         this.dialogLineIndex = 0;
@@ -1951,6 +1959,53 @@ export class TheBargainManager {
             this.updateCameraAndFloor(engineState);
             this.updateHUD();
             return;
+        }
+
+        // Smooth forced look-at (e.g. after shade hit)
+        if (this.gameState.forceLookAtPos !== null) {
+            let elapsed = engineState.physics_time_s - this.gameState.forceLookAtStartTime;
+            let t = Math.min(1.0, elapsed / this.gameState.forceLookAtDuration);
+            let m = engineState.camstand_T.matrix;
+            let op = this.gameState.forceLookAtOriginalPose;
+            let toTarget = this.gameState.forceLookAtPos.subtract(engineState.camstand_T.origin());
+            if (toTarget.magnitude() > 0.001 && op) {
+                let ex = new Vector4D(1, 0, 0, 0);
+                let ey = new Vector4D(0, 1, 0, 0);
+                let ez = new Vector4D(0, 0, 1, 0);
+                let ew = new Vector4D(0, 0, 0, 1);
+                let oX = op.transform_vector(ex);
+                let oY = op.transform_vector(ey);
+                let oZ = op.transform_vector(ez);
+                let oW = op.transform_vector(ew);
+                // Target X: direction to shade, projected orthogonal to Z
+                let dir = toTarget.normalize();
+                let targetX = dir.subtract(oZ.multiply_by_scalar(dir.dot(oZ))).normalize();
+                // Target Y: original Y, re-orthogonalized against targetX and Z
+                let ty = oY.subtract(targetX.multiply_by_scalar(oY.dot(targetX)));
+                let targetY = ty.subtract(oZ.multiply_by_scalar(ty.dot(oZ))).normalize();
+                // Target W: original W, re-orthogonalized against targetX, targetY, Z
+                let tw = oW.subtract(targetX.multiply_by_scalar(oW.dot(targetX)));
+                tw = tw.subtract(targetY.multiply_by_scalar(tw.dot(targetY)));
+                let targetW = tw.subtract(oZ.multiply_by_scalar(tw.dot(oZ))).normalize();
+                // Lerp from original to target
+                let newX = oX.multiply_by_scalar(1 - t).add(targetX.multiply_by_scalar(t)).normalize();
+                let newY = oY.multiply_by_scalar(1 - t).add(targetY.multiply_by_scalar(t));
+                let newW = oW.multiply_by_scalar(1 - t).add(targetW.multiply_by_scalar(t));
+                // Re-orthogonalize interpolated Y and W against newX and Z
+                newY = newY.subtract(newX.multiply_by_scalar(newY.dot(newX)));
+                newY = newY.subtract(oZ.multiply_by_scalar(newY.dot(oZ))).normalize();
+                newW = newW.subtract(newX.multiply_by_scalar(newW.dot(newX)));
+                newW = newW.subtract(newY.multiply_by_scalar(newW.dot(newY)));
+                newW = newW.subtract(oZ.multiply_by_scalar(newW.dot(oZ))).normalize();
+                m[0][0]=newX.x; m[0][1]=newY.x; m[0][2]=oZ.x; m[0][3]=newW.x;
+                m[1][0]=newX.y; m[1][1]=newY.y; m[1][2]=oZ.y; m[1][3]=newW.y;
+                m[2][0]=newX.z; m[2][1]=newY.z; m[2][2]=oZ.z; m[2][3]=newW.z;
+                m[3][0]=newX.w; m[3][1]=newY.w; m[3][2]=oZ.w; m[3][3]=newW.w;
+            }
+            if (t >= 1.0) {
+                this.gameState.forceLookAtPos = null;
+                this.gameState.forceLookAtOriginalPose = null;
+            }
         }
 
         // Mouse
