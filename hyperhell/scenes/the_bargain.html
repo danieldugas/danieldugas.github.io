@@ -201,6 +201,86 @@ function generateBrickWallTexture() {
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
 
+// Dark texture with red glowing eye pairs at semi-random positions
+function generateDarkEyesTexture() {
+    const USIZE = 128;
+    const VSIZE = 96;
+    const WSIZE = 128;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    // Generate eye pair positions using hash for semi-random placement
+    const eyePairs = [];
+    const numPairs = 16;
+    for (let i = 0; i < numPairs; i++) {
+        const cu = 14 + hash(i * 7 + 3, 1, 0) * (USIZE - 28);
+        const cv = 14 + hash(2, i * 13 + 7, 0) * (VSIZE - 28);
+        const cw = hash(0, 3, i * 19 + 11) * WSIZE;
+        const spacing = 4 + hash(i * 3, i * 5, i * 7) * 3; // 4-7 texels between eyes
+        const eyeRadU = 2.5 + hash(i * 11, i * 17, 4) * 1.5; // U radius: 2.5-4
+        const eyeRadV = eyeRadU * 2.5; // aspect correction so eyes look round on wall
+        const eyeRadW = 15 + hash(i * 23, 5, i * 29) * 20;  // large W extent: 15-35
+
+        eyePairs.push({
+            u1: cu - spacing, u2: cu + spacing,
+            v: cv, w: cw,
+            radU: eyeRadU, radV: eyeRadV, radW: eyeRadW
+        });
+    }
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+
+                // Near-black base with subtle noise
+                const n = hash(u, v, w);
+                const base = 3 + n * 9;
+                let r = base, g = base, b = base;
+
+                // Check proximity to any eye
+                let maxGlow = 0;
+                for (const pair of eyePairs) {
+                    for (const eu of [pair.u1, pair.u2]) {
+                        const du = (u - eu) / pair.radU;
+                        const dv = (v - pair.v) / pair.radV;
+                        // W wraps around for seamless tiling
+                        let dw_raw = Math.abs(w - pair.w);
+                        if (dw_raw > WSIZE / 2) dw_raw = WSIZE - dw_raw;
+                        const dw = dw_raw / pair.radW;
+
+                        const dist2 = du * du + dv * dv + dw * dw;
+                        if (dist2 < 1.0) {
+                            const intensity = 1.0 - Math.sqrt(dist2);
+                            const glow = intensity * intensity;
+                            maxGlow = Math.max(maxGlow, glow);
+                        }
+                    }
+                }
+
+                if (maxGlow > 0) {
+                    r = Math.max(r, 40 + maxGlow * 215);
+                    g = Math.min(g, 3 + maxGlow * 10);
+                    b = Math.min(b, 2);
+                }
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
 const _H = 3; // wall z height
 const _2 = 1.0 / Math.sqrt(2);
 const AREA1_ZH = 100.0;
@@ -431,6 +511,15 @@ if (ROOM2) {
       [1, 0, 0, 0, _r],
       [0, 0, 0, 0, 1]
   ]), 0x0000ff));
+  if (APPLY_TEXTURES) {
+    const darkEyesTex = generateDarkEyesTexture();
+    const wPlusWall = objects[objects.length - 1];
+    wPlusWall.texture = darkEyesTex.texture;
+    wPlusWall.texture_info = darkEyesTex.texture_info;
+    wPlusWall.vertices_in_texmap = wPlusWall.vertices_in_object.map(
+      v => new Vector4D((v.y * .5 + .5), (v.z * .5 + .5), (v.w * .5 + .5), 0)
+    );
+  }
   const h2f = C2R / 2.0 / R2R;
   createHyperwallWithCenterHole(objects,
     new Transform4D([
@@ -1590,6 +1679,7 @@ let custom_scene = {
 // Player controls, NPCs, Monsters, etc
 let gameManager = new TheBargainManager(custom_scene, poIs);
 custom_scene.gameManager = gameManager;
+
 
 runHyperengine(custom_scene).catch(err => {
   console.error(err);

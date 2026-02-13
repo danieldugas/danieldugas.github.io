@@ -858,6 +858,27 @@ export class TheBargainManager {
             header.innerHTML = collapsed ? "▶ Debug Panel" : "▼ Debug Panel";
         });
 
+        // Accept bargain debug button
+        const acceptBargainButton = document.createElement("button");
+        acceptBargainButton.id = "debug-accept-bargain";
+        acceptBargainButton.style.backgroundColor = "#333";
+        acceptBargainButton.style.color = "#f88";
+        acceptBargainButton.style.border = "1px solid #666";
+        acceptBargainButton.style.padding = "4px 8px";
+        acceptBargainButton.style.cursor = "pointer";
+        acceptBargainButton.style.fontSize = "11px";
+        acceptBargainButton.innerHTML = "Debug: Accept Bargain";
+        acceptBargainButton.addEventListener("click", () => {
+            this.gameState.bargainCompleted = true;
+            this.gameState.playerMoveMode = "4D";
+            this.gameState.playerEyeMode = "WideOpen->Lidded";
+            if (this.poIs.bargainerIndex !== undefined) {
+                this.scene.visibleHyperobjects[this.poIs.bargainerIndex].pose.setTranslation(new Vector4D(0, 0, -10000, 0));
+            }
+            console.log("Debug: bargain accepted");
+        });
+        content.appendChild(acceptBargainButton);
+
         // GOD_MODE toggle
         const godModeRow = document.createElement("div");
         godModeRow.style.marginBottom = "8px";
