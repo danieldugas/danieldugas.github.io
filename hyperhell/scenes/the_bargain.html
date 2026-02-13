@@ -761,7 +761,7 @@ createCorridorTube(objects, c5c, new Vector4D(0,1,0,0), C5A_L, new Vector4D(0,0,
 objects.push(createObstacleCube(new Transform4D([
     [  3,        0,  0,        0, c5c.x],
     [  0,        3,  0,        0, c5c.y],
-    [  0,        0, _H/2.0,        0, c5c.z],
+    [  0,        0, _H/2.0,        0, c5c.z + _H/2.0],
     [  0,        0,  0,c5ar1/2.0, c5c.w],
     [  0,        0,  0,        0,      1]
   ]),
@@ -772,7 +772,6 @@ const c5_monster1 = c5c.add(new Vector4D(6, 0, 0, 0));
 const c5_monster2 = c5c.add(new Vector4D(-6, 0, 0, 0));
 // Room 3
 
-const r3_entrance = new Vector4D(R2X, C5A_L + C5A_R2 / 2.0, 0, -R2R - C3L - C4L + c4r);
 const R3YL = 20.0;
 const R3WL = 40.0;
 const R3XL = C5A_R2;
@@ -781,6 +780,7 @@ const R3_OUTWL = 5.0 / _2; // out opening width in W
 const R3_OUTYL = 7.0; // out corridor (w7) y side
 const R3_OUTXL = R3XL;
 const r3_ref = new Vector4D(R2X, C5A_L + c5ar1 / 2.0, 0, -R2R - C3L - C4L + c4r / 2.0); // ref point
+const r3_entrance = r3_ref.add(new Vector4D(0, 0, 0, c4r / 2.0));
 //                     . r3_ref
 //        \          / |
 //c6_ref . \6      3/  | 1
@@ -799,10 +799,18 @@ const W3A_DY = 10.0;
 const W3B_DY = 10.0;
 const W3C_DW = 10.0;
 const W3A_GAP = c5ar1;
-const w3a_c = r3_ref.add(new Vector4D(0, W3A_GAP + W3A_DY/2.0, 0, W3A_GAP + W3A_DW/2.0));
+// triangular walls in w1/2 corner
+const w3a_c = r3_ref.add(new Vector4D(0, W3A_GAP + W3A_DY/2.0, 0, W3A_GAP + W3A_DW/2.0));  // parallel to w3
 const w3a_wyl = Math.sqrt(W3A_DW * W3A_DW + W3A_DY * W3A_DY);
-const w3b_c = r3_ref.add(new Vector4D(0, W3A_GAP + W3B_DY/2.0, 0, W3A_GAP));
-const w3c_c = r3_ref.add(new Vector4D(0, W3A_GAP + W3B_DY, 0, W3A_GAP + W3C_DW/2.0));
+const w3b_c = r3_ref.add(new Vector4D(0, W3A_GAP + W3B_DY/2.0, 0, W3A_GAP)); // parallel to w1
+const w3c_c = r3_ref.add(new Vector4D(0, W3A_GAP + W3B_DY, 0, W3A_GAP + W3C_DW/2.0)); // parallel to w2
+// blocks in same corner
+const obst_c = w3b_c.add(new Vector4D(0, 0, 0, -W3A_GAP/2.0)); // wall 1 obstacles
+const obst_x = R3XL / 4.0;
+const obst2_c = w3c_c.add(new Vector4D(0, R3_ENDYL/2.0, 0, 0)); // wall 2 obstacles
+// pillars between wall 2 and 4
+const pill_ref = w2_c.add(new Vector4D(0, -R3_ENDYL/2.0, 0, 5));
+const pill_r = 0.3;
 const w4_wl = R3WL - c5ar1 - w3_dw - R3_OUTWL;
 const w4_c = w3_c.add(new Vector4D(0, w3_dy/2.0, 0, w3_dw/2.0 + w4_wl / 2.0));
 const w5_yl = R3_ENDYL;
@@ -973,6 +981,80 @@ if (ROOM3) {
     ]),
     0x0000ff
   ));
+  // Blocks in wall 1/2 corner
+objects.push(createObstacleCube(new Transform4D([
+    [ obst_x/2.0,        0,  0,        0, obst_c.x - obst_x * -1.5],
+    [  0,    W3B_DY/2.0,  0,        0, obst_c.y],
+    [  0,        0, _H/2.0,        0, obst_c.z + _H/2.0],
+    [  0,        0,  0,W3A_GAP/2.0, obst_c.w],
+    [  0,        0,  0,        0,      1]
+  ]),
+  0x00ff00
+));
+objects.push(createObstacleCube(new Transform4D([
+    [ obst_x/2.0,        0,  0,        0, obst_c.x - obst_x * 0.5],
+    [  0,    W3B_DY/2.0,  0,        0, obst_c.y],
+    [  0,        0, _H/2.0,        0, obst_c.z + _H/2.0],
+    [  0,        0,  0,W3A_GAP/2.0, obst_c.w],
+    [  0,        0,  0,        0,      1]
+  ]),
+  0x00ff00
+));
+objects.push(createObstacleCube(new Transform4D([
+    [ obst_x/2.0,        0,  0,        0, obst2_c.x - obst_x * 1.5],
+    [  0,    R3_ENDYL/2.0,  0,        0, obst2_c.y],
+    [  0,        0, _H/2.0,        0, obst2_c.z + _H/2.0],
+    [  0,        0,  0,W3C_DW/2.0, obst2_c.w],
+    [  0,        0,  0,        0,      1]
+  ]),
+  0x00ff00
+));
+objects.push(createObstacleCube(new Transform4D([
+    [ obst_x/2.0,        0,  0,        0, obst2_c.x - obst_x * -0.5],
+    [  0,    R3_ENDYL/2.0,  0,        0, obst2_c.y],
+    [  0,        0, _H/2.0,        0, obst2_c.z + _H/2.0],
+    [  0,        0,  0,W3C_DW/2.0, obst2_c.w],
+    [  0,        0,  0,        0,      1]
+  ]),
+  0x00ff00
+));
+// Pillars
+objects.push(createObstacleCube(new Transform4D([
+    [ pill_r,        0,  0,        0, pill_ref.x + obst_x],
+    [  0,    R3_ENDYL/2.0,  0,        0, pill_ref.y],
+    [  0,        0, _H/2.0,        0, pill_ref.z + _H/2.0],
+    [  0,        0,  0,pill_r, pill_ref.w - obst_x],
+    [  0,        0,  0,        0,      1]
+  ]),
+  0x00ff00
+));
+objects.push(createObstacleCube(new Transform4D([
+    [ pill_r,        0,  0,        0, pill_ref.x - obst_x],
+    [  0,    R3_ENDYL/2.0,  0,        0, pill_ref.y],
+    [  0,        0, _H/2.0,        0, pill_ref.z + _H/2.0],
+    [  0,        0,  0,pill_r, pill_ref.w - obst_x],
+    [  0,        0,  0,        0,      1]
+  ]),
+  0x00ff00
+));
+objects.push(createObstacleCube(new Transform4D([
+    [ pill_r,        0,  0,        0, pill_ref.x + obst_x],
+    [  0,    R3_ENDYL/2.0,  0,        0, pill_ref.y],
+    [  0,        0, _H/2.0,        0, pill_ref.z + _H/2.0],
+    [  0,        0,  0,pill_r, pill_ref.w + obst_x],
+    [  0,        0,  0,        0,      1]
+  ]),
+  0x00ff00
+));
+objects.push(createObstacleCube(new Transform4D([
+    [ pill_r,        0,  0,        0, pill_ref.x - obst_x],
+    [  0,    R3_ENDYL/2.0,  0,        0, pill_ref.y],
+    [  0,        0, _H/2.0,        0, pill_ref.z + _H/2.0],
+    [  0,        0,  0,pill_r, pill_ref.w + obst_x],
+    [  0,        0,  0,        0,      1]
+  ]),
+  0x00ff00
+));
 
 }
 

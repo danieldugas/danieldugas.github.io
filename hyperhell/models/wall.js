@@ -658,5 +658,6 @@ export function createObstacleCube(pose, color) {
     let oneMeterInWallW = 1.0 / wUnitInWorld; // 1 meter in wall = this many wall units
     hypercube.collider.min = new Vector4D(-1 - oneMeterInWallX, -1 - oneMeterInWallY, -1, -1 - oneMeterInWallW); // in object
     hypercube.collider.max = new Vector4D(1 + oneMeterInWallX, 1 + oneMeterInWallY, 1, 1 + oneMeterInWallW);
+    hypercube.simulate_physics = false;
     return hypercube;
 }
