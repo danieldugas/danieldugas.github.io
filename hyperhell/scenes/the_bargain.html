@@ -1497,12 +1497,20 @@ let poIs = {
   room2MagicWallIdx: r2_magicwall1_idx,
   tutorialZones: [
     {
+      id: "room1_welcome",
+      aabbMin: new Vector4D(-R1HR + 1, -R1HR + 1, AREA1_ZH - 1, -R1HW/2 + 1),
+      aabbMax: new Vector4D(R1HR - 1, R1HR - 1, AREA1_ZH + _H + 1, R1HW/2 - 1),
+      requireBargain: false,
+      title: "HYPERHELL",
+      text: "This is a Demo of HYPERHELL,<br>the first 4D shooter of its kind.<br><br><u>Controls</u><br>Use WASD keys to move. Left-click + drag to look around (or J/L keys).",
+    },
+    {
       id: "room2_controls",
       aabbMin: new Vector4D(R2X - R2R + 1, -R2R + 1, AREA1_ZH - 1, -R2R + 1),
       aabbMax: new Vector4D(R2X + R2R - 1, R2R - 1, AREA1_ZH + 1, R2R - 1),
       requireBargain: true,
       title: "4D MOVEMENT",
-      text: "Placeholder: 4D movement controls will be explained here.",
+      text: "You wake up feeling... different.<br><br><u>Controls</u><br>You can now move in the 4th dimension.<br>Left click + drag up/down to rotate your view in 4D, and find an exit.",
     },
     {
       id: "corridor3_shooting",

@@ -1452,8 +1452,8 @@ export class TheBargainManager {
         overlay.style.padding = "20px";
         overlay.style.flexDirection = "column";
         overlay.style.justifyContent = "center";
-        overlay.style.backgroundColor = "#0f0505";
-        overlay.style.border = "1px solid #442222";
+        overlay.style.backgroundColor = "transparent";
+        overlay.style.border = "none";
         overlay.style.borderRadius = "4px";
         overlay.style.fontFamily = "'Press Start 2P', monospace";
         overlay.style.fontSize = "12px";
@@ -1470,6 +1470,7 @@ export class TheBargainManager {
         contentFrame.style.display = "flex";
         contentFrame.style.flexDirection = "column";
         contentFrame.style.alignItems = "center";
+        contentFrame.style.backgroundColor = "#0f0505";
 
         // Title
         const title = document.createElement("div");
