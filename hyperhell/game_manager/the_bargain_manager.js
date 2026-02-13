@@ -819,7 +819,7 @@ export class TheBargainManager {
             ]);
             let creature = createOphane();
             creature.pose = pose;
-            creature.hitbox = new Hitbox(new Vector4D(-2, -2, -1, -2), new Vector4D(2, 2, 2, 2));
+            creature.hitbox = new Hitbox(new Vector4D(-2, -2, -3, -2), new Vector4D(2, 2, 2, 2));
             let primitiveIndex = this.scene.visibleHyperobjects.length;
             this.gameState.ophaneEnemies.push(new OphaneEnemy(primitiveIndex, pose.clone(), spawn.volumeCenter, spawn.volumeRadius, floorZ, flyZ));
             this.scene.visibleHyperobjects.push(creature);
@@ -2209,6 +2209,7 @@ export class TheBargainManager {
                 // pop first available primitive
                 let primIndex = this.gameState.bulletPrimitives.pop();
                 let newBullet = new FiredBullet(this.scene, primIndex, engineState.hypercamera_T.origin(), engineState.hypercamera_T.transform_vector(new Vector4D(1, 0, 0, 0)), engineState.physics_time_s);
+                newBullet.bulletVelocity = 20.0;
                 this.gameState.playerBullets.push(newBullet);
                 this.gameState.bulletCooldownLastFiredTime = engineState.physics_time_s;
                 this.gameState.playerAmmo--;
