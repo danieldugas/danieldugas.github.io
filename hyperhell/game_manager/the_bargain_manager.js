@@ -1525,7 +1525,7 @@ export class TheBargainManager {
         gifContainer.id = "tutorial_gif";
         gifContainer.style.width = "320px";
         gifContainer.style.height = "200px";
-        gifContainer.style.border = "2px solid #442222";
+        // gifContainer.style.border = "2px solid #442222";
         gifContainer.style.backgroundColor = "#1a0808";
         gifContainer.style.display = "flex";
         gifContainer.style.alignItems = "center";
@@ -1565,9 +1565,53 @@ export class TheBargainManager {
         const overlay = document.getElementById("tutorial_overlay");
         const title = document.getElementById("tutorial_title");
         const text = document.getElementById("tutorial_text");
+        const gifContainer = document.getElementById("tutorial_gif");
 
         title.innerHTML = zone.title;
         text.innerHTML = zone.text;
+
+        // Populate gif container with video + overlay image if provided
+        if (zone.video) {
+            gifContainer.innerHTML = "";
+            gifContainer.style.position = "relative";
+            gifContainer.style.overflow = "hidden";
+
+            const video = document.createElement("video");
+            video.src = zone.video;
+            video.autoplay = true;
+            video.loop = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.style.width = "100%";
+            video.style.height = "100%";
+            video.style.objectFit = "cover";
+            video.style.imageRendering = "pixelated";
+            gifContainer.appendChild(video);
+
+            if (zone.overlay) {
+                const img = document.createElement("img");
+                img.src = zone.overlay;
+                img.style.position = "absolute";
+                img.style.top = "0";
+                img.style.left = "0";
+                img.style.width = "100%";
+                img.style.height = "100%";
+                img.style.objectFit = "contain";
+                img.style.pointerEvents = "none";
+                img.style.imageRendering = "pixelated";
+                gifContainer.appendChild(img);
+
+                // Resize container to match overlay aspect ratio
+                img.onload = () => {
+                    const aspect = img.naturalWidth / img.naturalHeight;
+                    const w = gifContainer.offsetWidth;
+                    gifContainer.style.height = Math.round(w / aspect) + "px";
+                };
+            }
+        } else {
+            gifContainer.innerHTML = '<div style="color: #554444; font-size: 10px;">[ GIF ]</div>';
+        }
+
         overlay.style.display = "flex";
     }
 
@@ -1577,6 +1621,15 @@ export class TheBargainManager {
         this.gameState.tutorialActive = false;
         this.gameState.dialogState = 'none';
         if (this.engineState) { this.engineState.paused = false; }
+
+        // Stop and remove any tutorial video
+        const gifContainer = document.getElementById("tutorial_gif");
+        const video = gifContainer.querySelector("video");
+        if (video) {
+            video.pause();
+            video.src = "";
+        }
+        gifContainer.innerHTML = '<div style="color: #554444; font-size: 10px;">[ GIF ]</div>';
     }
 
     createLevelCompleteOverlay() {
