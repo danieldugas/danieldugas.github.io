@@ -281,6 +281,94 @@ function generateDarkEyesTexture() {
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
 
+// Starry sky texture - mostly black with white and slightly colored dots
+function generateStarryTexture() {
+    const USIZE = 128;
+    const VSIZE = 96;
+    const WSIZE = 128;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    // Star colors: mostly white, some blue-white, yellow-white, reddish
+    const starColors = [
+        [255, 255, 255],   // pure white
+        [255, 255, 255],   // pure white (more common)
+        [200, 220, 255],   // blue-white
+        [180, 200, 255],   // blue
+        [255, 240, 200],   // yellow-white
+        [255, 200, 170],   // warm/reddish
+    ];
+
+    // Pre-generate stars as ellipsoids with large W extent (like dark eyes texture)
+    // so they're visible in any W-slice of the 3D texture
+    const stars = [];
+    const numStars = 80;
+    for (let i = 0; i < numStars; i++) {
+        stars.push({
+            u: hash(i * 7 + 3, i * 11 + 17, 1) * USIZE,
+            v: hash(i * 13 + 5, i * 19 + 23, 2) * VSIZE,
+            w: hash(i * 29 + 7, i * 31 + 11, 3) * WSIZE,
+            radUV: 1.0 + hash(i * 37, i * 41, 4) * 2.0,  // UV radius 1-3
+            radW: 15 + hash(i * 43, i * 47, 5) * 35,      // W extent 15-50 (large!)
+            colorIdx: Math.floor(hash(i * 53, i * 59, 6) * starColors.length),
+            brightness: 0.6 + hash(i * 61, i * 67, 7) * 0.4
+        });
+    }
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+
+                // Very dark background with subtle noise
+                const n = hash(u, v, w);
+                const base = 1 + n * 3;
+                let r = base, g = base, b = base + 1; // faint blue-black tint
+
+                // Check all stars
+                let maxGlow = 0;
+                let bestColor = null;
+                for (const star of stars) {
+                    const du = (u - star.u) / star.radUV;
+                    const dv = (v - star.v) / star.radUV;
+                    let dw_raw = Math.abs(w - star.w);
+                    if (dw_raw > WSIZE / 2) dw_raw = WSIZE - dw_raw; // wrap W
+                    const dw = dw_raw / star.radW;
+
+                    const dist2 = du * du + dv * dv + dw * dw;
+                    if (dist2 < 1.0) {
+                        const intensity = 1.0 - Math.sqrt(dist2);
+                        const glow = intensity * intensity * star.brightness;
+                        if (glow > maxGlow) {
+                            maxGlow = glow;
+                            bestColor = starColors[star.colorIdx];
+                        }
+                    }
+                }
+
+                if (maxGlow > 0) {
+                    r = Math.max(r, bestColor[0] * maxGlow);
+                    g = Math.max(g, bestColor[1] * maxGlow);
+                    b = Math.max(b, bestColor[2] * maxGlow);
+                }
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
 const _H = 3; // wall z height
 const _2 = 1.0 / Math.sqrt(2);
 const AREA1_ZH = 100.0;
@@ -1347,6 +1435,19 @@ if (true) {
     R6_CutW / R6_R,
     0x00ffff
   ));
+  if (APPLY_TEXTURES) {
+    const starryTex = generateStarryTexture();
+    const bossWall = objects[objects.length - 1];
+    bossWall.texture = starryTex.texture;
+    bossWall.texture_info = starryTex.texture_info;
+    // bossWall.vertices_in_texmap = bossWall.vertices_in_object.map(v => {
+    //   const theta = Math.atan2(v.w, v.y);
+    //   const u = theta / (2 * Math.PI) + 0.5;
+    //   const vv = v.x * 0.5 + 0.5;
+    //   const ww = v.z * 0.5 + 0.5;
+    //   return new Vector4D(u, vv, ww, 0);
+    // });
+  }
   // Lava rendered by floor shader
   // Spherical Bridge
   objects.push(createSphericalBridge(new Transform4D([
