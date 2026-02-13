@@ -1627,6 +1627,11 @@ let poIs = {
   ],
   crawlerSpawns: [
     {
+      pos: c4c.add(new Vector4D(0, 0, _H, -C4L/2.0)),
+      volumeMin: c4c.add(new Vector4D(-c4r/2, -c4r/2, _H, -C4L/2.0)),
+      volumeMax: c4c.add(new Vector4D(c4r/2, c4r/2, _H, -C4L/2.0)),
+    },
+    {
       pos: w5_c.add(new Vector4D(0, 0, _H, 0)),
       volumeMin: new Vector4D(w5_c.x - R3XL / 2.0, w5_c.y - w5_yl / 2.0 + 1, _H, w5_c.w),
       volumeMax: new Vector4D(w5_c.x + R3XL / 2.0, w5_c.y + w5_yl / 2.0 - 1, _H, w5_c.w),
