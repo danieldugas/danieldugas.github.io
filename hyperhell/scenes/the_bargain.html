@@ -430,6 +430,98 @@ function generateMetalPipesTexture() {
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
 
+// Falling corridor texture - alternating light/dark rings along u (fall direction)
+// Dark metal at top, reddish rings, lighter metal at bottom, orange glow at entrance
+function generateFallingCorridorTexture() {
+    const USIZE = 256; // high res along fall direction
+    const VSIZE = 32;
+    const WSIZE = 32;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    const ringPeriod = 16; // texels per ring cycle (light + dark pair)
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+
+                const n = hash(u, v, w);
+
+                // Gradual gradient along u: 0=top of fall (dark metal), 1=bottom (lighter metal)
+                const uNorm = u / USIZE;
+                const gradientBase = 0.1 + uNorm * 0.9;
+
+                // Alternating rings: sinusoidal for smooth bands
+                const ringPhase = (u / ringPeriod) * 2 * Math.PI;
+                const ringWave = Math.sin(ringPhase) * 0.5 + 0.5; // 0 to 1
+
+                // Light rings are brighter, dark rings are dimmer
+                const ringBrightness = 0.3 + ringWave * 0.7;
+
+                // Combined brightness
+                const brightness = gradientBase * ringBrightness;
+
+                // Base metal color: dark gunmetal at top, lighter brushed steel at bottom
+                let r = brightness * (155 + uNorm * 50) + n * 5;
+                let g = brightness * (145 + uNorm * 55) + n * 4;
+                let b = brightness * (160 + uNorm * 35) + n * 3;
+
+                // Reddish tint on ring bright-bands
+                const redTint = ringWave * ringWave * brightness * 55;
+                r += redTint;
+                g -= redTint * 0.15;
+                b -= redTint * 0.25;
+
+                // Subtle edge lines at ring boundaries (where sin crosses zero)
+                const ringCross = Math.abs(Math.sin(ringPhase));
+                if (ringCross < 0.12) {
+                    const edgeFactor = 1.0 - (1.0 - ringCross / 0.12) * 0.45;
+                    r *= edgeFactor;
+                    g *= edgeFactor;
+                    b *= edgeFactor;
+                }
+
+                // Dark gradient towards cross-section edges (darken corners)
+                const vEdge = Math.abs(v - VSIZE / 2) / (VSIZE / 2); // 0 at center, 1 at edge
+                const wEdge = Math.abs(w - WSIZE / 2) / (WSIZE / 2);
+                const edgeDist = Math.max(vEdge, wEdge); // box distance to edge
+                const cornerDarken = 1.0 - edgeDist * edgeDist * 0.6;
+                r *= cornerDarken;
+                g *= cornerDarken;
+                b *= cornerDarken;
+
+                // Localized spherical orange glow near top-center entrance
+                const glowRadius = 0.8;
+                const du = u/USIZE*10 - 0; // factor of 10 to account for real size
+                const dv = v/VSIZE - 1/2;
+                const dw = w/VSIZE - 1/2;
+                const glowDist = Math.sqrt(du * du + dv * dv + dw * dw);
+                if (glowDist < glowRadius) {
+                    const glowIntensity = (1.0 - glowDist / glowRadius);
+                    const glow2 = glowIntensity * glowIntensity;
+                    r = Math.min(255, r + glow2 * 200);
+                    g = Math.min(255, g + glow2 * 50);
+                    b = Math.min(255, b + glow2 * 12);
+                }
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
 // Starry sky texture - mostly black with white and slightly colored dots
 function generateStarryTexture() {
     const USIZE = 128;
@@ -875,8 +967,20 @@ objects.push(area1Floor);
 let c2l = AREA1_ZH;
 let c2c = new Vector4D(R2X, 0, AREA1_ZH / 2.0 + _H, -R2R - C2R / 2.0);
 createCorridorTubeWithHole(objects, c2c, new Vector4D(0,0,-1,0), c2l, new Vector4D(0,0,0,1), new Vector4D(1,0,0,0), C2R, C2R, -c2l / 2.0 + _H / 2.0, _H + 1.0, new Vector4D(0,1,0,0), C2R, true);
+if (APPLY_TEXTURES) {
+  const fallTex = generateFallingCorridorTexture();
+  // Corridor 2 creates 6 walls: 1a, 2, 3, 4, z-bottom, z-top (1b has length <= 0)
+  for (let i = 6; i >= 1; i--) {
+    const wall = objects[objects.length - i];
+    wall.texture = fallTex.texture;
+    wall.texture_info = fallTex.texture_info;
+    wall.vertices_in_texmap = wall.vertices_in_object.map(
+      v => new Vector4D((v.y * .5 + .5), (v.z * .5 + .5), (v.w * .5 + .5), 0)
+    );
+  }
+}
 
-// Area2 ------------------------------------------------ 
+// Area2 ------------------------------------------------
 
 // Corridor 3 (-w, gun)
 const c3r = C2R;
