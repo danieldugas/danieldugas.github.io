@@ -119,6 +119,16 @@ class ShadeEnemy {
             if (gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
                 gameState.playerHealth -= 10;
                 gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                // Force player out of unblink and lock it for 2 seconds
+                if (gameState.playerEyeMode === "WideOpen" || gameState.playerEyeMode === "Lidded->WideOpen") {
+                    gameState.playerEyeMode = "WideOpen->Lidded";
+                    gameState.eyeAnimationProgress = 0;
+                    gameState.unblinkLockoutUntil = engineState.physics_time_s + 2.0;
+                    // Show tutorial the first time a shade forces the player out of unblink
+                    if (!gameState.tutorialsShown.has("shade_unblink_hit")) {
+                        gameState.shadeUnblinkTutorialPending = true;
+                    }
+                }
             }
         }
 
@@ -657,6 +667,7 @@ class GameState {
         this.eyeAnimationSpeed = 4.0; // How fast the animation progresses
         this.lastEyeUpdateTime = 0;
         this.rKeyWasPressed = false;
+        this.unblinkLockoutUntil = 0; // timestamp until which unblink is disabled (shade hit)
         // Dialog state
         this.dialogState = 'none'; // 'none', 'showing', 'choosing', 'sealed'
         this.dialogLineIndex = 0;
@@ -667,6 +678,7 @@ class GameState {
         // Tutorial state
         this.tutorialsShown = new Set(); // IDs of tutorials already shown
         this.tutorialActive = false; // true while a tutorial overlay is visible
+        this.shadeUnblinkTutorialPending = false; // set when shade hits player out of unblink
         // bullets
         this.playerBullets = [];
         this.bulletPrimitives = [];
@@ -1529,6 +1541,7 @@ export class TheBargainManager {
         this.gameState.tutorialsShown.add(zone.id);
         this.gameState.tutorialActive = true;
         this.gameState.dialogState = 'tutorial';
+        if (this.engineState) { this.engineState.paused = true; }
 
         const overlay = document.getElementById("tutorial_overlay");
         const title = document.getElementById("tutorial_title");
@@ -1544,6 +1557,7 @@ export class TheBargainManager {
         overlay.style.display = "none";
         this.gameState.tutorialActive = false;
         this.gameState.dialogState = 'none';
+        if (this.engineState) { this.engineState.paused = false; }
     }
 
     createLevelCompleteOverlay() {
@@ -1700,6 +1714,18 @@ export class TheBargainManager {
                 }
             }
         }
+
+        // Show shade-unblink tutorial once eye finishes closing
+        if (this.gameState.shadeUnblinkTutorialPending
+            && this.gameState.dialogState === 'none'
+            && (this.gameState.playerEyeMode === "Lidded" || this.gameState.playerEyeMode === "Human")) {
+            this.showTutorial({
+                id: "shade_unblink_hit",
+                title: "MADE YOU BLINK",
+                text: "Getting hurt by an enemy while in Unblink will force you back to the normal view for a short time.<br>Make sure to switch often between views and watch your surroundings.",
+            });
+            this.gameState.shadeUnblinkTutorialPending = false;
+        }
     }
 
     updateHUD() {
@@ -1848,6 +1874,8 @@ export class TheBargainManager {
 
     //Called by the hyperengine at every timestep
     updatePlayerControls(engineState) {
+        this.engineState = engineState; // store ref for tutorial pause/unpause
+
         // Apply pending teleport from debug panel
         if (this.gameState.pendingTeleport) {
             engineState.camstand_T.matrix[0][4] = this.gameState.pendingTeleport.x;
@@ -2271,12 +2299,14 @@ export class TheBargainManager {
             return;
         }
 
+        // Block unblink during lockout (e.g. after shade hit)
+        const unblinkLocked = engineState.physics_time_s < this.gameState.unblinkLockoutUntil;
         const rKeyPressed = engineState.keys['r'];
 
         let changed = false;
 
         // Detect key press/release transitions
-        if (rKeyPressed && !this.gameState.rKeyWasPressed) {
+        if (rKeyPressed && !this.gameState.rKeyWasPressed && !unblinkLocked) {
             // R just pressed - start opening animation
             this.gameState.playerEyeMode = "Lidded->WideOpen";
             // If we were closing, open from the current progress

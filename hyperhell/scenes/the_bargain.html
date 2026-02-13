@@ -1455,74 +1455,6 @@ function the_bargain_floor_heightmap(x, y, w) {
   return 0.0;
 }
 
-// PoIs
-let poIs = {
-  roomCenters: [
-    {name: "Room 1", pos: r1c},
-    {name: "Room 2", pos: r2c},
-    {name: "Corridor 3", pos: c3c},
-    {name: "Room 3", pos: r3_entrance},
-    {name: "Corridor 6", pos: c6_c},
-    {name: "Room 4", pos: r4_entrance},
-    {name: "Corridor 7", pos: c7_c},
-    {name: "Room 5", pos: r5_entrance},
-    {name: "Room 6", pos: r6_entrance},
-  ],
-  shadeSpawns: [
-    c4c,
-    c5_monster1,
-    c5_monster2,
-  ],
-  crawlerSpawns: [
-    {
-      pos: w5_c.add(new Vector4D(0, 0, _H, 0)),
-      volumeMin: new Vector4D(w5_c.x - R3XL / 2.0, w5_c.y - w5_yl / 2.0 + 1, _H, w5_c.w),
-      volumeMax: new Vector4D(w5_c.x + R3XL / 2.0, w5_c.y + w5_yl / 2.0 - 1, _H, w5_c.w),
-    },
-  ],
-  ophaneSpawns: [
-    {
-      pos: r6_c.add(new Vector4D(0, 0, _H+8, 0)),
-      volumeCenter: r6_c,
-      volumeRadius: R6_BridgeShellR,
-    },
-  ],
-  room6Center: r6_c,
-  room6OuterRadius: R6_R,
-  room6InnerRadius: R6_BridgeShellR,
-  magicWallIndex: magicWallIndex,
-  bargainerPos: new Vector4D(R2X - R2R + 1.7, 0, 1.0 + AREA1_ZH, 0),
-  bargainerIndex: bargainerIndex,
-  room2MagicWallCenter: r2_magicwall1_c,
-  room2MagicWallIdx: r2_magicwall1_idx,
-  tutorialZones: [
-    {
-      id: "room1_welcome",
-      aabbMin: new Vector4D(-R1HR + 1, -R1HR + 1, AREA1_ZH - 1, -R1HW/2 + 1),
-      aabbMax: new Vector4D(R1HR - 1, R1HR - 1, AREA1_ZH + _H + 1, R1HW/2 - 1),
-      requireBargain: false,
-      title: "HYPERHELL",
-      text: "This is a Demo of HYPERHELL,<br>the first 4D shooter of its kind.<br><br><u>Controls</u><br>Use WASD keys to move. Left-click + drag to look around (or J/L keys).",
-    },
-    {
-      id: "room2_controls",
-      aabbMin: new Vector4D(R2X - R2R + 1, -R2R + 1, AREA1_ZH - 1, -R2R + 1),
-      aabbMax: new Vector4D(R2X + R2R - 1, R2R - 1, AREA1_ZH + 1, R2R - 1),
-      requireBargain: true,
-      title: "4D MOVEMENT",
-      text: "You wake up feeling... different.<br><br><u>Controls</u><br>You can now move in the 4th dimension.<br>Left click + drag up/down to rotate your view in 4D, and find an exit.",
-    },
-    {
-      id: "corridor3_shooting",
-      aabbMin: new Vector4D(R2X - c3r + 1, -c3r + 1, -1, -R2R - C3L + 1),
-      aabbMax: new Vector4D(R2X + c3r - 1, c3r - 1, _H + 1, -R2R - 1),
-      requireBargain: false,
-      title: "COMBAT",
-      text: "Placeholder: Shooting and combat controls will be explained here.",
-    },
-  ],
-};
-
 // Check WebGPU support
 if (!navigator.gpu) {
   document.body.innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
@@ -1674,6 +1606,83 @@ const bargainFloorShader = `
     }
     }
 `;
+
+// PoIs
+let poIs = {
+  roomCenters: [
+    {name: "Room 1", pos: r1c},
+    {name: "Room 2", pos: r2c},
+    {name: "Corridor 3", pos: c3c},
+    {name: "Room 3", pos: r3_entrance},
+    {name: "Corridor 6", pos: c6_c},
+    {name: "Room 4", pos: r4_entrance},
+    {name: "Corridor 7", pos: c7_c},
+    {name: "Room 5", pos: r5_entrance},
+    {name: "Room 6", pos: r6_entrance},
+  ],
+  shadeSpawns: [
+    c4c.add(new Vector4D(0, 0, 0, C4L/2.0)),
+    c5_monster1,
+    c5_monster2,
+  ],
+  crawlerSpawns: [
+    {
+      pos: w5_c.add(new Vector4D(0, 0, _H, 0)),
+      volumeMin: new Vector4D(w5_c.x - R3XL / 2.0, w5_c.y - w5_yl / 2.0 + 1, _H, w5_c.w),
+      volumeMax: new Vector4D(w5_c.x + R3XL / 2.0, w5_c.y + w5_yl / 2.0 - 1, _H, w5_c.w),
+    },
+  ],
+  ophaneSpawns: [
+    {
+      pos: r6_c.add(new Vector4D(0, 0, _H+8, 0)),
+      volumeCenter: r6_c,
+      volumeRadius: R6_BridgeShellR,
+    },
+  ],
+  room6Center: r6_c,
+  room6OuterRadius: R6_R,
+  room6InnerRadius: R6_BridgeShellR,
+  magicWallIndex: magicWallIndex,
+  bargainerPos: new Vector4D(R2X - R2R + 1.7, 0, 1.0 + AREA1_ZH, 0),
+  bargainerIndex: bargainerIndex,
+  room2MagicWallCenter: r2_magicwall1_c,
+  room2MagicWallIdx: r2_magicwall1_idx,
+  tutorialZones: [
+    {
+      id: "room1_welcome",
+      aabbMin: new Vector4D(-R1HR + 1, -R1HR + 1, AREA1_ZH - 1, -R1HW/2 + 1),
+      aabbMax: new Vector4D(R1HR - 1, R1HR - 1, AREA1_ZH + _H + 1, R1HW/2 - 1),
+      requireBargain: false,
+      title: "HYPERHELL",
+      text: "This is a Demo of HYPERHELL,<br>the first 4D shooter of its kind.<br><br><u>Controls</u><br>Use WASD keys to move. Left-click + drag to look around (or J/L keys).",
+    },
+    {
+      id: "room2_controls",
+      aabbMin: new Vector4D(R2X - R2R + 1, -R2R + 1, AREA1_ZH - 1, -R2R + 1),
+      aabbMax: new Vector4D(R2X + R2R - 1, R2R - 1, AREA1_ZH + 1, R2R - 1),
+      requireBargain: true,
+      title: "4D MOVEMENT",
+      text: "You wake up feeling... different.<br><br><u>Controls</u><br>You can now move in the 4th dimension.<br>Left click + drag up/down to rotate your view in 4D, and find an exit.",
+    },
+    {
+      id: "corridor3_shooting",
+      aabbMin: c3c.add(new Vector4D(-c3r/2, -c3r/2, -_H, -1)),
+      aabbMax: c3c.add(new Vector4D(c3r/2, c3r/2, _H, 1)),
+      requireBargain: false,
+      title: "COMBAT",
+      text: "Enemies can move in 4 dimensions,<br>but so can you.<br><br>Press Q/E to step sideways in the 4th dimension, and Space to shoot.",
+    },
+    {
+      id: "corridor4_unblink",
+      aabbMin: c4c.add(new Vector4D(-c4r/2, -c4r/2, -_H, -1 -4)),
+      aabbMax: c4c.add(new Vector4D(c4r/2, c4r/2, _H, 1 -4)),
+      requireBargain: false,
+      title: "UNBLINK",
+      text: "Open your Eye...<br><br>Press and hold R to Unblink,<br>allowing you to see more of the 4th dimension.<br>While unblinking, some enemies are easier to shoot.",
+    },
+  ],
+};
+
 
 const main_canvas = document.getElementById('canvas');
 let custom_scene = {

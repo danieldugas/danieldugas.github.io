@@ -22,6 +22,7 @@ export async function runHyperengine(scene) {
             this.scene = scene;
 
             // game variables
+            this.paused = false; // when true, freeze physics/controls/animation
             this.STEP_PHYSICS_ONCE = false;
             this.DEBUG_PHYSICS = false;
             this.physics_time_s = 0;
@@ -2967,6 +2968,12 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         // Clamp to avoid spiral of death if tab loses focus
         physicsAccumulator += Math.min(frameTime, 0.1);
         let nStepsNeeded = Math.floor(physicsAccumulator / PHYSICS_DT);
+
+        if (engineState.paused) {
+            // Drain accumulator without stepping, so time doesn't jump on unpause
+            physicsAccumulator = 0;
+            nStepsNeeded = 0;
+        }
 
         for (let i = 0; i < nStepsNeeded; i++) { updatePlayerControls(); }
         if (PROFILING) { t_player = performance.now(); }
