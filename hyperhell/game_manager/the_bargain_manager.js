@@ -713,6 +713,10 @@ class GameState {
         this.playerIsFalling = false;
         this.fallStartTime = 0;
         this.fallFromZ = 0; // absolute Z at start of fall
+        // Lava tracking
+        this.lavaTime = 0; // seconds the player has been standing in lava (not on bridge)
+        this.burnLevel = 0; // Increases when in lava, decreases when outside
+        this.lastLavaCheckTime = 0;
         // Boss: 0=not started, 1=phase1 active, 2=intermission, 3=phase2 active
         this.bossPhase = 0;
         this.bossDefeated = false;
@@ -1067,6 +1071,28 @@ export class TheBargainManager {
         healthBarOuter.appendChild(healthValue);
         healthContainer.appendChild(healthLabel);
         healthContainer.appendChild(healthBarOuter);
+
+        // Burn bar (below health bar, hidden by default)
+        const burnBarOuter = document.createElement("div");
+        burnBarOuter.id = "hud_burn_bar_outer";
+        burnBarOuter.style.width = "120px";
+        burnBarOuter.style.height = "8px";
+        burnBarOuter.style.backgroundColor = "#222";
+        burnBarOuter.style.border = "1px solid #555";
+        burnBarOuter.style.borderRadius = "2px";
+        burnBarOuter.style.overflow = "hidden";
+        burnBarOuter.style.display = "none";
+
+        const burnBarInner = document.createElement("div");
+        burnBarInner.id = "hud_burn_bar";
+        burnBarInner.style.width = "0%";
+        burnBarInner.style.height = "100%";
+        burnBarInner.style.backgroundColor = "#f80";
+        burnBarInner.style.transition = "width 0.1s";
+
+        burnBarOuter.appendChild(burnBarInner);
+        healthContainer.appendChild(burnBarOuter);
+
         hud.appendChild(healthContainer);
 
         // Ammo bar container
@@ -1812,6 +1838,20 @@ export class TheBargainManager {
             healthValue.innerHTML = Math.round(this.gameState.playerHealth);
         }
 
+        const burnBarOuter = document.getElementById("hud_burn_bar_outer");
+        const burnBar = document.getElementById("hud_burn_bar");
+        if (burnBarOuter && burnBar) {
+            const burnLevel = this.gameState.burnLevel;
+            if (burnLevel > 0) {
+                burnBarOuter.style.display = "block";
+                const maxBurnTime = 1.0;
+                const burnPercent = Math.min(burnLevel / maxBurnTime, 1.0) * 100;
+                burnBar.style.width = burnPercent + "%";
+            } else {
+                burnBarOuter.style.display = "none";
+            }
+        }
+
         if (ammoBar && ammoValue) {
             const ammoPercent = (this.gameState.playerAmmo / this.gameState.playerMaxAmmo) * 100;
             ammoBar.style.width = ammoPercent + "%";
@@ -2294,6 +2334,39 @@ export class TheBargainManager {
                     collDiv.innerHTML = `Colliding:<br>(none)`;
                 }
 
+                // Debug: lava/bridge info
+                if (!document.getElementById("lava_bridge_debug")) {
+                    const div = document.createElement("div");
+                    div.id = "lava_bridge_debug";
+                    document.body.appendChild(div);
+                    div.style.position = "absolute";
+                    div.style.top = "60px";
+                    div.style.left = "320px";
+                    div.style.color = "rgb(255, 200, 100)";
+                    div.style.fontFamily = "monospace";
+                    div.style.fontSize = "12px";
+                }
+                const px = engineState.camstand_T.matrix[0][4];
+                const py = engineState.camstand_T.matrix[1][4];
+                const pw = engineState.camstand_T.matrix[3][4];
+                const onLava = this.isPlayerOnLava(px, py, pw);
+                const onBridge = this.isPlayerOnBridge(px, py, pw);
+                const inDangerousLava = onLava && !onBridge;
+                const dt = engineState.physics_time_s - this.gameState.lastLavaCheckTime;
+                this.gameState.lastLavaCheckTime = engineState.physics_time_s;
+                if (inDangerousLava) {
+                    this.gameState.lavaTime += dt;
+                    this.gameState.burnLevel = Math.max(0.0, Math.min(1.0, this.gameState.burnLevel + dt/ 3.0));
+                } else {
+                    this.gameState.lavaTime = 0;
+                    this.gameState.burnLevel = Math.max(0.0, Math.min(1.0, this.gameState.burnLevel - dt/ 3.0));
+                }
+                const lbDiv = document.getElementById("lava_bridge_debug");
+                lbDiv.innerHTML =
+                    `Lava: <span style="color:${onLava ? '#ff4444' : '#88ff88'}">${onLava ? 'YES' : 'no'}</span><br>` +
+                    `Bridge: <span style="color:${onBridge ? '#88ff88' : '#aaaaaa'}">${onBridge ? 'YES' : 'no'}</span><br>` +
+                    `Lava time: <span style="color:${inDangerousLava ? '#ff4444' : '#aaaaaa'}">${this.gameState.lavaTime.toFixed(2)}s</span>`;
+
                 // Debug: print the player pose to a div
                 // create div if it doesn't exist
                 if (!document.getElementById("player_pose")) {
@@ -2318,6 +2391,56 @@ export class TheBargainManager {
         // Camera, floor, gem, HUD
         this.updateCameraAndFloor(engineState);
         this.updateHUD();
+    }
+
+    isPlayerOnLava(x, y, w) {
+        if (!this.poIs.lavaRegions) return false;
+        for (const region of this.poIs.lavaRegions) {
+            if (region.type === 'box') {
+                if (Math.abs(x - region.cx) < region.hx &&
+                    Math.abs(y - region.cy) < region.hy &&
+                    Math.abs(w - region.cw) < region.hw) {
+                    return true;
+                }
+            } else if (region.type === 'sphere') {
+                const dx = x - region.cx;
+                const dy = y - region.cy;
+                const dw = w - region.cw;
+                if (dx * dx + dy * dy + dw * dw < region.r * region.r) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    isPlayerOnBridge(x, y, w) {
+        if (!this.poIs.bridgeRegions) return false;
+        for (const region of this.poIs.bridgeRegions) {
+            if (region.type === 'box') {
+                if (Math.abs(x - region.cx) < region.hx &&
+                    Math.abs(y - region.cy) < region.hy &&
+                    Math.abs(w - region.cw) < region.hw) {
+                    return true;
+                }
+            } else if (region.type === 'shell') {
+                const dx = x - region.cx;
+                const dy = y - region.cy;
+                const dw = w - region.cw;
+                const dist = Math.sqrt(dx * dx + dy * dy + dw * dw);
+                if (dist >= region.innerR && dist <= region.outerR) {
+                    return true;
+                }
+            } else if (region.type === 'sphere') {
+                const dx = x - region.cx;
+                const dy = y - region.cy;
+                const dw = w - region.cw;
+                if (dx * dx + dy * dy + dw * dw < region.r * region.r) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     updateCameraAndFloor(engineState) {

@@ -1491,6 +1491,22 @@ const R6_PedestalR = 7.0;
 const R6_PedestalHZ = 1.0;
 const r6_entrance = r5_exit.add(new Vector4D(0, 0, 0, -C8_LW));
 const r6_c = r6_entrance.add(new Vector4D(0, 0, 0, -R6_R + R6_CutW));
+// Connect Outer Shore to Spherical Bridge (x+)
+const r6_b1_lx = R6_R - R6_BridgeShellR - 5.0;
+const r6_b1_r = R5_BX / 2.0;
+const r6_b1c = r6_c.add(new Vector4D(r6_b1_lx/2.0 + R6_BridgeShellR, 0, 0, 0));
+// To make the player's life easier, add a monolith at the first bridge entrance
+const r6_m1_r = 2.0;
+const r6_m1_h = 3.0;
+const r6_m1c = r6_c.add(new Vector4D(r6_b1_lx + R6_BridgeShellR - 10.0, 0, _H + r6_m1_h/2.0, 0));
+// Connect Spherical Bridge To Pedestal (y+)
+const r6_b2_ly = R6_BridgeShellR;
+const r6_b2_r = R5_BX / 2.0;
+const r6_b2c = r6_c.add(new Vector4D(0, r6_b2_ly/2.0, 0, 0));
+// To make the player's life easier, add a monolith at the first bridge entrance
+const r6_m2_r = 2.0;
+const r6_m2_h = 3.0;
+const r6_m2c = r6_c.add(new Vector4D(0, r6_b2_ly, _H + r6_m2_h/2.0, 0));
 let magicWallIndex = null;
 let bossEntranceWallIdx = null;
 if (true) {
@@ -1537,13 +1553,6 @@ if (true) {
     const bossWall = objects[objects.length - 1];
     bossWall.texture = starryTex.texture;
     bossWall.texture_info = starryTex.texture_info;
-    // bossWall.vertices_in_texmap = bossWall.vertices_in_object.map(v => {
-    //   const theta = Math.atan2(v.w, v.y);
-    //   const u = theta / (2 * Math.PI) + 0.5;
-    //   const vv = v.x * 0.5 + 0.5;
-    //   const ww = v.z * 0.5 + 0.5;
-    //   return new Vector4D(u, vv, ww, 0);
-    // });
   }
   // Lava rendered by floor shader
   // Spherical Bridge
@@ -1558,9 +1567,6 @@ if (true) {
     0x222222
   ));
   // Connect Outer Shore to Spherical Bridge (x+)
-  const r6_b1_lx = R6_R - R6_BridgeShellR - 5.0;
-  const r6_b1_r = R5_BX / 2.0;
-  const r6_b1c = r6_c.add(new Vector4D(r6_b1_lx/2.0 + R6_BridgeShellR, 0, 0, 0));
   objects.push(createHypercube(
     new Transform4D([
       [ r6_b1_lx/2.0,         0,         0,              0,  r6_b1c.x],
@@ -1586,9 +1592,6 @@ if (true) {
   ));
 
   // To make the player's life easier, add a monolith at the first bridge entrance
-  const r6_m1_r = 2.0;
-  const r6_m1_h = 3.0;
-  const r6_m1c = r6_c.add(new Vector4D(r6_b1_lx + R6_BridgeShellR - 10.0, 0, _H + r6_m1_h/2.0, 0));
   objects.push(createHypercube(
     new Transform4D([
       [ r6_m1_r,         0,         0,              0,  r6_m1c.x],
@@ -1601,9 +1604,6 @@ if (true) {
   ));
   objects[objects.length-1].simulate_physics = false; // static object
   // Connect Spherical Bridge To Pedestal (y+)
-  const r6_b2_ly = R6_BridgeShellR;
-  const r6_b2_r = R5_BX / 2.0;
-  const r6_b2c = r6_c.add(new Vector4D(0, r6_b2_ly/2.0, 0, 0));
   objects.push(createHypercube(
     new Transform4D([
       [ r6_b2_r,         0,         0,              0,  r6_b2c.x],
@@ -1616,9 +1616,6 @@ if (true) {
   ));
   objects[objects.length-1].simulate_physics = false; // static object
   // To make the player's life easier, add a monolith at the first bridge entrance
-  const r6_m2_r = 2.0;
-  const r6_m2_h = 3.0;
-  const r6_m2c = r6_c.add(new Vector4D(0, r6_b2_ly, _H + r6_m2_h/2.0, 0));
   objects.push(createHypercube(
     new Transform4D([
       [ r6_m2_r,         0,         0,              0,  r6_m2c.x],
@@ -1922,6 +1919,17 @@ let poIs = {
       title: "LAVA",
       text: "The careless burn to a crisp down here.<br><br>Stepping in lava can be fatal.<br>Lava is easier to see without Unblink.<br>Locate bridges to cross safely.",
     },
+  ],
+  lavaRegions: [
+      { type: 'box', cx: r5_c.x, cy: r5_c.y, cw: r5_c.w, hx: R5_DX / 2.0 * 3, hy: R5_DY / 2.0 * 100, hw: R5_LAVA_WL / 2.0 },
+      { type: 'sphere', cx: r6_c.x, cy: r6_c.y, cw: r6_c.w, r: R6_LavaR },
+  ],
+  bridgeRegions: [
+      { type: 'box', cx: r5_bc.x, cy: r5_bc.y, cw: r5_bc.w, hx: R5_BX / 2.0, hy: R5_BY / 2.0, hw: R5_BWL / 2.0 },
+      { type: 'box', cx: r6_b1c.x, cy: r6_b1c.y, cw: r6_b1c.w, hx: r6_b1_lx / 2.0, hy: r6_b1_r, hw: r6_b1_r },
+      { type: 'box', cx: r6_b2c.x, cy: r6_b2c.y, cw: r6_b2c.w, hx: r6_b2_r, hy: r6_b2_ly / 2.0, hw: r6_b2_r },
+      { type: 'shell', cx: r6_c.x, cy: r6_c.y, cw: r6_c.w, innerR: R6_BridgeShellR * 0.8, outerR: R6_BridgeShellR * 1.1 },
+      { type: 'sphere', cx: r6_c.x, cy: r6_c.y, cw: r6_c.w, r: R6_PedestalR },
   ],
 };
 
