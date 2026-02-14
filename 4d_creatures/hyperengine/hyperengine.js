@@ -113,7 +113,7 @@ export async function runHyperengine(scene) {
         <option value="slice">Slice</option>
         <option value="cutout">Cutout</option>
         <option value="full" selected>Full</option>
-        <option value="half" selected>Half</option>
+        <option value="half">Half</option>
         <option value="eyeball">Eyeball</option>
     </select>
     </div>
