@@ -855,6 +855,454 @@ function generateStarryTexture() {
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
 
+// Cement wall texture - rough concrete with cracks, stains, and form marks
+function generateDamCementTexture() {
+    const USIZE = 128;
+    const VSIZE = 96;
+    const WSIZE = 128;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+    function smoothHash(x, y, z) {
+        const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
+        const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
+        const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
+        const sx = xf * xf * (3 - 2 * xf);
+        const sy = yf * yf * (3 - 2 * yf);
+        const sz = zf * zf * (3 - 2 * zf);
+        const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
+        const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
+        const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
+        const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
+        const nx00 = n000 + (n100 - n000) * sx;
+        const nx10 = n010 + (n110 - n010) * sx;
+        const nx01 = n001 + (n101 - n001) * sx;
+        const nx11 = n011 + (n111 - n011) * sx;
+        const nxy0 = nx00 + (nx10 - nx00) * sy;
+        const nxy1 = nx01 + (nx11 - nx01) * sy;
+        return nxy0 + (nxy1 - nxy0) * sz;
+    }
+
+    // Form lines (horizontal marks from concrete formwork)
+    const formPeriod = 24;
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+                const n = hash(u, v, w);
+
+                // Multi-octave noise for surface variation
+                const n1 = smoothHash(u / 12, v / 12, w / 12);
+                const n2 = smoothHash(u / 6 + 50, v / 6 + 50, w / 6 + 50) * 0.5;
+                const n3 = smoothHash(u / 25 + 100, v / 25 + 100, w / 25 + 100) * 0.7;
+                const surface = (n1 + n2 + n3) / 2.2;
+
+                // Base cement color: cool grey
+                let r = 85 + surface * 35 + n * 8;
+                let g = 88 + surface * 33 + n * 7;
+                let b = 90 + surface * 30 + n * 6;
+
+                // Horizontal form lines (subtle darker bands)
+                const formPos = v % formPeriod;
+                if (formPos < 2) {
+                    const formDark = 0.82;
+                    r *= formDark; g *= formDark; b *= formDark;
+                }
+
+                // Cracks: thin dark lines using high-frequency noise threshold
+                const crack = smoothHash(u / 2.0 + 200, v / 8.0 + 200, w / 2.0 + 200);
+                if (crack > 0.78 && crack < 0.82) {
+                    r *= 0.5; g *= 0.5; b *= 0.5;
+                }
+
+                // Water stain patches (slightly darker, greenish tint)
+                const stain = smoothHash(u / 18 + 300, v / 10 + 300, w / 18 + 300);
+                if (stain > 0.65) {
+                    const s = (stain - 0.65) / 0.35;
+                    r *= (1 - s * 0.15);
+                    g *= (1 - s * 0.05);
+                    b *= (1 - s * 0.12);
+                }
+
+                // Spherical lights
+                const lightSpacing = 48;
+                const lightRadius = 28;
+                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
+                const lightV = VSIZE / 2;
+                const lightW = Math.round(w / lightSpacing) * lightSpacing;
+                const du = u - nearestLightU;
+                const dv = v - lightV;
+                const dw = w - lightW;
+                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
+                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
+                const lightIntensity = lightBright * lightBright;
+                r = r * (1.0 + lightIntensity * 1.2);
+                g = g * (1.0 + lightIntensity * 1.1);
+                b = b * (1.0 + lightIntensity * 0.8);
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
+// Industrial metal panel texture - dark riveted steel plates
+function generateDamMetalTexture() {
+    const USIZE = 128;
+    const VSIZE = 96;
+    const WSIZE = 128;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    const panelW = 32;  // panel width in u
+    const panelH = 24;  // panel height in v
+    const panelD = 32;  // panel depth in w
+    const seamWidth = 2;
+    const rivetSpacing = 8;
+    const rivetRadius = 1.2;
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+                const n = hash(u, v, w);
+
+                // Panel seams
+                const uInPanel = u % panelW;
+                const vInPanel = v % panelH;
+                const wInPanel = w % panelD;
+                const isSeamU = uInPanel < seamWidth || uInPanel >= panelW - seamWidth;
+                const isSeamV = vInPanel < seamWidth || vInPanel >= panelH - seamWidth;
+                const isSeamW = wInPanel < seamWidth || wInPanel >= panelD - seamWidth;
+                const isSeam = isSeamU || isSeamV || isSeamW;
+
+                // Rivet check (rivets along seam edges)
+                let isRivet = false;
+                if (isSeamV && (vInPanel < seamWidth || vInPanel >= panelH - seamWidth)) {
+                    const rivetU = u % rivetSpacing;
+                    const rivetW = w % rivetSpacing;
+                    if (rivetU < rivetRadius * 2 && Math.abs(rivetU - rivetRadius) < rivetRadius) isRivet = true;
+                    if (rivetW < rivetRadius * 2 && Math.abs(rivetW - rivetRadius) < rivetRadius) isRivet = true;
+                }
+
+                // Per-panel tint
+                const panelIdU = Math.floor(u / panelW);
+                const panelIdV = Math.floor(v / panelH);
+                const panelIdW = Math.floor(w / panelD);
+                const panelTint = (hash(panelIdU * 7, panelIdV * 13, panelIdW * 19) - 0.5) * 12;
+
+                let r, g, b;
+                if (isRivet) {
+                    // Bright rivet head
+                    r = 90 + n * 15; g = 92 + n * 15; b = 98 + n * 15;
+                } else if (isSeam) {
+                    // Dark seam/groove
+                    r = 15 + n * 6; g = 16 + n * 6; b = 18 + n * 6;
+                } else {
+                    // Steel panel surface
+                    const base = 50 + n * 12 + panelTint;
+                    // Brushed metal: streaks along u
+                    const streak = hash(u, Math.floor(v / 2) * 2, Math.floor(w / 2) * 2);
+                    const streakMod = 1.0 + (streak - 0.5) * 0.15;
+                    r = base * 0.92 * streakMod;
+                    g = base * 0.95 * streakMod;
+                    b = base * 1.02 * streakMod;
+
+                    // Rust patches
+                    const rust = hash(Math.floor(u / 5) + 400, Math.floor(v / 5) + 400, Math.floor(w / 5) + 400);
+                    if (rust > 0.85) {
+                        const rustStr = (rust - 0.85) / 0.15;
+                        r = r * (1 - rustStr * 0.3) + rustStr * 55;
+                        g *= (1 - rustStr * 0.5);
+                        b *= (1 - rustStr * 0.6);
+                    }
+                }
+
+                // Spherical lights
+                const lightSpacing = 48;
+                const lightRadius = 25;
+                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
+                const nearestLightW = Math.round(w / lightSpacing) * lightSpacing;
+                const du = u - nearestLightU;
+                const dv = v - VSIZE / 2;
+                const dw = w - nearestLightW;
+                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
+                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
+                const lightIntensity = lightBright * lightBright;
+                r = r * (1.0 + lightIntensity * 1.5);
+                g = g * (1.0 + lightIntensity * 1.4);
+                b = b * (1.0 + lightIntensity * 1.8);
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
+// Blood canal texture - cement base with blood channels running down slanted surfaces
+function generateBloodCanalTexture() {
+    const USIZE = 128;
+    const VSIZE = 96;
+    const WSIZE = 128;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+    function smoothHash(x, y, z) {
+        const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
+        const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
+        const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
+        const sx = xf * xf * (3 - 2 * xf);
+        const sy = yf * yf * (3 - 2 * yf);
+        const sz = zf * zf * (3 - 2 * zf);
+        const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
+        const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
+        const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
+        const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
+        const nx00 = n000 + (n100 - n000) * sx;
+        const nx10 = n010 + (n110 - n010) * sx;
+        const nx01 = n001 + (n101 - n001) * sx;
+        const nx11 = n011 + (n111 - n011) * sx;
+        const nxy0 = nx00 + (nx10 - nx00) * sy;
+        const nxy1 = nx01 + (nx11 - nx01) * sy;
+        return nxy0 + (nxy1 - nxy0) * sz;
+    }
+
+    // Pre-compute blood canal map
+    // Canals flow along u (the slope direction), shaped by v/w cross-section noise
+    const bloodMap = new Float32Array(USIZE * VSIZE * WSIZE);
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                // Canal channels: narrow streaks along u, positioned by v/w noise
+                const n1 = smoothHash(u / 50, v / 4, w / 4);
+                const n2 = smoothHash(u / 25 + 50, v / 6 + 30, w / 6 + 30) * 0.5;
+                const n3 = smoothHash(u / 80 + 100, v / 3 + 60, w / 3 + 60) * 0.3;
+                let blood = (n1 + n2 + n3) / 1.8;
+                // Sharper threshold for canal-like shapes
+                blood = Math.max(0, (blood - 0.45) / 0.55);
+                blood = blood * blood;
+                // Blood accumulates towards bottom of slope (higher u = lower on slope)
+                const uGrad = u / USIZE;
+                blood *= (0.4 + uGrad * 0.6);
+                bloodMap[u + v * USIZE + w * USIZE * VSIZE] = blood;
+            }
+        }
+    }
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+                const n = hash(u, v, w);
+
+                // Cement base
+                const n1 = smoothHash(u / 12, v / 12, w / 12);
+                const n2 = smoothHash(u / 6 + 50, v / 6 + 50, w / 6 + 50) * 0.5;
+                const surface = (n1 + n2) / 1.5;
+                let r = 80 + surface * 30 + n * 8;
+                let g = 83 + surface * 28 + n * 7;
+                let b = 85 + surface * 25 + n * 6;
+
+                // Cracks
+                const crack = smoothHash(u / 2.0 + 200, v / 8.0 + 200, w / 2.0 + 200);
+                if (crack > 0.78 && crack < 0.82) {
+                    r *= 0.5; g *= 0.5; b *= 0.5;
+                }
+
+                // Blood canals
+                const blood = bloodMap[index];
+                if (blood > 0) {
+                    // Dark red blood with depth variation
+                    const bloodDepth = blood * blood;
+                    r = r * (1 - blood * 0.7) + blood * 120;
+                    g = g * (1 - blood * 0.9) + blood * 8;
+                    b = b * (1 - blood * 0.9) + blood * 5;
+                    // Darker in deeper channels
+                    if (bloodDepth > 0.3) {
+                        const deep = (bloodDepth - 0.3) / 0.7;
+                        r = r * (1 - deep * 0.4) + deep * 50;
+                        g *= (1 - deep * 0.5);
+                        b *= (1 - deep * 0.5);
+                    }
+                }
+
+                // Blood-stained edges around canals (brownish discoloration)
+                const edgeBlood = bloodMap[index];
+                if (edgeBlood > 0.01 && edgeBlood < 0.2) {
+                    const edgeStr = edgeBlood / 0.2;
+                    r = r * (1 - edgeStr * 0.1) + edgeStr * 20;
+                    g *= (1 - edgeStr * 0.15);
+                    b *= (1 - edgeStr * 0.12);
+                }
+
+                // Dim warm lights along the slope
+                const lightSpacing = 48;
+                const lightRadius = 22;
+                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
+                const nearestLightW = Math.round(w / lightSpacing) * lightSpacing;
+                const du = u - nearestLightU;
+                const dv = v - VSIZE / 2;
+                const dw = w - nearestLightW;
+                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
+                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
+                const lightIntensity = lightBright * lightBright;
+                r = r * (1.0 + lightIntensity * 1.5);
+                g = g * (1.0 + lightIntensity * 0.8);
+                b = b * (1.0 + lightIntensity * 0.5);
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
+// Blood pool cement texture - flat cement floor with standing pools of blood
+function generateBloodPoolTexture() {
+    const USIZE = 128;
+    const VSIZE = 96;
+    const WSIZE = 128;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+    function smoothHash(x, y, z) {
+        const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
+        const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
+        const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
+        const sx = xf * xf * (3 - 2 * xf);
+        const sy = yf * yf * (3 - 2 * yf);
+        const sz = zf * zf * (3 - 2 * zf);
+        const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
+        const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
+        const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
+        const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
+        const nx00 = n000 + (n100 - n000) * sx;
+        const nx10 = n010 + (n110 - n010) * sx;
+        const nx01 = n001 + (n101 - n001) * sx;
+        const nx11 = n011 + (n111 - n011) * sx;
+        const nxy0 = nx00 + (nx10 - nx00) * sy;
+        const nxy1 = nx01 + (nx11 - nx01) * sy;
+        return nxy0 + (nxy1 - nxy0) * sz;
+    }
+
+    // Pre-compute blood pool map: large blobby pools on a flat surface
+    const poolMap = new Float32Array(USIZE * VSIZE * WSIZE);
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                // Large smooth blobs for pools
+                const n1 = smoothHash(u / 16, v / 16, w / 16);
+                const n2 = smoothHash(u / 8 + 70, v / 8 + 70, w / 8 + 70) * 0.4;
+                const n3 = smoothHash(u / 30 + 140, v / 30 + 140, w / 30 + 140) * 0.6;
+                let pool = (n1 + n2 + n3) / 2.0;
+                // Threshold for distinct pool shapes
+                pool = Math.max(0, (pool - 0.38) / 0.62);
+                pool = Math.min(1, pool * 1.5);
+                poolMap[u + v * USIZE + w * USIZE * VSIZE] = pool;
+            }
+        }
+    }
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+                const n = hash(u, v, w);
+
+                // Cement base
+                const n1 = smoothHash(u / 12, v / 12, w / 12);
+                const n2 = smoothHash(u / 6 + 50, v / 6 + 50, w / 6 + 50) * 0.5;
+                const surface = (n1 + n2) / 1.5;
+                let r = 85 + surface * 35 + n * 8;
+                let g = 88 + surface * 33 + n * 7;
+                let b = 90 + surface * 30 + n * 6;
+
+                // Form lines
+                const formPos = v % 24;
+                if (formPos < 2) { r *= 0.82; g *= 0.82; b *= 0.82; }
+
+                const pool = poolMap[index];
+                if (pool > 0) {
+                    // Blood pool: dark glossy red, reflective
+                    const poolSmooth = pool * pool; // smoother edges
+                    // Glossy blood surface with subtle specular highlights
+                    const spec = hash(Math.floor(u / 3) * 3 + 500, Math.floor(v / 3) * 3 + 500, Math.floor(w / 3) * 3 + 500);
+                    const specular = spec > 0.92 ? (spec - 0.92) / 0.08 * 30 * poolSmooth : 0;
+                    // Deep dark blood color
+                    r = r * (1 - poolSmooth) + poolSmooth * (55 + n * 15 + specular);
+                    g = g * (1 - poolSmooth) + poolSmooth * (4 + n * 4);
+                    b = b * (1 - poolSmooth) + poolSmooth * (4 + n * 3);
+                } else {
+                    // Dried blood stains around pools (brownish ring)
+                    // Check if nearby texels have blood
+                    const nearPool = poolMap[Math.min(USIZE-1, u+2) + v * USIZE + w * USIZE * VSIZE]
+                                   + poolMap[Math.max(0, u-2) + v * USIZE + w * USIZE * VSIZE]
+                                   + poolMap[u + v * USIZE + Math.min(WSIZE-1, w+2) * USIZE * VSIZE]
+                                   + poolMap[u + v * USIZE + Math.max(0, w-2) * USIZE * VSIZE];
+                    if (nearPool > 0) {
+                        const edgeStr = Math.min(1, nearPool * 0.4);
+                        r = r * (1 - edgeStr * 0.2) + edgeStr * 30;
+                        g *= (1 - edgeStr * 0.3);
+                        b *= (1 - edgeStr * 0.25);
+                    }
+                }
+
+                // Spherical lights
+                const lightSpacing = 48;
+                const lightRadius = 28;
+                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
+                const nearestLightW = Math.round(w / lightSpacing) * lightSpacing;
+                const du = u - nearestLightU;
+                const dv = v - VSIZE / 2;
+                const dw = w - nearestLightW;
+                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
+                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
+                const lightIntensity = lightBright * lightBright;
+                // Warm light, blood pools reflect reddish
+                const poolReflect = poolMap[index] > 0.3 ? 1.5 : 1.0;
+                r = r * (1.0 + lightIntensity * 1.2 * poolReflect);
+                g = g * (1.0 + lightIntensity * 1.0);
+                b = b * (1.0 + lightIntensity * 0.7);
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
 
 const applyTex = (wall, tex, su, sv, sw) => {
   if (!APPLY_TEXTURES) return; wall.texture = tex.texture; wall.texture_info = tex.texture_info; wall.vertices_in_texmap = wall.vertices_in_object.map(v => new Vector4D((v.y*.5+.5)*su, (v.z*.5+.5)*sv, (v.w*.5+.5)*sw, 0));
@@ -1309,453 +1757,6 @@ const c5_monster1 = c5c.add(new Vector4D(6, 0, 0, 0));
 const c5_monster2 = c5c.add(new Vector4D(-6, 0, 0, 0));
 // === Room 3 textures: Industrial dam theme ===
 
-// Cement wall texture - rough concrete with cracks, stains, and form marks
-function generateDamCementTexture() {
-    const USIZE = 128;
-    const VSIZE = 96;
-    const WSIZE = 128;
-    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
-
-    function hash(x, y, z) {
-        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
-        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
-        return (h & 0x7fffffff) / 0x7fffffff;
-    }
-    function smoothHash(x, y, z) {
-        const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
-        const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
-        const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
-        const sx = xf * xf * (3 - 2 * xf);
-        const sy = yf * yf * (3 - 2 * yf);
-        const sz = zf * zf * (3 - 2 * zf);
-        const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
-        const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
-        const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
-        const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
-        const nx00 = n000 + (n100 - n000) * sx;
-        const nx10 = n010 + (n110 - n010) * sx;
-        const nx01 = n001 + (n101 - n001) * sx;
-        const nx11 = n011 + (n111 - n011) * sx;
-        const nxy0 = nx00 + (nx10 - nx00) * sy;
-        const nxy1 = nx01 + (nx11 - nx01) * sy;
-        return nxy0 + (nxy1 - nxy0) * sz;
-    }
-
-    // Form lines (horizontal marks from concrete formwork)
-    const formPeriod = 24;
-
-    for (let w = 0; w < WSIZE; w++) {
-        for (let v = 0; v < VSIZE; v++) {
-            for (let u = 0; u < USIZE; u++) {
-                const index = u + v * USIZE + w * USIZE * VSIZE;
-                const n = hash(u, v, w);
-
-                // Multi-octave noise for surface variation
-                const n1 = smoothHash(u / 12, v / 12, w / 12);
-                const n2 = smoothHash(u / 6 + 50, v / 6 + 50, w / 6 + 50) * 0.5;
-                const n3 = smoothHash(u / 25 + 100, v / 25 + 100, w / 25 + 100) * 0.7;
-                const surface = (n1 + n2 + n3) / 2.2;
-
-                // Base cement color: cool grey
-                let r = 85 + surface * 35 + n * 8;
-                let g = 88 + surface * 33 + n * 7;
-                let b = 90 + surface * 30 + n * 6;
-
-                // Horizontal form lines (subtle darker bands)
-                const formPos = v % formPeriod;
-                if (formPos < 2) {
-                    const formDark = 0.82;
-                    r *= formDark; g *= formDark; b *= formDark;
-                }
-
-                // Cracks: thin dark lines using high-frequency noise threshold
-                const crack = smoothHash(u / 2.0 + 200, v / 8.0 + 200, w / 2.0 + 200);
-                if (crack > 0.78 && crack < 0.82) {
-                    r *= 0.5; g *= 0.5; b *= 0.5;
-                }
-
-                // Water stain patches (slightly darker, greenish tint)
-                const stain = smoothHash(u / 18 + 300, v / 10 + 300, w / 18 + 300);
-                if (stain > 0.65) {
-                    const s = (stain - 0.65) / 0.35;
-                    r *= (1 - s * 0.15);
-                    g *= (1 - s * 0.05);
-                    b *= (1 - s * 0.12);
-                }
-
-                // Spherical lights
-                const lightSpacing = 48;
-                const lightRadius = 28;
-                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
-                const lightV = VSIZE / 2;
-                const lightW = Math.round(w / lightSpacing) * lightSpacing;
-                const du = u - nearestLightU;
-                const dv = v - lightV;
-                const dw = w - lightW;
-                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
-                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
-                const lightIntensity = lightBright * lightBright;
-                r = r * (1.0 + lightIntensity * 1.2);
-                g = g * (1.0 + lightIntensity * 1.1);
-                b = b * (1.0 + lightIntensity * 0.8);
-
-                r = Math.max(0, Math.min(255, Math.round(r)));
-                g = Math.max(0, Math.min(255, Math.round(g)));
-                b = Math.max(0, Math.min(255, Math.round(b)));
-                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
-            }
-        }
-    }
-    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
-}
-
-// Industrial metal panel texture - dark riveted steel plates
-function generateDamMetalTexture() {
-    const USIZE = 128;
-    const VSIZE = 96;
-    const WSIZE = 128;
-    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
-
-    function hash(x, y, z) {
-        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
-        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
-        return (h & 0x7fffffff) / 0x7fffffff;
-    }
-
-    const panelW = 32;  // panel width in u
-    const panelH = 24;  // panel height in v
-    const panelD = 32;  // panel depth in w
-    const seamWidth = 2;
-    const rivetSpacing = 8;
-    const rivetRadius = 1.2;
-
-    for (let w = 0; w < WSIZE; w++) {
-        for (let v = 0; v < VSIZE; v++) {
-            for (let u = 0; u < USIZE; u++) {
-                const index = u + v * USIZE + w * USIZE * VSIZE;
-                const n = hash(u, v, w);
-
-                // Panel seams
-                const uInPanel = u % panelW;
-                const vInPanel = v % panelH;
-                const wInPanel = w % panelD;
-                const isSeamU = uInPanel < seamWidth || uInPanel >= panelW - seamWidth;
-                const isSeamV = vInPanel < seamWidth || vInPanel >= panelH - seamWidth;
-                const isSeamW = wInPanel < seamWidth || wInPanel >= panelD - seamWidth;
-                const isSeam = isSeamU || isSeamV || isSeamW;
-
-                // Rivet check (rivets along seam edges)
-                let isRivet = false;
-                if (isSeamV && (vInPanel < seamWidth || vInPanel >= panelH - seamWidth)) {
-                    const rivetU = u % rivetSpacing;
-                    const rivetW = w % rivetSpacing;
-                    if (rivetU < rivetRadius * 2 && Math.abs(rivetU - rivetRadius) < rivetRadius) isRivet = true;
-                    if (rivetW < rivetRadius * 2 && Math.abs(rivetW - rivetRadius) < rivetRadius) isRivet = true;
-                }
-
-                // Per-panel tint
-                const panelIdU = Math.floor(u / panelW);
-                const panelIdV = Math.floor(v / panelH);
-                const panelIdW = Math.floor(w / panelD);
-                const panelTint = (hash(panelIdU * 7, panelIdV * 13, panelIdW * 19) - 0.5) * 12;
-
-                let r, g, b;
-                if (isRivet) {
-                    // Bright rivet head
-                    r = 90 + n * 15; g = 92 + n * 15; b = 98 + n * 15;
-                } else if (isSeam) {
-                    // Dark seam/groove
-                    r = 15 + n * 6; g = 16 + n * 6; b = 18 + n * 6;
-                } else {
-                    // Steel panel surface
-                    const base = 50 + n * 12 + panelTint;
-                    // Brushed metal: streaks along u
-                    const streak = hash(u, Math.floor(v / 2) * 2, Math.floor(w / 2) * 2);
-                    const streakMod = 1.0 + (streak - 0.5) * 0.15;
-                    r = base * 0.92 * streakMod;
-                    g = base * 0.95 * streakMod;
-                    b = base * 1.02 * streakMod;
-
-                    // Rust patches
-                    const rust = hash(Math.floor(u / 5) + 400, Math.floor(v / 5) + 400, Math.floor(w / 5) + 400);
-                    if (rust > 0.85) {
-                        const rustStr = (rust - 0.85) / 0.15;
-                        r = r * (1 - rustStr * 0.3) + rustStr * 55;
-                        g *= (1 - rustStr * 0.5);
-                        b *= (1 - rustStr * 0.6);
-                    }
-                }
-
-                // Spherical lights
-                const lightSpacing = 48;
-                const lightRadius = 25;
-                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
-                const nearestLightW = Math.round(w / lightSpacing) * lightSpacing;
-                const du = u - nearestLightU;
-                const dv = v - VSIZE / 2;
-                const dw = w - nearestLightW;
-                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
-                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
-                const lightIntensity = lightBright * lightBright;
-                r = r * (1.0 + lightIntensity * 1.5);
-                g = g * (1.0 + lightIntensity * 1.4);
-                b = b * (1.0 + lightIntensity * 1.8);
-
-                r = Math.max(0, Math.min(255, Math.round(r)));
-                g = Math.max(0, Math.min(255, Math.round(g)));
-                b = Math.max(0, Math.min(255, Math.round(b)));
-                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
-            }
-        }
-    }
-    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
-}
-
-// Blood canal texture - cement base with blood channels running down slanted surfaces
-function generateBloodCanalTexture() {
-    const USIZE = 128;
-    const VSIZE = 96;
-    const WSIZE = 128;
-    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
-
-    function hash(x, y, z) {
-        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
-        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
-        return (h & 0x7fffffff) / 0x7fffffff;
-    }
-    function smoothHash(x, y, z) {
-        const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
-        const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
-        const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
-        const sx = xf * xf * (3 - 2 * xf);
-        const sy = yf * yf * (3 - 2 * yf);
-        const sz = zf * zf * (3 - 2 * zf);
-        const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
-        const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
-        const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
-        const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
-        const nx00 = n000 + (n100 - n000) * sx;
-        const nx10 = n010 + (n110 - n010) * sx;
-        const nx01 = n001 + (n101 - n001) * sx;
-        const nx11 = n011 + (n111 - n011) * sx;
-        const nxy0 = nx00 + (nx10 - nx00) * sy;
-        const nxy1 = nx01 + (nx11 - nx01) * sy;
-        return nxy0 + (nxy1 - nxy0) * sz;
-    }
-
-    // Pre-compute blood canal map
-    // Canals flow along u (the slope direction), shaped by v/w cross-section noise
-    const bloodMap = new Float32Array(USIZE * VSIZE * WSIZE);
-    for (let w = 0; w < WSIZE; w++) {
-        for (let v = 0; v < VSIZE; v++) {
-            for (let u = 0; u < USIZE; u++) {
-                // Canal channels: narrow streaks along u, positioned by v/w noise
-                const n1 = smoothHash(u / 50, v / 4, w / 4);
-                const n2 = smoothHash(u / 25 + 50, v / 6 + 30, w / 6 + 30) * 0.5;
-                const n3 = smoothHash(u / 80 + 100, v / 3 + 60, w / 3 + 60) * 0.3;
-                let blood = (n1 + n2 + n3) / 1.8;
-                // Sharper threshold for canal-like shapes
-                blood = Math.max(0, (blood - 0.45) / 0.55);
-                blood = blood * blood;
-                // Blood accumulates towards bottom of slope (higher u = lower on slope)
-                const uGrad = u / USIZE;
-                blood *= (0.4 + uGrad * 0.6);
-                bloodMap[u + v * USIZE + w * USIZE * VSIZE] = blood;
-            }
-        }
-    }
-
-    for (let w = 0; w < WSIZE; w++) {
-        for (let v = 0; v < VSIZE; v++) {
-            for (let u = 0; u < USIZE; u++) {
-                const index = u + v * USIZE + w * USIZE * VSIZE;
-                const n = hash(u, v, w);
-
-                // Cement base
-                const n1 = smoothHash(u / 12, v / 12, w / 12);
-                const n2 = smoothHash(u / 6 + 50, v / 6 + 50, w / 6 + 50) * 0.5;
-                const surface = (n1 + n2) / 1.5;
-                let r = 80 + surface * 30 + n * 8;
-                let g = 83 + surface * 28 + n * 7;
-                let b = 85 + surface * 25 + n * 6;
-
-                // Cracks
-                const crack = smoothHash(u / 2.0 + 200, v / 8.0 + 200, w / 2.0 + 200);
-                if (crack > 0.78 && crack < 0.82) {
-                    r *= 0.5; g *= 0.5; b *= 0.5;
-                }
-
-                // Blood canals
-                const blood = bloodMap[index];
-                if (blood > 0) {
-                    // Dark red blood with depth variation
-                    const bloodDepth = blood * blood;
-                    r = r * (1 - blood * 0.7) + blood * 120;
-                    g = g * (1 - blood * 0.9) + blood * 8;
-                    b = b * (1 - blood * 0.9) + blood * 5;
-                    // Darker in deeper channels
-                    if (bloodDepth > 0.3) {
-                        const deep = (bloodDepth - 0.3) / 0.7;
-                        r = r * (1 - deep * 0.4) + deep * 50;
-                        g *= (1 - deep * 0.5);
-                        b *= (1 - deep * 0.5);
-                    }
-                }
-
-                // Blood-stained edges around canals (brownish discoloration)
-                const edgeBlood = bloodMap[index];
-                if (edgeBlood > 0.01 && edgeBlood < 0.2) {
-                    const edgeStr = edgeBlood / 0.2;
-                    r = r * (1 - edgeStr * 0.1) + edgeStr * 20;
-                    g *= (1 - edgeStr * 0.15);
-                    b *= (1 - edgeStr * 0.12);
-                }
-
-                // Dim warm lights along the slope
-                const lightSpacing = 48;
-                const lightRadius = 22;
-                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
-                const nearestLightW = Math.round(w / lightSpacing) * lightSpacing;
-                const du = u - nearestLightU;
-                const dv = v - VSIZE / 2;
-                const dw = w - nearestLightW;
-                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
-                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
-                const lightIntensity = lightBright * lightBright;
-                r = r * (1.0 + lightIntensity * 1.5);
-                g = g * (1.0 + lightIntensity * 0.8);
-                b = b * (1.0 + lightIntensity * 0.5);
-
-                r = Math.max(0, Math.min(255, Math.round(r)));
-                g = Math.max(0, Math.min(255, Math.round(g)));
-                b = Math.max(0, Math.min(255, Math.round(b)));
-                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
-            }
-        }
-    }
-    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
-}
-
-// Blood pool cement texture - flat cement floor with standing pools of blood
-function generateBloodPoolTexture() {
-    const USIZE = 128;
-    const VSIZE = 96;
-    const WSIZE = 128;
-    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
-
-    function hash(x, y, z) {
-        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
-        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
-        return (h & 0x7fffffff) / 0x7fffffff;
-    }
-    function smoothHash(x, y, z) {
-        const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
-        const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
-        const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
-        const sx = xf * xf * (3 - 2 * xf);
-        const sy = yf * yf * (3 - 2 * yf);
-        const sz = zf * zf * (3 - 2 * zf);
-        const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
-        const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
-        const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
-        const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
-        const nx00 = n000 + (n100 - n000) * sx;
-        const nx10 = n010 + (n110 - n010) * sx;
-        const nx01 = n001 + (n101 - n001) * sx;
-        const nx11 = n011 + (n111 - n011) * sx;
-        const nxy0 = nx00 + (nx10 - nx00) * sy;
-        const nxy1 = nx01 + (nx11 - nx01) * sy;
-        return nxy0 + (nxy1 - nxy0) * sz;
-    }
-
-    // Pre-compute blood pool map: large blobby pools on a flat surface
-    const poolMap = new Float32Array(USIZE * VSIZE * WSIZE);
-    for (let w = 0; w < WSIZE; w++) {
-        for (let v = 0; v < VSIZE; v++) {
-            for (let u = 0; u < USIZE; u++) {
-                // Large smooth blobs for pools
-                const n1 = smoothHash(u / 16, v / 16, w / 16);
-                const n2 = smoothHash(u / 8 + 70, v / 8 + 70, w / 8 + 70) * 0.4;
-                const n3 = smoothHash(u / 30 + 140, v / 30 + 140, w / 30 + 140) * 0.6;
-                let pool = (n1 + n2 + n3) / 2.0;
-                // Threshold for distinct pool shapes
-                pool = Math.max(0, (pool - 0.38) / 0.62);
-                pool = Math.min(1, pool * 1.5);
-                poolMap[u + v * USIZE + w * USIZE * VSIZE] = pool;
-            }
-        }
-    }
-
-    for (let w = 0; w < WSIZE; w++) {
-        for (let v = 0; v < VSIZE; v++) {
-            for (let u = 0; u < USIZE; u++) {
-                const index = u + v * USIZE + w * USIZE * VSIZE;
-                const n = hash(u, v, w);
-
-                // Cement base
-                const n1 = smoothHash(u / 12, v / 12, w / 12);
-                const n2 = smoothHash(u / 6 + 50, v / 6 + 50, w / 6 + 50) * 0.5;
-                const surface = (n1 + n2) / 1.5;
-                let r = 85 + surface * 35 + n * 8;
-                let g = 88 + surface * 33 + n * 7;
-                let b = 90 + surface * 30 + n * 6;
-
-                // Form lines
-                const formPos = v % 24;
-                if (formPos < 2) { r *= 0.82; g *= 0.82; b *= 0.82; }
-
-                const pool = poolMap[index];
-                if (pool > 0) {
-                    // Blood pool: dark glossy red, reflective
-                    const poolSmooth = pool * pool; // smoother edges
-                    // Glossy blood surface with subtle specular highlights
-                    const spec = hash(Math.floor(u / 3) * 3 + 500, Math.floor(v / 3) * 3 + 500, Math.floor(w / 3) * 3 + 500);
-                    const specular = spec > 0.92 ? (spec - 0.92) / 0.08 * 30 * poolSmooth : 0;
-                    // Deep dark blood color
-                    r = r * (1 - poolSmooth) + poolSmooth * (55 + n * 15 + specular);
-                    g = g * (1 - poolSmooth) + poolSmooth * (4 + n * 4);
-                    b = b * (1 - poolSmooth) + poolSmooth * (4 + n * 3);
-                } else {
-                    // Dried blood stains around pools (brownish ring)
-                    // Check if nearby texels have blood
-                    const nearPool = poolMap[Math.min(USIZE-1, u+2) + v * USIZE + w * USIZE * VSIZE]
-                                   + poolMap[Math.max(0, u-2) + v * USIZE + w * USIZE * VSIZE]
-                                   + poolMap[u + v * USIZE + Math.min(WSIZE-1, w+2) * USIZE * VSIZE]
-                                   + poolMap[u + v * USIZE + Math.max(0, w-2) * USIZE * VSIZE];
-                    if (nearPool > 0) {
-                        const edgeStr = Math.min(1, nearPool * 0.4);
-                        r = r * (1 - edgeStr * 0.2) + edgeStr * 30;
-                        g *= (1 - edgeStr * 0.3);
-                        b *= (1 - edgeStr * 0.25);
-                    }
-                }
-
-                // Spherical lights
-                const lightSpacing = 48;
-                const lightRadius = 28;
-                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
-                const nearestLightW = Math.round(w / lightSpacing) * lightSpacing;
-                const du = u - nearestLightU;
-                const dv = v - VSIZE / 2;
-                const dw = w - nearestLightW;
-                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
-                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
-                const lightIntensity = lightBright * lightBright;
-                // Warm light, blood pools reflect reddish
-                const poolReflect = poolMap[index] > 0.3 ? 1.5 : 1.0;
-                r = r * (1.0 + lightIntensity * 1.2 * poolReflect);
-                g = g * (1.0 + lightIntensity * 1.0);
-                b = b * (1.0 + lightIntensity * 0.7);
-
-                r = Math.max(0, Math.min(255, Math.round(r)));
-                g = Math.max(0, Math.min(255, Math.round(g)));
-                b = Math.max(0, Math.min(255, Math.round(b)));
-                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
-            }
-        }
-    }
-    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
-}
 
 const damCementTex = generateDamCementTexture();
 const damMetalTex = generateDamMetalTexture();
