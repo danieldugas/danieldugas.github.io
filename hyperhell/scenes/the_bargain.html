@@ -2671,6 +2671,19 @@ if (APPLY_TEXTURES) {
   applyTex(objects[objects.length - 2], corridor6PipesTex, 1, 1, 1);
   applyTex(objects[objects.length - 1], corridor6PipesTex, 1, 1, 1);
 }
+// Add Z=0.1 floor with no collider to make the floor 
+objects.push(createHyperwall(
+  new Transform4D([
+    [  0,        0,  C6_XL/2.0,        0, c6_c.x],
+    [  0,      c6_yd/2.0,  0,        0, c6_c.y],
+    [  1,        0,  0,        0, c6_c.z+0.1],
+    [  0,        0,  0,    C6_WD/2.0, c6_c.w],
+    [  0,        0,  0,        0,      1]
+  
+  ]),
+  0x00ff00
+));
+applyTex(objects[objects.length - 1], corridor6PipesTex, 1, 1, 1);
 
 // Room 4         _
 //          /\       
@@ -2706,6 +2719,7 @@ const c7_ref = r4_ref.add(new Vector4D(-R4_L, -R4_d, 0, -R4_WL/2.0)); // at -W e
 const r4_entrance = r4_ref.add(new Vector4D(0, -R4_d, 0, 0)); 
 const r4_spawn1 = c7_ref.add(new Vector4D(0, 0, 0, C6_WD * 1.5)); // at inner middle of w+ floor
 const r4_spawn2 = c7_ref.add(new Vector4D(0, 0, 0, C6_WD * 2.5));
+const r4_floor_c = c7_ref.add(new Vector4D(-R4_d/2.0, 0, 0, R4_WL/2.0)); 
 if (true) {
   const w1_xl = R4_L;
   const w1_yl = R4_L;
@@ -2950,6 +2964,19 @@ if (true) {
     0x0000ff
   ));
   applyTex(objects[objects.length - 1], room2PipesTex, 1, 1, 1);
+  // Also add a custom floor
+  objects.push(createHyperwall(
+    new Transform4D([
+      [  0,        0,  (R4_XL-R4_d)/2.0,        0, r4_floor_c.x],
+      [  0,      R4_YL/2.0,  0,        0, r4_floor_c.y],
+      [  1,        0,  0,        0, r4_floor_c.z+0.1],
+      [  0,        0,  0, (R4_WL+10)/2.0, r4_floor_c.w],
+      [  0,        0,  0,        0,      1]
+    
+    ]),
+    0x00ff00
+  ));
+  applyTex(objects[objects.length - 1], corridor6PipesTex, 1, 1, 1);
 }
 
 // Corridor 7, -W direction
