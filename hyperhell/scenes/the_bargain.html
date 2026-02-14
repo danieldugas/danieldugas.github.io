@@ -567,6 +567,205 @@ function generateFallingCorridorTexture() {
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
 
+// Flesh wall with thin metal grating overlay
+// Reddish noisy flesh base, thin regularly-spaced metal grate lines
+function generateFleshGrateTexture() {
+    const USIZE = 128;
+    const VSIZE = 64;
+    const WSIZE = 16;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    function smoothHash(x, y, z) {
+        const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
+        const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
+        const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
+        const sx = xf * xf * (3 - 2 * xf);
+        const sy = yf * yf * (3 - 2 * yf);
+        const sz = zf * zf * (3 - 2 * zf);
+        const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
+        const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
+        const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
+        const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
+        const nx00 = n000 + (n100 - n000) * sx;
+        const nx10 = n010 + (n110 - n010) * sx;
+        const nx01 = n001 + (n101 - n001) * sx;
+        const nx11 = n011 + (n111 - n011) * sx;
+        const nxy0 = nx00 + (nx10 - nx00) * sy;
+        const nxy1 = nx01 + (nx11 - nx01) * sy;
+        return nxy0 + (nxy1 - nxy0) * sz;
+    }
+
+    const grateSpacing = 8; // texels between grate bars
+    const grateWidth = 1;   // thin, 1 texel wide
+
+    // Spherical lights placed regularly along the corridor (u axis)
+    const lightSpacing = 32; // texels between lights along u
+    const lightRadius = 20;  // falloff radius
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+                const n = hash(u, v, w);
+
+                // Check if this texel is on a grate bar
+                const onGrateU = (u % grateSpacing) < grateWidth;
+                const onGrateV = (v % grateSpacing) < grateWidth;
+                const onGrateW = (w % grateSpacing) < grateWidth;
+
+                let r, g, b;
+
+                if (onGrateU || onGrateV || onGrateW) {
+                    // Thin metal grate bar
+                    const metalBase = 40 + n * 20;
+                    r = metalBase;
+                    g = metalBase + 2;
+                    b = metalBase + 5;
+                } else {
+                    // Fleshy base: multi-octave reddish noise
+                    const n1 = smoothHash(u / 5, v / 5, w / 4);
+                    const n2 = smoothHash(u / 10 + 50, v / 10 + 50, w / 8 + 50) * 0.6;
+                    const n3 = smoothHash(u / 2.5 + 100, v / 2.5 + 100, w / 3 + 100) * 0.3;
+                    const flesh = (n1 + n2 + n3) / 1.9;
+
+                    // Reddish-pink with variation (darker base)
+                    r = 30 + flesh * 60 + n * 8;
+                    g = 8 + flesh * 18 + n * 4;
+                    b = 6 + flesh * 12 + n * 3;
+
+                    // Some darker vein-like patches
+                    const vein = smoothHash(u / 3 + 200, v / 7 + 200, w / 3 + 200);
+                    if (vein > 0.7) {
+                        const veinStr = (vein - 0.7) / 0.3;
+                        r *= (1 - veinStr * 0.4);
+                        g *= (1 - veinStr * 0.3);
+                        b *= (1 - veinStr * 0.2);
+                    }
+                }
+
+                // Spherical light contribution (repeating along u)
+                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
+                const lightV = VSIZE / 2;
+                const lightW = WSIZE / 2;
+                const du = u - nearestLightU;
+                const dv = v - lightV;
+                const dw = w - lightW;
+                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
+                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
+                const lightIntensity = lightBright * lightBright;
+
+                // Apply light: warm reddish-orange glow
+                r = r * (1.0 + lightIntensity * 2.5);
+                g = g * (1.0 + lightIntensity * 1.0);
+                b = b * (1.0 + lightIntensity * 0.4);
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
+// Thick metal grating with dark holes and dirt noise
+function generateMetalGrateTexture() {
+    const USIZE = 128;
+    const VSIZE = 64;
+    const WSIZE = 16;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    const period = 8;    // total period of bar + hole
+    const barWidth = 6;  // thick bars
+
+    // Spherical lights placed regularly along the corridor (u axis)
+    const lightSpacing = 32; // texels between lights along u
+    const lightRadius = 20;  // falloff radius
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const index = u + v * USIZE + w * USIZE * VSIZE;
+                const n = hash(u, v, w);
+
+                const inBarU = (u % period) < barWidth;
+                const inBarV = (v % period) < barWidth;
+                const isBar = inBarU || inBarV;
+
+                let r, g, b;
+
+                if (isBar) {
+                    // Thick metal bar (darker base)
+                    const metalBase = 45 + n * 15;
+
+                    // Dirt noise: darker splotches
+                    const dirt = hash(u * 3 + 7, v * 5 + 13, w * 2 + 31);
+                    const dirtFactor = 1.0 - (dirt > 0.6 ? (dirt - 0.6) * 0.8 : 0);
+
+                    r = metalBase * dirtFactor;
+                    g = (metalBase + 2) * dirtFactor;
+                    b = (metalBase + 4) * dirtFactor;
+
+                    // Slight highlight on bar edges (where bar meets hole)
+                    const uInBar = u % period;
+                    const vInBar = v % period;
+                    const nearEdgeU = inBarU && (uInBar === 0 || uInBar === barWidth - 1);
+                    const nearEdgeV = inBarV && (vInBar === 0 || vInBar === barWidth - 1);
+                    if (nearEdgeU || nearEdgeV) {
+                        r = Math.min(255, r + 10);
+                        g = Math.min(255, g + 10);
+                        b = Math.min(255, b + 12);
+                    }
+                } else {
+                    // Dark hole
+                    r = 2 + n * 4;
+                    g = 2 + n * 3;
+                    b = 3 + n * 3;
+                }
+
+                // Spherical light contribution (repeating along u)
+                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
+                const lightV = VSIZE / 2;
+                const lightW = WSIZE / 2;
+                const du = u - nearestLightU;
+                const dv = v - lightV;
+                const dw = w - lightW;
+                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
+                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
+                const lightIntensity = lightBright * lightBright;
+
+                // Apply light: cool white-blue glow for metal
+                r = r * (1.0 + lightIntensity * 2.0);
+                g = g * (1.0 + lightIntensity * 2.2);
+                b = b * (1.0 + lightIntensity * 2.5);
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+
+                texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
 // Starry sky texture - mostly black with white and slightly colored dots
 function generateStarryTexture() {
     const USIZE = 128;
@@ -1032,12 +1231,34 @@ const c3r = C2R;
 const C3L = 30.0;
 let c3c = new Vector4D(R2X, 0, 0, -R2R - C3L / 2.0);
 createCorridorTubeWithHole(objects, c3c, new Vector4D(0,0,0,-1), C3L, new Vector4D(0,1,0,0), new Vector4D(1,0,0,0), c3r, c3r, 0.0, 0.0, new Vector4D(0,0,1,0), _H, false);
+if (APPLY_TEXTURES) {
+  // Corridor 3 walls: 1a(y+), 1b(y+), 2(x-), 3(y-), 4(x+), 5(endcap)
+  const fT3 = generateFleshGrateTexture(), gT3 = generateMetalGrateTexture();
+  const applyTex = (i, t) => { const w = objects[objects.length - i]; w.texture = t.texture; w.texture_info = t.texture_info; };
+  applyTex(6, gT3); // 1a (y+)
+  applyTex(5, gT3); // 1b (y+)
+  applyTex(4, fT3); // 2 (x-)
+  applyTex(3, gT3); // 3 (y-)
+  applyTex(2, fT3); // 4 (x+)
+  applyTex(1, gT3); // 5 (endcap)
+}
 
 // Corridor 4
 const c4r = c3r;
 const C4L = 30.0;
 let c4c = new Vector4D(R2X, 0, 0, -R2R - C3L - C4L / 2.0);
 createCorridorTubeWithHole(objects, c4c, new Vector4D(0,0,0,1), C4L, new Vector4D(0,1,0,0), new Vector4D(1,0,0,0), c4r, c4r, -C4L / 2.0 + c4r, c4r, new Vector4D(0,0,1,0), _H, false);
+if (APPLY_TEXTURES) {
+  // Corridor 4 walls: 1a(y+), 1b(y+), 2(x-), 3(y-), 4(x+), 5(endcap)
+  const fT4 = generateFleshGrateTexture(), gT4 = generateMetalGrateTexture();
+  const applyTex4 = (i, t) => { const w = objects[objects.length - i]; w.texture = t.texture; w.texture_info = t.texture_info; };
+  applyTex4(6, gT4); // 1a (y+)
+  applyTex4(5, gT4); // 1b (y+)
+  applyTex4(4, fT4); // 2 (x-)
+  applyTex4(3, gT4); // 3 (y-)
+  applyTex4(2, fT4); // 4 (x+)
+  applyTex4(1, gT4); // 5 (endcap)
+}
 
 // Corridor 5a (y+), wide in x, narrow in w
 //   ______
