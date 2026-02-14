@@ -2,10 +2,10 @@ import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4
 import { Hyperobject, createHypercube, removeDuplicates } from '../../4d_creatures/hyperengine/hyperobject.js';
 
 class StaticObjectFrameBoxCollider {
-    constructor(parentObjectStaticPose) {
+    constructor(parentObjectStaticPose, pushAxes = ['x', 'y', 'z', 'w']) {
         this.parentObjectStaticPose = parentObjectStaticPose; // parent in world
         this.parentObjectStaticPoseInverse = parentObjectStaticPose.inverse();
-        console.log("parentObjectStaticPoseInverse", this.parentObjectStaticPoseInverse);
+        this.pushAxes = new Set(pushAxes);
         // by default collider spans -1, -1, -1, -1 to 1, 1, 1, 1 in object frame
         this.min = new Vector4D(-1, -1, -1, -1); // in object
         this.max = new Vector4D(1, 1, 1, 1); // in object
@@ -16,98 +16,61 @@ class StaticObjectFrameBoxCollider {
         this.parentObjectStaticPoseInverse = parentObjectStaticPose.inverse();
     }
 
+    setPushAxes(pushAxes) {
+        this.pushAxes = new Set(pushAxes);
+    }
+
     constrainTransform(transform) {
         // player in parent frame = T_world_in_parent * T_player_in_world
         const pos_in_world = transform.origin();
         const position = this.parentObjectStaticPoseInverse.transform_point(pos_in_world);
-        const orig_position = position.multiply_by_scalar(1.0); // for debugging
 
-        // Constrain the transform matrix to stay outside the bounds of this collider
-        const size = this.max.subtract(this.min);
-        const halfSize = size.multiply_by_scalar(0.5);
-        const center = this.min.add(halfSize);
-
-        // For debugging, print position to a div
-        if (false) {
-          // Debug: print the player pose to a div
-          // create div if it doesn't exist
-          if (!document.getElementById("collider_debug")) {
-              const div = document.createElement("div");
-              div.id = "collider_debug";
-              document.body.appendChild(div);
-              div.style.position = "absolute";
-              div.style.bottom = "10px";
-              div.style.right = "10px";
-              div.style.color = "rgb(156, 156, 156)";
-              div.style.fontFamily = "monospace";
-              div.style.fontSize = "12px";
-              console.log("created div");
-          }
-          // update div
-          document.getElementById("collider_debug").innerHTML = `Player:<br>`;
-          document.getElementById("collider_debug").innerHTML += `[${position.x.toFixed(2)}]<br>`;
-          document.getElementById("collider_debug").innerHTML += `[${position.y.toFixed(2)}]<br>`;
-          document.getElementById("collider_debug").innerHTML += `[${position.z.toFixed(2)}]<br>`;
-          document.getElementById("collider_debug").innerHTML += `[${position.w.toFixed(2)}]<br>`;
+        // Check if inside this collider volume
+        const is_inside_x = position.x > this.min.x && position.x < this.max.x;
+        const is_inside_y = position.y > this.min.y && position.y < this.max.y;
+        const is_inside_z = position.z > this.min.z && position.z < this.max.z;
+        const is_inside_w = position.w > this.min.w && position.w < this.max.w;
+        if (!(is_inside_x && is_inside_y && is_inside_z && is_inside_w)) {
+            return false;
         }
 
-        // Clamp position to be within the bounds
-        let is_inside_x = position.x > this.min.x && position.x < this.max.x;
-        let is_inside_y = position.y > this.min.y && position.y < this.max.y;
-        let is_inside_z = position.z > this.min.z && position.z < this.max.z;
-        let is_inside_w = position.w > this.min.w && position.w < this.max.w;
-        if (is_inside_x && is_inside_y && is_inside_z && is_inside_w) {
-            // Find the closest face and push the position out along that axis
-            let distances = [
-                position.x - this.min.x,
-                this.max.x - position.x,
-                position.y - this.min.y,
-                this.max.y - position.y,
-                position.z - this.min.z,
-                this.max.z - position.z,
-                position.w - this.min.w,
-                this.max.w - position.w
-            ];
-            let minDistance = Math.min(...distances);
-            let closestFaceIndex = distances.indexOf(minDistance);
-            switch (closestFaceIndex) {
-                case 0: // left face
-                    position.x = this.min.x;
-                    break;
-                case 1: // right face
-                    position.x = this.max.x;
-                    break;
-                case 2: // front face
-                    position.y = this.min.y;
-                    break;
-                case 3: // back face
-                    position.y = this.max.y;
-                    break;
-                case 4: // near face
-                    position.z = this.min.z;
-                    break;
-                case 5: // far face
-                    position.z = this.max.z;
-                    break;
-                case 6: // near w face
-                    position.w = this.min.w;
-                    break;
-                case 7: // far w face
-                    position.w = this.max.w;
-                    break;
+        // Find closest face, but only along configured push axes.
+        const candidates = [];
+        if (this.pushAxes.has('x')) {
+            candidates.push({ distance: position.x - this.min.x, axis: 'x', value: this.min.x });
+            candidates.push({ distance: this.max.x - position.x, axis: 'x', value: this.max.x });
+        }
+        if (this.pushAxes.has('y')) {
+            candidates.push({ distance: position.y - this.min.y, axis: 'y', value: this.min.y });
+            candidates.push({ distance: this.max.y - position.y, axis: 'y', value: this.max.y });
+        }
+        if (this.pushAxes.has('z')) {
+            candidates.push({ distance: position.z - this.min.z, axis: 'z', value: this.min.z });
+            candidates.push({ distance: this.max.z - position.z, axis: 'z', value: this.max.z });
+        }
+        if (this.pushAxes.has('w')) {
+            candidates.push({ distance: position.w - this.min.w, axis: 'w', value: this.min.w });
+            candidates.push({ distance: this.max.w - position.w, axis: 'w', value: this.max.w });
+        }
+
+        if (candidates.length === 0) {
+            return false;
+        }
+
+        let closest = candidates[0];
+        for (let i = 1; i < candidates.length; i++) {
+            if (candidates[i].distance < closest.distance) {
+                closest = candidates[i];
             }
-
-            // Update the translation in the transform matrix
-            let position_in_world = this.parentObjectStaticPose.transform_point(position);
-
-            transform.setTranslation(position_in_world);
-            return true;
         }
-        return false;
+
+        position[closest.axis] = closest.value;
+        const position_in_world = this.parentObjectStaticPose.transform_point(position);
+        transform.setTranslation(position_in_world);
+        return true;
     }
 
 }
-
 export function createHyperwall(pose, color=0xff0000) {
   // Create a 3D Wall surface, spanning from [-1, 1] in y, z, and w (thin in x)
     const const_hypercube_vertices = [ 
@@ -187,7 +150,7 @@ export function createHyperwall(pose, color=0xff0000) {
         "Hyperwall"
     );
     hyperwall.vertices_in_texmap = hyperwall.vertices_in_object.map(v => new Vector4D(v.y*0.5 + 0.5, v.z*0.5 + 0.5, v.w*0.5 + 0.5, 0.0)); // Map 4D surface coords to 3D texture
-    hyperwall.collider = new StaticObjectFrameBoxCollider(hyperwall.pose);
+    hyperwall.collider = new StaticObjectFrameBoxCollider(hyperwall.pose, ['x']);
     // extend collider by +- 1 in y and w frame, to account for player thickness (fixes clipping through corners)
     //  (there is already +-1 margin in the x dim due to the object frame being [-1 to 1] in x but the actual geom is thin at 0)
     // first figure out the y and w size of the wall in world
