@@ -2347,10 +2347,22 @@ export class TheBargainManager {
                 newW = newW.subtract(newX.multiply_by_scalar(newW.dot(newX)));
                 newW = newW.subtract(newY.multiply_by_scalar(newW.dot(newY)));
                 newW = newW.subtract(oZ.multiply_by_scalar(newW.dot(oZ))).normalize();
-                m[0][0]=newX.x; m[0][1]=newY.x; m[0][2]=oZ.x; m[0][3]=newW.x;
-                m[1][0]=newX.y; m[1][1]=newY.y; m[1][2]=oZ.y; m[1][3]=newW.y;
-                m[2][0]=newX.z; m[2][1]=newY.z; m[2][2]=oZ.z; m[2][3]=newW.z;
-                m[3][0]=newX.w; m[3][1]=newY.w; m[3][2]=oZ.w; m[3][3]=newW.w;
+                let isZero = (v) => v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0;
+                if (isNaN(newX.x) || isNaN(newY.x) || isNaN(newW.x) ||
+                    isZero(newX) || isZero(newY) || isZero(oZ) || isZero(newW)) {
+                    console.log("singularity in forced lookat");
+                    console.log(newX, newY, newW);
+                    // this happens most when facing ophanim, so reset to that view direction
+                    m[0][0]=0; m[0][1]=0; m[0][2]=0; m[0][3]=1;
+                    m[1][0]=0; m[1][1]=1; m[1][2]=0; m[1][3]=0;
+                    m[2][0]=0; m[2][1]=0; m[2][2]=1; m[2][3]=0;
+                    m[3][0]=-1; m[3][1]=0; m[3][2]=0; m[3][3]=0;
+                } else {
+                    m[0][0]=newX.x; m[0][1]=newY.x; m[0][2]=oZ.x; m[0][3]=newW.x;
+                    m[1][0]=newX.y; m[1][1]=newY.y; m[1][2]=oZ.y; m[1][3]=newW.y;
+                    m[2][0]=newX.z; m[2][1]=newY.z; m[2][2]=oZ.z; m[2][3]=newW.z;
+                    m[3][0]=newX.w; m[3][1]=newY.w; m[3][2]=oZ.w; m[3][3]=newW.w;
+                }
             }
             if (t >= 1.0) {
                 this.gameState.forceLookAtPos = null;
@@ -2608,17 +2620,19 @@ export class TheBargainManager {
                     this.gameState.burnLevel = Math.max(0.0, Math.min(1.0, this.gameState.burnLevel + dt/ 3.0));
                     // Apply lava damage
                     if (!this.gameState.GOD_MODE && this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
-                        this.gameState.playerHealth -= 10;
                         if (this.gameState.burnLevel >= 1.0) { this.gameState.playerHealth = 0; }
-                        this.gameState.playerInvulnLastHitTime = engineState.physics_time_s;
-                        // Force player out of unblink and lock it for 2 seconds
-                        if (this.gameState.playerEyeMode === "WideOpen" || this.gameState.playerEyeMode === "Lidded->WideOpen") {
-                            this.gameState.playerEyeMode = "WideOpen->Lidded";
-                            this.gameState.eyeAnimationProgress = 0;
-                            this.gameState.unblinkLockoutUntil = engineState.physics_time_s + 2.0;
-                            // Show tutorial the first time a shade forces the player out of unblink
-                            if (!this.gameState.tutorialsShown.has("shade_unblink_hit")) {
-                                this.gameState.shadeUnblinkTutorialPending = true;
+                        if (this.gameState.burnLevel >= 0.3) {
+                             this.gameState.playerHealth -= 10;
+                            this.gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                            // Force player out of unblink and lock it for 2 seconds
+                            if (this.gameState.playerEyeMode === "WideOpen" || this.gameState.playerEyeMode === "Lidded->WideOpen") {
+                                this.gameState.playerEyeMode = "WideOpen->Lidded";
+                                this.gameState.eyeAnimationProgress = 0;
+                                this.gameState.unblinkLockoutUntil = engineState.physics_time_s + 2.0;
+                                // Show tutorial the first time a shade forces the player out of unblink
+                                if (!this.gameState.tutorialsShown.has("shade_unblink_hit")) {
+                                    this.gameState.shadeUnblinkTutorialPending = true;
+                                }
                             }
                         }
                     }
