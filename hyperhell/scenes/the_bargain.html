@@ -676,6 +676,7 @@ function generateFleshGrateTexture() {
 
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
+const fleshGrateTex = generateFleshGrateTexture();
 
 // Thick metal grating with dark holes and dirt noise
 function generateMetalGrateTexture() {
@@ -765,7 +766,7 @@ function generateMetalGrateTexture() {
 
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
-
+const metalGrateTex = generateMetalGrateTexture();
 // Starry sky texture - mostly black with white and slightly colored dots
 function generateStarryTexture() {
     const USIZE = 128;
@@ -853,6 +854,11 @@ function generateStarryTexture() {
 
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
+
+
+const applyTex = (wall, tex, su, sv, sw) => {
+  if (!APPLY_TEXTURES) return; wall.texture = tex.texture; wall.texture_info = tex.texture_info; wall.vertices_in_texmap = wall.vertices_in_object.map(v => new Vector4D((v.y*.5+.5)*su, (v.z*.5+.5)*sv, (v.w*.5+.5)*sw, 0));
+};
 
 const _H = 3; // wall z height
 const _2 = 1.0 / Math.sqrt(2);
@@ -1233,14 +1239,12 @@ let c3c = new Vector4D(R2X, 0, 0, -R2R - C3L / 2.0);
 createCorridorTubeWithHole(objects, c3c, new Vector4D(0,0,0,-1), C3L, new Vector4D(0,1,0,0), new Vector4D(1,0,0,0), c3r, c3r, 0.0, 0.0, new Vector4D(0,0,1,0), _H, false);
 if (APPLY_TEXTURES) {
   // Corridor 3 walls: 1a(y+), 1b(y+), 2(x-), 3(y-), 4(x+), 5(endcap)
-  const fT3 = generateFleshGrateTexture(), gT3 = generateMetalGrateTexture();
-  const applyTex = (i, t) => { const w = objects[objects.length - i]; w.texture = t.texture; w.texture_info = t.texture_info; };
-  applyTex(6, gT3); // 1a (y+)
-  applyTex(5, gT3); // 1b (y+)
-  applyTex(4, fT3); // 2 (x-)
-  applyTex(3, gT3); // 3 (y-)
-  applyTex(2, fT3); // 4 (x+)
-  applyTex(1, gT3); // 5 (endcap)
+  applyTex(objects[objects.length - 6], metalGrateTex, 1, 1, 1); // 1a (y+)
+  applyTex(objects[objects.length - 5], metalGrateTex, 1, 1, 1); // 1b (y+)
+  applyTex(objects[objects.length - 4], fleshGrateTex, 1, 1, 1); // 2 (x-)
+  applyTex(objects[objects.length - 3], metalGrateTex, 1, 1, 1); // 3 (y-)
+  applyTex(objects[objects.length - 2], fleshGrateTex, 1, 1, 1); // 4 (x+)
+  applyTex(objects[objects.length - 1], metalGrateTex, 1, 1, 1); // 5 (endcap)
 }
 
 // Corridor 4
@@ -1248,17 +1252,13 @@ const c4r = c3r;
 const C4L = 30.0;
 let c4c = new Vector4D(R2X, 0, 0, -R2R - C3L - C4L / 2.0);
 createCorridorTubeWithHole(objects, c4c, new Vector4D(0,0,0,1), C4L, new Vector4D(0,1,0,0), new Vector4D(1,0,0,0), c4r, c4r, -C4L / 2.0 + c4r, c4r, new Vector4D(0,0,1,0), _H, false);
-if (APPLY_TEXTURES) {
-  // Corridor 4 walls: 1a(y+), 1b(y+), 2(x-), 3(y-), 4(x+), 5(endcap)
-  const fT4 = generateFleshGrateTexture(), gT4 = generateMetalGrateTexture();
-  const applyTex4 = (i, t) => { const w = objects[objects.length - i]; w.texture = t.texture; w.texture_info = t.texture_info; };
-  applyTex4(6, gT4); // 1a (y+)
-  applyTex4(5, gT4); // 1b (y+)
-  applyTex4(4, fT4); // 2 (x-)
-  applyTex4(3, gT4); // 3 (y-)
-  applyTex4(2, fT4); // 4 (x+)
-  applyTex4(1, gT4); // 5 (endcap)
-}
+// Corridor 4 walls: 1a(y+), 1b(y+), 2(x-), 3(y-), 4(x+), 5(endcap)
+applyTex(objects[objects.length - 6], metalGrateTex, 1, 1, 1); // 1a (y+)
+applyTex(objects[objects.length - 5], metalGrateTex, 1, 1, 1); // 1b (y+)
+applyTex(objects[objects.length - 4], fleshGrateTex, 1, 1, 1); // 2 (x-)
+applyTex(objects[objects.length - 3], metalGrateTex, 1, 1, 1); // 3 (y-)
+applyTex(objects[objects.length - 2], fleshGrateTex, 1, 1, 1); // 4 (x+)
+applyTex(objects[objects.length - 1], metalGrateTex, 1, 1, 1); // 5 (endcap)
 
 // Corridor 5a (y+), wide in x, narrow in w
 //   ______
@@ -1285,7 +1285,15 @@ createHyperwallWithCenterHole(
   c5ar1 / c5ar1,
   0x0000ff
 );
+applyTex(objects[objects.length - 4], fleshGrateTex, 1, 1, 1);
+applyTex(objects[objects.length - 3], fleshGrateTex, 1, 1, 1);
+applyTex(objects[objects.length - 2], fleshGrateTex, 1, 1, 1);
+applyTex(objects[objects.length - 1], fleshGrateTex, 1, 1, 1);
 createCorridorTube(objects, c5c, new Vector4D(0,1,0,0), C5A_L, new Vector4D(0,0,0,1), new Vector4D(1,0,0,0), c5ar1, C5A_R2, _H);
+applyTex(objects[objects.length - 4], fleshGrateTex, 1, 1, 1);
+applyTex(objects[objects.length - 3], metalGrateTex, 1, 1, 1);
+applyTex(objects[objects.length - 2], fleshGrateTex, 1, 1, 1);
+applyTex(objects[objects.length - 1], metalGrateTex, 1, 1, 1);
 objects.push(createObstacleCube(new Transform4D([
     [  3,        0,  0,        0, c5c.x],
     [  0,        3,  0,        0, c5c.y],
@@ -1295,6 +1303,7 @@ objects.push(createObstacleCube(new Transform4D([
   ]),
   0x00ff00
 ));
+applyTex(objects[objects.length - 1], fleshGrateTex, 1, 1, 1);
 // prep two monster spawns
 const c5_monster1 = c5c.add(new Vector4D(6, 0, 0, 0));
 const c5_monster2 = c5c.add(new Vector4D(-6, 0, 0, 0));
