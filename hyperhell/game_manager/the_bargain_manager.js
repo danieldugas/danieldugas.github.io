@@ -670,8 +670,11 @@ class GameState {
         // Player stats
         this.playerHealth = 100;
         this.playerMaxHealth = 100;
-        this.playerAmmo = 50;
-        this.playerMaxAmmo = 100;
+        this.playerAmmo = 10;
+        this.playerMaxAmmo = 10;
+        this.ammoReloading = false;
+        this.ammoReloadStartTime = 0;
+        this.ammoReloadDuration = 3.0;
         this.playerInvulnLastHitTime = 0;
         this.playerInvulnTime = 1.0;
         // Movement mode
@@ -697,6 +700,7 @@ class GameState {
         // Tutorial state
         this.tutorialsShown = new Set(); // IDs of tutorials already shown
         this.tutorialActive = false; // true while a tutorial overlay is visible
+        this.shootingUnlocked = false; // true after combat tutorial
         this.shadeUnblinkTutorialPending = false; // set when shade hits player out of unblink
         // bullets
         this.playerBullets = [];
@@ -1098,9 +1102,10 @@ export class TheBargainManager {
 
         hud.appendChild(healthContainer);
 
-        // Ammo bar container
+        // Ammo bar container (hidden until combat tutorial)
         const ammoContainer = document.createElement("div");
-        ammoContainer.style.display = "flex";
+        ammoContainer.id = "hud_ammo_container";
+        ammoContainer.style.display = "none";
         ammoContainer.style.flexDirection = "column";
         ammoContainer.style.gap = "2px";
 
@@ -1120,7 +1125,7 @@ export class TheBargainManager {
 
         const ammoBarInner = document.createElement("div");
         ammoBarInner.id = "hud_ammo_bar";
-        ammoBarInner.style.width = "50%";
+        ammoBarInner.style.width = "100%";
         ammoBarInner.style.height = "100%";
         ammoBarInner.style.backgroundColor = "#c90";
         ammoBarInner.style.transition = "width 0.2s";
@@ -1139,7 +1144,7 @@ export class TheBargainManager {
         ammoValue.style.fontWeight = "bold";
         ammoValue.style.color = "#fff";
         ammoValue.style.textShadow = "1px 1px 1px #000";
-        ammoValue.innerHTML = "50";
+        ammoValue.innerHTML = "10";
 
         ammoBarOuter.appendChild(ammoBarInner);
         ammoBarOuter.appendChild(ammoValue);
@@ -1147,7 +1152,7 @@ export class TheBargainManager {
         ammoContainer.appendChild(ammoBarOuter);
         hud.appendChild(ammoContainer);
 
-        // Weapon icon (right side)
+        // Weapon icon (right side, hidden until combat tutorial)
         const weaponIcon = document.createElement("div");
         weaponIcon.id = "hud_weapon_icon";
         weaponIcon.style.width = "40px";
@@ -1155,11 +1160,10 @@ export class TheBargainManager {
         weaponIcon.style.backgroundColor = "#333";
         weaponIcon.style.border = "1px solid #555";
         weaponIcon.style.borderRadius = "4px";
-        weaponIcon.style.display = "flex";
+        weaponIcon.style.display = "none";
         weaponIcon.style.alignItems = "center";
         weaponIcon.style.justifyContent = "center";
-        weaponIcon.style.fontSize = "20px";
-        weaponIcon.innerHTML = "🔫";
+        weaponIcon.innerHTML = `<img src="../icons/blood_pistol.png" style="width: 36px; height: 36px">`;
         hud.appendChild(weaponIcon);
 
         document.body.appendChild(hud);
@@ -1589,6 +1593,15 @@ export class TheBargainManager {
         // Ignore tutorials in GOD MODE
         if (this.gameState.GOD_MODE) return;
 
+        // Reveal ammo bar, weapon icon, and unlock shooting when combat tutorial is reached
+        if (zone.id === "corridor3_shooting") {
+            this.gameState.shootingUnlocked = true;
+            const ammoContainer = document.getElementById("hud_ammo_container");
+            const weaponIcon = document.getElementById("hud_weapon_icon");
+            if (ammoContainer) ammoContainer.style.display = "flex";
+            if (weaponIcon) weaponIcon.style.display = "flex";
+        }
+
         this.gameState.tutorialsShown.add(zone.id);
         this.gameState.tutorialActive = true;
         this.gameState.dialogState = 'tutorial';
@@ -1998,9 +2011,17 @@ export class TheBargainManager {
         }
 
         if (ammoBar && ammoValue) {
-            const ammoPercent = (this.gameState.playerAmmo / this.gameState.playerMaxAmmo) * 100;
-            ammoBar.style.width = ammoPercent + "%";
-            ammoValue.innerHTML = Math.round(this.gameState.playerAmmo);
+            if (this.gameState.ammoReloading) {
+                const reloadPercent = this.gameState.ammoReloadProgress * 100;
+                ammoBar.style.width = reloadPercent + "%";
+                ammoBar.style.backgroundColor = "#888";
+                ammoValue.innerHTML = "RELOADING";
+            } else {
+                const ammoPercent = (this.gameState.playerAmmo / this.gameState.playerMaxAmmo) * 100;
+                ammoBar.style.width = ammoPercent + "%";
+                ammoBar.style.backgroundColor = "#c90";
+                ammoValue.innerHTML = Math.round(this.gameState.playerAmmo);
+            }
         }
 
         if (this.gameState.playerEyeMode === "Human") {
@@ -2403,11 +2424,22 @@ export class TheBargainManager {
             }
         }
 
-        // space to shoot
+        // Ammo reload logic
+        if (this.gameState.ammoReloading) {
+            let reloadElapsed = engineState.physics_time_s - this.gameState.ammoReloadStartTime;
+            this.gameState.ammoReloadProgress = Math.min(reloadElapsed / this.gameState.ammoReloadDuration, 1.0);
+            if (reloadElapsed >= this.gameState.ammoReloadDuration) {
+                this.gameState.playerAmmo = this.gameState.playerMaxAmmo;
+                this.gameState.ammoReloading = false;
+                this.gameState.ammoReloadProgress = 0;
+            }
+        }
+
+        // space to shoot (only after combat tutorial)
         const pistolCooldown = 0.20;
-        if (engineState.keys[' ']) {
+        if (engineState.keys[' '] && this.gameState.shootingUnlocked) {
             let timeSinceCooldown = engineState.physics_time_s - this.gameState.bulletCooldownLastFiredTime;
-            if (timeSinceCooldown > pistolCooldown && this.gameState.playerAmmo > 0) {
+            if (timeSinceCooldown > pistolCooldown && this.gameState.playerAmmo > 0 && !this.gameState.ammoReloading) {
                 if (this.gameState.bulletPrimitives.length == 0) {
                     this.gameState.playerBullets[0].destroyBullet(this.gameState.bulletPrimitives, this.gameState.playerBullets, 0); // Clear the first (oldest)
                 }
@@ -2418,6 +2450,11 @@ export class TheBargainManager {
                 this.gameState.playerBullets.push(newBullet);
                 this.gameState.bulletCooldownLastFiredTime = engineState.physics_time_s;
                 this.gameState.playerAmmo--;
+                if (this.gameState.playerAmmo <= 0) {
+                    this.gameState.playerAmmo = 0;
+                    this.gameState.ammoReloading = true;
+                    this.gameState.ammoReloadStartTime = engineState.physics_time_s;
+                }
             }
         }
         // Update all live bullets (while as the list size changes mid loop)
