@@ -280,6 +280,7 @@ function generateDarkEyesTexture() {
 
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
+const darkEyesTex = generateDarkEyesTexture();
 
 // Metal pipes converging toward center hole
 // Concentric square rings (L-inf distance) with alternating pipe direction per ring
@@ -556,6 +557,417 @@ function generateCorridor6PipesTexture() {
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
 
+// Room 4 biocircuit texture
+// Dark red wafer base with metal circuitry traces and localized lighting.
+function generateRoom4BioCircuitTexture() {
+    const USIZE = 160;
+    const VSIZE = 96;
+    const WSIZE = 96;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    function smoothHash(x, y, z) {
+        const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
+        const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
+        const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
+        const sx = xf * xf * (3 - 2 * xf);
+        const sy = yf * yf * (3 - 2 * yf);
+        const sz = zf * zf * (3 - 2 * zf);
+        const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
+        const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
+        const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
+        const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
+        const nx00 = n000 + (n100 - n000) * sx;
+        const nx10 = n010 + (n110 - n010) * sx;
+        const nx01 = n001 + (n101 - n001) * sx;
+        const nx11 = n011 + (n111 - n011) * sx;
+        const nxy0 = nx00 + (nx10 - nx00) * sy;
+        const nxy1 = nx01 + (nx11 - nx01) * sy;
+        return nxy0 + (nxy1 - nxy0) * sz;
+    }
+
+    const tracePeriodA = 10;
+    const tracePeriodB = 20;
+    const traceHalfA = 1.1;
+    const traceHalfB = 1.8;
+    const viaPeriod = 14;
+    const lightSpacing = 30;
+    const lightRadius = 20;
+    const uHalf = USIZE / 2;
+    const vHalf = VSIZE / 2;
+    const wHalf = WSIZE / 2;
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const idx = u + v * USIZE + w * USIZE * VSIZE;
+                const n = hash(u, v, w);
+
+                // Deep red wafer substrate.
+                const wafer1 = smoothHash(u / 9, v / 7, w / 9);
+                const wafer2 = smoothHash(u / 22 + 43, v / 15 + 71, w / 22 + 113) * 0.6;
+                const wafer = (wafer1 + wafer2) / 1.6;
+                let r = 14 + wafer * 48 + n * 5;
+                let g = 3 + wafer * 12 + n * 2;
+                let b = 4 + wafer * 10 + n * 2;
+
+                const dUa = Math.abs((u % tracePeriodA) - tracePeriodA / 2);
+                const dWa = Math.abs((w % tracePeriodA) - tracePeriodA / 2);
+                const dUb = Math.abs(((u + 3) % tracePeriodB) - tracePeriodB / 2);
+                const dWb = Math.abs(((w + 7) % tracePeriodB) - tracePeriodB / 2);
+                const dA = Math.min(dUa, dWa);
+                const dB = Math.min(dUb, dWb);
+
+                let lineA = Math.max(0, 1.0 - dA / traceHalfA);
+                let lineB = Math.max(0, 1.0 - dB / traceHalfB) * 0.85;
+                let trace = Math.max(lineA, lineB);
+
+                // Randomly cut traces to avoid fully regular grid.
+                const segKeep = hash(Math.floor(u / 6), Math.floor(v / 5) + 17, Math.floor(w / 6) + 31) > 0.14 ? 1.0 : 0.0;
+                trace *= segKeep;
+
+                if (trace > 0.0) {
+                    const metal = 20 + trace * 90 + n * 6;
+                    r = r * (1.0 - trace * 0.85) + metal * 0.88;
+                    g = g * (1.0 - trace * 0.85) + metal * 0.95;
+                    b = b * (1.0 - trace * 0.85) + metal * 1.08;
+                }
+
+                // Blood halo around traces gives "biocircuit" look.
+                const halo = Math.max(0, 1.0 - Math.min(dA, dB) / 3.4);
+                r += halo * 28;
+                g += halo * 3;
+                b += halo * 4;
+
+                // Sparse vias/intersections.
+                const dV = Math.abs((v % viaPeriod) - viaPeriod / 2);
+                const viaLine = Math.max(0, 1.0 - dV / 1.1);
+                const inter = Math.min(1.0, lineA * lineB * 1.6);
+                let via = inter * viaLine;
+                if (via > 0.35) {
+                    via *= hash(Math.floor(u / tracePeriodB), Math.floor(v / viaPeriod), Math.floor(w / tracePeriodB)) > 0.45 ? 1.0 : 0.0;
+                } else {
+                    via = 0.0;
+                }
+                r += via * 26;
+                g += via * 34;
+                b += via * 46;
+
+                // Dark-edge corridor lighting with periodic highlights.
+                const edgeU = Math.abs(u - uHalf) / uHalf;
+                const edgeW = Math.abs(w - wHalf) / wHalf;
+                const edge = Math.max(edgeU, edgeW);
+                const edgeShade = 1.0 / (1.0 + 2.6 * edge * edge);
+                const vShade = 1.0 - Math.min(1.0, Math.abs(v - vHalf) / vHalf) * 0.30;
+                const radial = Math.sqrt(edgeU * edgeU + edgeW * edgeW);
+                const core = Math.max(0, 1.0 - radial * 0.95);
+
+                const baseLight = 0.42 + edgeShade * 0.46;
+                r *= baseLight * vShade;
+                g *= baseLight * vShade;
+                b *= baseLight * vShade;
+
+                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
+                const du = u - nearestLightU;
+                const dv = v - vHalf;
+                const dw = w - wHalf;
+                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
+                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
+                const lightIntensity = lightBright * lightBright;
+
+                r += lightIntensity * (18 + trace * 22 + halo * 14);
+                g += lightIntensity * (8 + trace * 24);
+                b += lightIntensity * (10 + trace * 28);
+
+                const spec = core * core;
+                r += spec * (6 + trace * 12);
+                g += spec * (8 + trace * 16);
+                b += spec * (12 + trace * 22);
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+                texture[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
+// Room 5 volcanic rock texture
+// Obsidian/dark-brown stone with emissive lava cracks and cave-like lighting.
+function generateRoom5RockTexture() {
+    const USIZE = 160;
+    const VSIZE = 96;
+    const WSIZE = 128;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    function smoothHash(x, y, z) {
+        const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
+        const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
+        const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
+        const sx = xf * xf * (3 - 2 * xf);
+        const sy = yf * yf * (3 - 2 * yf);
+        const sz = zf * zf * (3 - 2 * zf);
+        const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
+        const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
+        const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
+        const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
+        const nx00 = n000 + (n100 - n000) * sx;
+        const nx10 = n010 + (n110 - n010) * sx;
+        const nx01 = n001 + (n101 - n001) * sx;
+        const nx11 = n011 + (n111 - n011) * sx;
+        const nxy0 = nx00 + (nx10 - nx00) * sy;
+        const nxy1 = nx01 + (nx11 - nx01) * sy;
+        return nxy0 + (nxy1 - nxy0) * sz;
+    }
+
+    const uHalf = USIZE / 2;
+    const vHalf = VSIZE / 2;
+    const wHalf = WSIZE / 2;
+    const crackP1 = 23;
+    const crackP2 = 29;
+    const crackP3 = 31;
+    const lightSpacing = 36;
+    const lightRadius = 24;
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const idx = u + v * USIZE + w * USIZE * VSIZE;
+
+                const n = hash(u, v, w);
+                const n1 = smoothHash(u / 6, v / 5, w / 6);
+                const n2 = smoothHash(u / 15 + 41, v / 12 + 71, w / 15 + 113) * 0.6;
+                const n3 = smoothHash(u / 30 + 151, v / 24 + 181, w / 30 + 199) * 0.35;
+                const rock = (n1 + n2 + n3) / 1.95;
+
+                // Base dark volcanic rock.
+                let r = 14 + rock * 36 + n * 5;
+                let g = 10 + rock * 24 + n * 4;
+                let b = 12 + rock * 20 + n * 4;
+
+                // Obsidian zones: darker, slightly cooler tint.
+                const obs = smoothHash(u / 18 + 13, v / 14 + 29, w / 18 + 47);
+                if (obs > 0.62) {
+                    const t = (obs - 0.62) / 0.38;
+                    r = r * (1.0 - 0.55 * t) + 10 * t;
+                    g = g * (1.0 - 0.55 * t) + 10 * t;
+                    b = b * (1.0 - 0.40 * t) + 16 * t;
+                }
+
+                // Crack network from intersecting warped line fields.
+                const d1 = Math.abs(((u + Math.floor(w / 8) * 3) % crackP1) - crackP1 / 2);
+                const d2 = Math.abs(((w + Math.floor(u / 10) * 5) % crackP2) - crackP2 / 2);
+                const d3 = Math.abs(((u + w + Math.floor(v / 6) * 2) % crackP3) - crackP3 / 2);
+                const crackDist = Math.min(d1, d2 * 1.08, d3 * 0.95);
+                let crack = Math.max(0, 1.0 - crackDist / 1.15);
+
+                // Break long cracks into segments.
+                const segKeep = hash(Math.floor(u / 7), Math.floor(v / 5) + 17, Math.floor(w / 7) + 31);
+                crack *= segKeep > 0.20 ? 1.0 : 0.0;
+
+                // Warm lava core + halo around cracks.
+                const halo = Math.max(0, 1.0 - crackDist / 3.8);
+                if (halo > 0) {
+                    r += halo * 26;
+                    g += halo * 8;
+                    b += halo * 3;
+                }
+                if (crack > 0) {
+                    const lava = crack * crack;
+                    r += lava * 155;
+                    g += lava * 55;
+                    b += lava * 8;
+                }
+
+                // Cave lighting: darker at edges, subtle central lift + periodic warm pools.
+                const edgeU = Math.abs(u - uHalf) / uHalf;
+                const edgeW = Math.abs(w - wHalf) / wHalf;
+                const edge = Math.max(edgeU, edgeW);
+                const edgeMul = 1.0 / (1.0 + 3.1 * edge * edge);
+                const vMul = 1.0 - Math.min(1.0, Math.abs(v - vHalf) / vHalf) * 0.25;
+                const radial = Math.sqrt(edgeU * edgeU + edgeW * edgeW);
+                const core = Math.max(0, 1.0 - radial * 1.05);
+
+                const baseLight = 0.36 + edgeMul * 0.52;
+                r *= baseLight * vMul;
+                g *= baseLight * vMul;
+                b *= baseLight * vMul;
+
+                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
+                const du = u - nearestLightU;
+                const dv = v - vHalf;
+                const dw = w - wHalf;
+                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
+                const light = Math.max(0, 1.0 - dist / lightRadius);
+                const light2 = light * light;
+
+                // Warm pools amplify nearby lava cracks.
+                r += light2 * (14 + crack * 30 + halo * 8);
+                g += light2 * (7 + crack * 12);
+                b += light2 * (4 + crack * 4);
+
+                // Subtle glossy obsidian specular.
+                const spec = core * core * (obs > 0.62 ? 1.0 : 0.4);
+                r += spec * 6;
+                g += spec * 7;
+                b += spec * 10;
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+                texture[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
+// Obsidian checker texture for bridges/monoliths.
+// Regular dark checkerboard with glossy highlights.
+function generateObsidianCheckerTexture(withGem = false) {
+    const USIZE = 96;
+    const VSIZE = 96;
+    const WSIZE = 96;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    const step = 10;
+    const uHalf = USIZE / 2;
+    const vHalf = VSIZE / 2;
+    const wHalf = WSIZE / 2;
+    const lightSpacing = 28;
+    const lightRadius = 20;
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const idx = u + v * USIZE + w * USIZE * VSIZE;
+                const n = hash(u, v, w);
+
+                const checker = ((Math.floor(u / step) + Math.floor(v / step) + Math.floor(w / step)) % 2) === 0;
+                let r = checker ? 18 : 9;
+                let g = checker ? 17 : 9;
+                let b = checker ? 24 : 13;
+
+                // Tiny noise so checker pattern is not perfectly flat.
+                r += n * 4;
+                g += n * 3;
+                b += n * 5;
+
+                // Edge lines between tiles.
+                const uIn = u % step;
+                const vIn = v % step;
+                const wIn = w % step;
+                const nearEdge = (uIn === 0 || vIn === 0 || wIn === 0);
+                if (nearEdge) {
+                    r *= 0.78; g *= 0.78; b *= 0.82;
+                }
+
+                const edgeU = Math.abs(u - uHalf) / uHalf;
+                const edgeW = Math.abs(w - wHalf) / wHalf;
+                const edge = Math.max(edgeU, edgeW);
+                const edgeLight = 1.0 / (1.0 + 2.8 * edge * edge);
+                const vLight = 1.0 - Math.min(1.0, Math.abs(v - vHalf) / vHalf) * 0.22;
+                const lightMul = (0.34 + edgeLight * 0.55) * vLight;
+                r *= lightMul;
+                g *= lightMul;
+                b *= lightMul;
+
+                // Sparse cool specular for obsidian sheen.
+                const sparkle = hash(Math.floor(u / 3) * 3 + 101, Math.floor(v / 3) * 3 + 211, Math.floor(w / 3) * 3 + 307);
+                if (sparkle > 0.965) {
+                    const s = (sparkle - 0.965) / 0.035;
+                    r += s * 24;
+                    g += s * 28;
+                    b += s * 36;
+                }
+
+                // Localized light pools.
+                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
+                const du = u - nearestLightU;
+                const dv = v - vHalf;
+                const dw = w - wHalf;
+                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
+                const lp = Math.max(0, 1.0 - dist / lightRadius);
+                const lp2 = lp * lp;
+                r += lp2 * 12;
+                g += lp2 * 14;
+                b += lp2 * 20;
+
+                if (withGem) {
+                    // Purple emissive cracks in obsidian (instead of a central gem).
+                    // Multiple line fields keep cracks visible in XW and YW slices.
+                    const c1 = Math.abs(((u + Math.floor(w / 7) * 2) % 19) - 9.5);
+                    const c2 = Math.abs(((w + Math.floor(v / 6) * 3) % 23) - 11.5);
+                    const c3 = Math.abs(((v + Math.floor(u / 8) * 2) % 17) - 8.5);
+                    const crackDist = Math.min(c1, c2 * 1.05, c3 * 0.95);
+                    let crack = Math.max(0, 1.0 - crackDist / 1.15);
+
+                    // Break continuous lines into jagged segments.
+                    const segKeep = hash(Math.floor(u / 6) + 31, Math.floor(v / 5) + 47, Math.floor(w / 6) + 59);
+                    crack *= segKeep > 0.30 ? 1.0 : 0.0;
+
+                    // Keep most crack length dark (non-emissive).
+                    if (crack > 0) {
+                        const darkCrack = crack * 0.35;
+                        r *= (1.0 - darkCrack * 0.45);
+                        g *= (1.0 - darkCrack * 0.45);
+                        b *= (1.0 - darkCrack * 0.35);
+                    }
+
+                    // Large slice-friendly random patches:
+                    // each mask ignores one axis so XW/YW/UV slices all show purple regions.
+                    const patchXW = hash(Math.floor(u / 20) + 13, 0, Math.floor(w / 20) + 29);
+                    const patchYW = hash(0, Math.floor(v / 20) + 71, Math.floor(w / 20) + 83);
+                    const patchUV = hash(Math.floor(u / 22) + 101, Math.floor(v / 22) + 131, 0);
+                    let patch = Math.max(
+                        Math.max(0, (patchXW - 0.54) / 0.46),
+                        Math.max(0, (patchYW - 0.54) / 0.46),
+                        Math.max(0, (patchUV - 0.56) / 0.44)
+                    );
+                    patch = patch * patch;
+
+                    const emissive = crack * patch;
+                    if (emissive > 0) {
+                        const glow = emissive * emissive;
+                        const halo = Math.max(0, 1.0 - crackDist / 3.0) * patch;
+                        r += halo * 14 + glow * 185;
+                        g += halo * 4 + glow * 28;
+                        b += halo * 30 + glow * 255;
+                    }
+                }
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+                texture[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
 // Falling corridor texture - alternating light/dark rings along u (fall direction)
 // Dark metal at top, reddish rings, lighter metal at bottom, orange glow at entrance
 function generateFallingCorridorTexture() {
@@ -692,6 +1104,7 @@ function generateFallingCorridorTexture() {
 
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
+const fallTex = generateFallingCorridorTexture();
 
 // Flesh wall with thin metal grating overlay
 // Reddish noisy flesh base, thin regularly-spaced metal grate lines
@@ -893,6 +1306,7 @@ function generateMetalGrateTexture() {
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
 const metalGrateTex = generateMetalGrateTexture();
+const room2PipesTex = generateMetalPipesTexture();
 // Starry sky texture - mostly black with white and slightly colored dots
 function generateStarryTexture() {
     const USIZE = 128;
@@ -980,6 +1394,7 @@ function generateStarryTexture() {
 
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
+const starryTex = generateStarryTexture();
 
 // Cement wall texture - rough concrete with cracks, stains, and form marks
 function generateDamCementTexture() {
@@ -1561,6 +1976,7 @@ if (ROOM1) {
     ]),
     0x0000ff
   ));
+  applyTex(objects[objects.length - 1], darkEyesTex, 1, 1, 1);
   objects.push(createHyperwall(
     new Transform4D([
       [     0,    hr,     0,     0,     0],
@@ -1571,6 +1987,7 @@ if (ROOM1) {
     ]),
     0x000077
   ));
+  applyTex(objects[objects.length - 1], darkEyesTex, 1, 1, 1);
 }
 
 // First corridor
@@ -1586,7 +2003,9 @@ if (CORRIDOR1) {
   const c1idx = objects.length;
   createCorridorTube(objects, center, main_dir, main_length, dir1, dir2, length1, length2, _H);
   applyBrick(objects[c1idx + 0], 10, 1, 2); // wall 1 (+y side)
+  applyTex(objects[c1idx + 1], darkEyesTex, 10, 1, 2);
   applyBrick(objects[c1idx + 2], 10, 1, 1); // wall 2 (-w side)
+  applyTex(objects[c1idx + 3], darkEyesTex, 10, 1, 1);
 }
 
 // Second room, cubic with two exits (+x and -w)
@@ -1665,7 +2084,6 @@ if (ROOM2) {
       [0, 0, 0, 0, 1]
   ]), 0x0000ff));
   if (APPLY_TEXTURES) {
-    const darkEyesTex = generateDarkEyesTexture();
     const wPlusWall = objects[objects.length - 1];
     wPlusWall.texture = darkEyesTex.texture;
     wPlusWall.texture_info = darkEyesTex.texture_info;
@@ -1687,11 +2105,8 @@ if (ROOM2) {
     0x000077
   );
   if (APPLY_TEXTURES) {
-    const pipesTex = generateMetalPipesTexture();
     for (let i = 4; i >= 1; i--) {
-      const wall = objects[objects.length - i];
-      wall.texture = pipesTex.texture;
-      wall.texture_info = pipesTex.texture_info;
+      applyTex(objects[objects.length - i], room2PipesTex, 1, 1, 1);
     }
   }
 
@@ -1792,7 +2207,6 @@ let c2l = AREA1_ZH;
 let c2c = new Vector4D(R2X, 0, AREA1_ZH / 2.0 + _H, -R2R - C2R / 2.0);
 createCorridorTubeWithHole(objects, c2c, new Vector4D(0,0,-1,0), c2l, new Vector4D(0,0,0,1), new Vector4D(1,0,0,0), C2R, C2R, -c2l / 2.0 + _H / 2.0, _H + 1.0, new Vector4D(0,1,0,0), C2R, true);
 if (APPLY_TEXTURES) {
-  const fallTex = generateFallingCorridorTexture();
   // Corridor 2 creates 6 walls: 1a, 2, 3, 4, z-bottom, z-top (1b has length <= 0)
   for (let i = 6; i >= 1; i--) {
     const wall = objects[objects.length - i];
@@ -1889,6 +2303,10 @@ const damMetalTex = generateDamMetalTexture();
 const bloodCanalTex = generateBloodCanalTexture();
 const bloodPoolTex = generateBloodPoolTexture();
 const corridor6PipesTex = generateCorridor6PipesTexture();
+const room4BioCircuitTex = generateRoom4BioCircuitTexture();
+const room5RockTex = generateRoom5RockTexture();
+const obsidianBridgeTex = generateObsidianCheckerTexture(false);
+const obsidianGemMonolithTex = generateObsidianCheckerTexture(true);
 
 // Room 3
 
@@ -2325,6 +2743,9 @@ if (true) {
     R4_d * 2.0 / R4_WL,
     0xff0000
   );
+  for (let i = 4; i >= 1; i--) {
+    applyTex(objects[objects.length - i], room4BioCircuitTex, 1, 1, 1);
+  }
 
   // w1: bottom-left diagonal
   objects.push(createHyperwall(
@@ -2414,6 +2835,9 @@ if (true) {
     ]),
     0x7700ff
   ));
+  for (let i = 8; i >= 1; i--) {
+    applyTex(objects[objects.length - i], room4BioCircuitTex, 1, 1, 1);
+  }
   // w9: W- wall with hole (center)
   const h1f1 = C7_DX / w9_xl;
   const h1f2 = C7_DY / w9_yl;
@@ -2429,6 +2853,9 @@ if (true) {
     h1f1, h1f2,
     0x0000ff
   );
+  for (let i = 4; i >= 1; i--) {
+    applyTex(objects[objects.length - i], room2PipesTex, 1, 1, 1);
+  }
   // w10: W- wall on the side
   objects.push(createHyperwall(
     new Transform4D([
@@ -2440,6 +2867,7 @@ if (true) {
     ]),
     0x000077
   ));
+  applyTex(objects[objects.length - 1], room2PipesTex, 1, 1, 1);
   // w11: W+ wall in the middle
   objects.push(createHyperwall(
     new Transform4D([
@@ -2451,6 +2879,7 @@ if (true) {
     ]),
     0x0000ff
   ));
+  applyTex(objects[objects.length - 1], room2PipesTex, 1, 1, 1);
   // w12: W+ wall on the side
   objects.push(createHyperwall(
     new Transform4D([
@@ -2462,6 +2891,7 @@ if (true) {
     ]),
     0x000077
   ));
+  applyTex(objects[objects.length - 1], room2PipesTex, 1, 1, 1);
   // temporary floors
   objects.push(createHyperwall(
     new Transform4D([
@@ -2473,6 +2903,7 @@ if (true) {
     ]),
     0x0000ff
   ));
+  applyTex(objects[objects.length - 1], room2PipesTex, 1, 1, 1);
   objects.push(createHyperwall(
     new Transform4D([
       [  0, wt2_xl/2.0,  0,         0, wt2_c.x],
@@ -2483,12 +2914,17 @@ if (true) {
     ]),
     0x0000ff
   ));
+  applyTex(objects[objects.length - 1], room2PipesTex, 1, 1, 1);
 }
 
 // Corridor 7, -W direction
 const C7_LW = 10.0;
 const c7_c = c7_ref.add(new Vector4D(0, 0, 0, -C7_LW/2.0));
 createCorridorTube(objects, c7_c, new Vector4D(0,0,0,-1), C7_LW, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), C7_DX, C7_DY, _H);
+applyTex(objects[objects.length - 1], fallTex, 0.1, 1, 1);
+applyTex(objects[objects.length - 2], fallTex, 0.1, 1, 1);
+applyTex(objects[objects.length - 3], fallTex, 0.1, 1, 1);
+applyTex(objects[objects.length - 4], fallTex, 0.1, 1, 1);
 
 // Room 5
 //   ___
@@ -2532,7 +2968,13 @@ if (true) {
       h1f1, h1f2,
       0xff0000
   );
+  for (let i = 4; i >= 1; i--) {
+    applyTex(objects[objects.length - i], room5RockTex, 1, 1, 1);
+  }
   createCorridorTube(objects, r5_firstshore_c, new Vector4D(0,0,0,-1), r5_shore_wl, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX, R5_DY, _H);
+  for (let i = 4; i >= 1; i--) {
+    applyTex(objects[objects.length - i], room5RockTex, 1, 1, 1);
+  }
   // Stop the player from jumping out
   const r5_firstedge_c = r5_firstshore_c.add(new Vector4D(0, 0, 0, -r5_shore_wl/2.0));
   createHyperwallWithCenterHole(objects,
@@ -2546,6 +2988,9 @@ if (true) {
       1.0/2.0, 1.0/2.0,
       0xff0000
   );
+  for (let i = 4; i >= 1; i--) {
+    applyTex(objects[objects.length - i], room5RockTex, 1, 1, 1);
+  }
   // Invisible walls to stop the player from going through the lava
   createCorridorTube(objects, r5_c, new Vector4D(0,0,0,-1), R5_LAVA_WL, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX*2, R5_DY*2, _H);
   objects[objects.length - 4].tetras = []; // make wall invisible but keep collider
@@ -2567,6 +3012,7 @@ if (true) {
     ]),
     0xffff00
   ));
+  applyTex(objects[objects.length - 1], obsidianBridgeTex, 1, 1, 1);
   // objects.push(createHyperwall(
   //   new Transform4D([
   //     [  1,         0,  0,         0, r5_xm_c.x],
@@ -2579,6 +3025,9 @@ if (true) {
   // ));
   // Second shore wall
   createCorridorTube(objects, r5_secondshore_c, new Vector4D(0,0,0,-1), r5_shore_wl, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), R5_DX, R5_DY, _H);
+  for (let i = 4; i >= 1; i--) {
+    applyTex(objects[objects.length - i], room5RockTex, 1, 1, 1);
+  }
   // Bridge
   objects.push(createHypercube(
     new Transform4D([
@@ -2590,6 +3039,7 @@ if (true) {
     ]),
     0x222222
   ));
+  applyTex(objects[objects.length - 1], obsidianBridgeTex, 1, 1, 1);
   objects[objects.length-1].simulate_physics = false; // static object
   // To make the player's life easier, add a monolith at the first bridge entrance
   const r5_m1_r = 2.0;
@@ -2605,6 +3055,7 @@ if (true) {
     ]),
     0x222222
   ));
+  applyTex(objects[objects.length - 1], obsidianGemMonolithTex, 1, 1, 1);
   objects[objects.length-1].simulate_physics = false; // static object
   // Stop the player from jumping out
   const r5_secondedge_c = r5_secondshore_c.add(new Vector4D(0, 0, 0, r5_shore_wl/2.0));
@@ -2619,6 +3070,9 @@ if (true) {
       1.0/2.0, 1.0/2.0,
       0xff0000
   );
+  for (let i = 4; i >= 1; i--) {
+    applyTex(objects[objects.length - i], room5RockTex, 1, 1, 1);
+  }
   // End wall
   createHyperwallWithCenterHole(objects,
       new Transform4D([
@@ -2632,11 +3086,17 @@ if (true) {
       C8_DY / R5_DY,
       0xff0000
   );
+  for (let i = 4; i >= 1; i--) {
+    applyTex(objects[objects.length - i], room5RockTex, 1, 1, 1);
+  }
 }
 
 // Corridor 8
 const c8_c = r5_exit.add(new Vector4D(0, 0, 0, -C8_LW/2.0));
 createCorridorTube(objects, c8_c, new Vector4D(0,0,0,-1), C8_LW, new Vector4D(1,0,0,0), new Vector4D(0,1,0,0), C8_DX, C8_DY, _H);
+for (let i = 4; i >= 1; i--) {
+  applyTex(objects[objects.length - i], room5RockTex, 1, 1, 1);
+}
 
 // Room 6
 const R6_R = 60.0;
@@ -2682,6 +3142,9 @@ if (true) {
       h1f1, h1f2,
       0xff0000
   );
+  for (let i = 4; i >= 1; i--) {
+    applyTex(objects[objects.length - i], starryTex, 1, 1, 1);
+  }
   // Magic wall at boss room entrance (blocks player from leaving once inside)
   bossEntranceWallIdx = objects.length;
   objects.push(createHyperwall(
@@ -2706,7 +3169,6 @@ if (true) {
     0x00ffff
   ));
   if (APPLY_TEXTURES) {
-    const starryTex = generateStarryTexture();
     const bossWall = objects[objects.length - 1];
     bossWall.texture = starryTex.texture;
     bossWall.texture_info = starryTex.texture_info;
@@ -2734,6 +3196,7 @@ if (true) {
     ]),
     0x222222
   ));
+  applyTex(objects[objects.length - 1], obsidianBridgeTex, 1, 1, 1);
   objects[objects.length-1].simulate_physics = false; // static object
   // Magic wall across bridge 1 that disappears when boss is dead
   magicWallIndex = objects.length;
@@ -2759,6 +3222,7 @@ if (true) {
     ]),
     0x222222
   ));
+  applyTex(objects[objects.length - 1], obsidianGemMonolithTex, 1, 1, 1);
   objects[objects.length-1].simulate_physics = false; // static object
   // Connect Spherical Bridge To Pedestal (y+)
   objects.push(createHypercube(
@@ -2771,6 +3235,7 @@ if (true) {
     ]),
     0x222222
   ));
+  applyTex(objects[objects.length - 1], obsidianBridgeTex, 1, 1, 1);
   objects[objects.length-1].simulate_physics = false; // static object
   // To make the player's life easier, add a monolith at the first bridge entrance
   objects.push(createHypercube(
@@ -2783,6 +3248,7 @@ if (true) {
     ]),
     0x222222
   ));
+  applyTex(objects[objects.length - 1], obsidianGemMonolithTex, 1, 1, 1);
   objects[objects.length-1].simulate_physics = false; // static object
 
   // Pedestal
