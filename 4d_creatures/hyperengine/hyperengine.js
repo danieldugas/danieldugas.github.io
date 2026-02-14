@@ -349,8 +349,10 @@ export async function runHyperengine(scene) {
         object_texture_header_data[obj_index * 4 + 3] = WSIZE;
     }
     let total_texture_data_size = texture_data_offset;
+    // Allow scenes to reserve extra texture buffer space for live texture updates
+    let texture_buffer_size = Math.max(total_texture_data_size, scene.maxTextureBufferSize || 0);
     // fill global texture data with unique textures only
-    let global_texture_data = new Uint32Array(total_texture_data_size);
+    let global_texture_data = new Uint32Array(texture_buffer_size);
     for (let [texture, offset] of textureOffsetMap) {
         // texture layout is index = (u + (v * USIZE) + (w * USIZE * VSIZE));
         // Make sure the same indexing is used at creation and in the shaders
@@ -2911,6 +2913,33 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         device.queue.writeBuffer(allVerticesInObjectBuffer, 0, all_vertices_in_object_data);
     }
 
+    function writeTextureDataToGPU() {
+        // Rebuild texture header and data from scene objects, then upload to GPU
+        let tex_offset = 0;
+        for (let i = 0; i < scene.visibleHyperobjects.length; i++) {
+            let obj = scene.visibleHyperobjects[i];
+            let sz = obj.texture_info.USIZE * obj.texture_info.VSIZE * obj.texture_info.WSIZE;
+            object_texture_header_data[i * 4 + 0] = tex_offset;
+            object_texture_header_data[i * 4 + 1] = obj.texture_info.USIZE;
+            object_texture_header_data[i * 4 + 2] = obj.texture_info.VSIZE;
+            object_texture_header_data[i * 4 + 3] = obj.texture_info.WSIZE;
+            tex_offset += sz;
+        }
+        device.queue.writeBuffer(textureHeaderBuffer, 0, object_texture_header_data);
+        if (tex_offset <= global_texture_data.length) {
+            let pos = 0;
+            for (let i = 0; i < scene.visibleHyperobjects.length; i++) {
+                let obj = scene.visibleHyperobjects[i];
+                global_texture_data.set(obj.texture, pos);
+                pos += obj.texture_info.USIZE * obj.texture_info.VSIZE * obj.texture_info.WSIZE;
+            }
+            device.queue.writeBuffer(textureBuffer, 0, global_texture_data);
+        } else {
+            console.warn("Texture data too large for pre-allocated buffer. Increase maxTextureBufferSize.");
+        }
+        scene.textureUpdatePending = false;
+    }
+
     // --- Fixed timestep physics ---
     let physicsAccumulator = 0;
     let lastPhysicsFrameTime = performance.now();
@@ -3004,6 +3033,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         writeObjectPosesToGPU();
         if (PROFILING) { t_poses_gpu = performance.now(); }
         writePhysicsTimeToGPU();
+        if (scene.textureUpdatePending) { writeTextureDataToGPU(); }
         if (PROFILING) { t_time_gpu = performance.now(); }
 
         // Run all Stages

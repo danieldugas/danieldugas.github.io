@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wall Texturing Tool</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Consolas', 'Monaco', monospace;
+  background: #1a1a1a;
+  color: #ccc;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+#editor-panel {
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  border-right: 2px solid #333;
+}
+#editor-header {
+  padding: 10px 15px;
+  background: #252525;
+  border-bottom: 1px solid #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#editor-header h2 {
+  font-size: 14px;
+  color: #aaa;
+  font-weight: normal;
+}
+#apply-btn {
+  padding: 4px 14px;
+  background: #4a7a4a;
+  color: #fff;
+  border: 1px solid #5a9a5a;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+#apply-btn:hover { background: #5a9a5a; }
+#apply-btn:active { background: #3a6a3a; }
+#auto-apply-label {
+  font-size: 12px;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+#status {
+  font-size: 12px;
+  padding: 0 10px;
+  min-width: 120px;
+}
+#status.ok { color: #6a6; }
+#status.err { color: #c66; }
+#status.working { color: #aa6; }
+#code-input {
+  flex: 1;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border: none;
+  padding: 15px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  tab-size: 4;
+}
+#error-output {
+  min-height: 60px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 8px 15px;
+  background: #1a1a1a;
+  border-top: 1px solid #333;
+  font-size: 12px;
+  color: #c66;
+  white-space: pre-wrap;
+}
+#render-panel {
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  position: relative;
+}
+canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+.help {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.6);
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #999;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<div id="editor-panel">
+  <div id="editor-header">
+    <h2>generateTexture()</h2>
+    <button id="apply-btn">Apply (Ctrl+Enter)</button>
+    <label id="auto-apply-label">
+      <input type="checkbox" id="auto-apply-cb"> Auto
+    </label>
+    <span id="status"></span>
+  </div>
+  <textarea id="code-input" spellcheck="false"></textarea>
+  <div id="error-output"></div>
+</div>
+<div id="render-panel">
+  <canvas id="canvas" width="600" height="600"></canvas>
+</div>
+
+<script type="module">
+import { Transform4D, Vector4D } from '../../4d_creatures/hyperengine/transform4d.js';
+import { createHyperwall } from '../models/wall.js';
+import { runHyperengine } from '../../4d_creatures/hyperengine/hyperengine.js';
+
+// --- Default texture function code ---
+const DEFAULT_CODE = `// Generate a 3D texture for a HyperWall
+// Must return { texture: Uint32Array, texture_info: { USIZE, VSIZE, WSIZE } }
+// texture[index] = (a << 24) | (b << 16) | (g << 8) | r  (packed RGBA u32)
+// index = u + v * USIZE + w * USIZE * VSIZE
+
+const USIZE = 64;
+const VSIZE = 32;
+const WSIZE = 16;
+const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+function hash(x, y, z) {
+    let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+    h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+    return (h & 0x7fffffff) / 0x7fffffff;
+}
+
+function smoothHash(x, y, z) {
+    const x0 = Math.floor(x), x1 = x0 + 1, xf = x - x0;
+    const y0 = Math.floor(y), y1 = y0 + 1, yf = y - y0;
+    const z0 = Math.floor(z), z1 = z0 + 1, zf = z - z0;
+    const sx = xf * xf * (3 - 2 * xf);
+    const sy = yf * yf * (3 - 2 * yf);
+    const sz = zf * zf * (3 - 2 * zf);
+    const n000 = hash(x0, y0, z0), n100 = hash(x1, y0, z0);
+    const n010 = hash(x0, y1, z0), n110 = hash(x1, y1, z0);
+    const n001 = hash(x0, y0, z1), n101 = hash(x1, y0, z1);
+    const n011 = hash(x0, y1, z1), n111 = hash(x1, y1, z1);
+    const nx00 = n000 + (n100 - n000) * sx;
+    const nx10 = n010 + (n110 - n010) * sx;
+    const nx01 = n001 + (n101 - n001) * sx;
+    const nx11 = n011 + (n111 - n011) * sx;
+    const nxy0 = nx00 + (nx10 - nx00) * sy;
+    const nxy1 = nx01 + (nx11 - nx01) * sy;
+    return nxy0 + (nxy1 - nxy0) * sz;
+}
+
+for (let w = 0; w < WSIZE; w++) {
+    for (let v = 0; v < VSIZE; v++) {
+        for (let u = 0; u < USIZE; u++) {
+            const index = u + v * USIZE + w * USIZE * VSIZE;
+            const n = hash(u, v, w);
+
+            // Brick pattern
+            const brickW = 16, brickH = 8, brickD = 8;
+            const mortarW = 1;
+            // Offset every other row
+            const uo = (Math.floor(v / brickH) % 2 === 0) ? u : u + brickW / 2;
+            const onMortarU = (uo % brickW) < mortarW;
+            const onMortarV = (v % brickH) < mortarW;
+            const onMortarW = (w % brickD) < mortarW;
+
+            let r, g, b;
+            if (onMortarU || onMortarV || onMortarW) {
+                // Mortar: dark gray
+                const base = 50 + n * 20;
+                r = base; g = base; b = base;
+            } else {
+                // Brick: reddish-brown with noise
+                const n1 = smoothHash(u / 6, v / 6, w / 5);
+                r = 120 + n1 * 40 + n * 10;
+                g = 50 + n1 * 20 + n * 5;
+                b = 30 + n1 * 10 + n * 3;
+            }
+
+            r = Math.max(0, Math.min(255, Math.round(r)));
+            g = Math.max(0, Math.min(255, Math.round(g)));
+            b = Math.max(0, Math.min(255, Math.round(b)));
+            texture[index] = (255 << 24) | (b << 16) | (g << 8) | r;
+        }
+    }
+}
+
+return { texture, texture_info: { USIZE, VSIZE, WSIZE } };`;
+
+// --- Setup scene ---
+let hyperwall = createHyperwall(new Transform4D([
+    [1, 0, 0, 0, 10],
+    [0, 10, 0, 0, 0],
+    [0, 0, 3, 0, 0],
+    [0, 0, 0, 10, 0],
+    [0, 0, 0, 0, 1]
+]));
+
+const main_canvas = document.getElementById('canvas');
+let custom_scene = {
+    visibleHyperobjects: [hyperwall],
+    mainCanvas: main_canvas,
+    maxTextureBufferSize: 256 * 128 * 64,  // Reserve space for live texture resizes
+};
+
+// --- Apply texture from code ---
+const codeInput = document.getElementById('code-input');
+const errorOutput = document.getElementById('error-output');
+const statusEl = document.getElementById('status');
+const applyBtn = document.getElementById('apply-btn');
+const autoApplyCb = document.getElementById('auto-apply-cb');
+
+function setStatus(text, cls) {
+    statusEl.textContent = text;
+    statusEl.className = cls;
+}
+
+function applyTexture() {
+    const code = codeInput.value;
+    errorOutput.textContent = '';
+    setStatus('Generating...', 'working');
+
+    try {
+        // Wrap code in a function and execute
+        const fn = new Function(code);
+        const result = fn();
+
+        if (!result || !result.texture || !result.texture_info) {
+            throw new Error('Function must return { texture: Uint32Array, texture_info: { USIZE, VSIZE, WSIZE } }');
+        }
+        const { texture, texture_info } = result;
+        if (!(texture instanceof Uint32Array)) {
+            throw new Error('texture must be a Uint32Array');
+        }
+        const expected = texture_info.USIZE * texture_info.VSIZE * texture_info.WSIZE;
+        if (texture.length !== expected) {
+            throw new Error(`texture length ${texture.length} != USIZE*VSIZE*WSIZE (${expected})`);
+        }
+
+        // Update the wall object
+        hyperwall.texture = texture;
+        hyperwall.texture_info = texture_info;
+        // Signal the engine to re-upload
+        custom_scene.textureUpdatePending = true;
+
+        setStatus(`OK (${texture_info.USIZE}x${texture_info.VSIZE}x${texture_info.WSIZE})`, 'ok');
+    } catch (e) {
+        errorOutput.textContent = e.message + (e.stack ? '\n' + e.stack.split('\n').slice(0, 3).join('\n') : '');
+        setStatus('Error', 'err');
+    }
+}
+
+// --- Event handling ---
+applyBtn.addEventListener('click', applyTexture);
+
+document.addEventListener('keydown', (e) => {
+    // Ctrl+Enter to apply
+    if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        applyTexture();
+    }
+});
+
+// Tab key inserts spaces in textarea
+codeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = codeInput.selectionStart;
+        const end = codeInput.selectionEnd;
+        codeInput.value = codeInput.value.substring(0, start) + '    ' + codeInput.value.substring(end);
+        codeInput.selectionStart = codeInput.selectionEnd = start + 4;
+    }
+    // Stop WASD etc from propagating to canvas when typing
+    e.stopPropagation();
+});
+
+// Auto-apply with debounce
+let autoApplyTimer = null;
+codeInput.addEventListener('input', () => {
+    if (autoApplyCb.checked) {
+        clearTimeout(autoApplyTimer);
+        autoApplyTimer = setTimeout(applyTexture, 800);
+    }
+});
+
+// --- Initialize ---
+codeInput.value = DEFAULT_CODE;
+// Apply default texture on load
+applyTexture();
+
+// --- Start engine ---
+if (!navigator.gpu) {
+    document.getElementById('render-panel').innerHTML = '<div style="color: red; padding: 20px;">WebGPU is not supported in your browser.</div>';
+    throw new Error('WebGPU not supported');
+}
+
+runHyperengine(custom_scene).catch(err => {
+    console.error(err);
+    document.getElementById('render-panel').innerHTML += '<div style="color: red; padding: 20px;">Error: ' + err.message + '</div>';
+});
+
+// Move the engine-created help div to the right half
+const helpControls = document.getElementById('help-controls');
+if (helpControls && helpControls.parentElement) {
+    helpControls.parentElement.style.left = 'calc(50% + 10px)';
+}
+</script>
+</body>
+</html>
