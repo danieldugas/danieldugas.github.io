@@ -1639,7 +1639,32 @@ export class TheBargainManager {
                 };
             }
         } else {
-            gifContainer.innerHTML = '<div style="color: #554444; font-size: 10px;">[ GIF ]</div>';
+            if (zone.overlay) {
+                gifContainer.innerHTML = "";
+                gifContainer.style.position = "relative";
+                gifContainer.style.overflow = "hidden";
+
+                const img = document.createElement("img");
+                img.src = zone.overlay;
+                img.style.position = "absolute";
+                img.style.top = "0";
+                img.style.left = "0";
+                img.style.width = "100%";
+                img.style.height = "100%";
+                img.style.objectFit = "contain";
+                img.style.pointerEvents = "none";
+                img.style.imageRendering = "pixelated";
+                gifContainer.appendChild(img);
+
+                // Resize container to match overlay aspect ratio
+                img.onload = () => {
+                    const aspect = img.naturalWidth / img.naturalHeight;
+                    const w = gifContainer.offsetWidth;
+                    gifContainer.style.height = Math.round(w / aspect) + "px";
+                };
+            } else {
+                gifContainer.innerHTML = '<div style="color: #554444; font-size: 10px;">[ GIF ]</div>';
+            }
         }
 
         overlay.style.display = "flex";
@@ -2374,6 +2399,22 @@ export class TheBargainManager {
                 if (inDangerousLava) {
                     this.gameState.lavaTime += dt;
                     this.gameState.burnLevel = Math.max(0.0, Math.min(1.0, this.gameState.burnLevel + dt/ 3.0));
+                    // Apply lava damage
+                    if (!this.gameState.GOD_MODE && this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
+                        this.gameState.playerHealth -= 10;
+                        if (this.gameState.burnLevel >= 1.0) { this.gameState.playerHealth = 0; }
+                        this.gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                        // Force player out of unblink and lock it for 2 seconds
+                        if (this.gameState.playerEyeMode === "WideOpen" || this.gameState.playerEyeMode === "Lidded->WideOpen") {
+                            this.gameState.playerEyeMode = "WideOpen->Lidded";
+                            this.gameState.eyeAnimationProgress = 0;
+                            this.gameState.unblinkLockoutUntil = engineState.physics_time_s + 2.0;
+                            // Show tutorial the first time a shade forces the player out of unblink
+                            if (!this.gameState.tutorialsShown.has("shade_unblink_hit")) {
+                                this.gameState.shadeUnblinkTutorialPending = true;
+                            }
+                        }
+                    }
                 } else {
                     this.gameState.lavaTime = 0;
                     this.gameState.burnLevel = Math.max(0.0, Math.min(1.0, this.gameState.burnLevel - dt/ 3.0));
