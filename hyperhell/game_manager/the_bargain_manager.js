@@ -402,8 +402,8 @@ class OphaneEnemy {
         this.volumeCenter = volumeCenter;
         this.volumeRadius = volumeRadius;
 
-        this.hp = 80;
-        this.maxHp = 80;
+        this.hp = 1000;
+        this.maxHp = 1000;
         this.isDead = false;
         this.state = 'idle'; // 'idle', 'moving', 'shooting'
         this.lastActionTime = 0;
@@ -648,15 +648,15 @@ class OphaneEnemy {
         if (direction.magnitude() < 0.01) return;
         direction = direction.normalize();
 
-        if (gameState.enemyBulletPrimitives.length === 0) return;
-        let primIndex = gameState.enemyBulletPrimitives.pop();
+        if (gameState.ophaneBulletPrimitives.length === 0) return;
+        let primIndex = gameState.ophaneBulletPrimitives.pop();
         let newBullet = new FiredBullet(
             engineState.scene, primIndex,
             bulletOrigin, direction,
             engineState.physics_time_s
         );
         newBullet.bulletVelocity = 10.0; // slower than player bullets
-        gameState.enemyBullets.push(newBullet);
+        gameState.ophaneBullets.push(newBullet);
     }
 } // OphaneEnemy
 
@@ -712,6 +712,9 @@ class GameState {
         // enemy bullets
         this.enemyBullets = [];
         this.enemyBulletPrimitives = [];
+        // ophane bullets (separate pool, yellow)
+        this.ophaneBullets = [];
+        this.ophaneBulletPrimitives = [];
         // Fall tracking
         this.previousFloorHeight = 0;
         this.playerIsFalling = false;
@@ -758,7 +761,7 @@ export class TheBargainManager {
                 [0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 1]
             ])
-            let sphere = createBullet(1, 0xffff00, pose);
+            let sphere = createBullet(1, 0xff0000, pose);
             this.gameState.bulletPrimitives.push(this.scene.visibleHyperobjects.length);
             this.scene.visibleHyperobjects.push(sphere);
         }
@@ -791,6 +794,20 @@ export class TheBargainManager {
             ]);
             let sphere = createBullet(1, 0xff0000, pose);
             this.gameState.enemyBulletPrimitives.push(this.scene.visibleHyperobjects.length);
+            this.scene.visibleHyperobjects.push(sphere);
+        }
+
+        // Pre-allocate 50 ophane bullets (yellow)
+        for (let i = 0; i < 50; i++) {
+            let pose = new Transform4D([
+                [1, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, -10000],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1]
+            ]);
+            let sphere = createBullet(1, 0xffcc00, pose);
+            this.gameState.ophaneBulletPrimitives.push(this.scene.visibleHyperobjects.length);
             this.scene.visibleHyperobjects.push(sphere);
         }
 
@@ -1155,15 +1172,15 @@ export class TheBargainManager {
         // Weapon icon (right side, hidden until combat tutorial)
         const weaponIcon = document.createElement("div");
         weaponIcon.id = "hud_weapon_icon";
-        weaponIcon.style.width = "40px";
-        weaponIcon.style.height = "40px";
+        weaponIcon.style.width = "64px";
+        weaponIcon.style.height = "64px";
         weaponIcon.style.backgroundColor = "#333";
         weaponIcon.style.border = "1px solid #555";
         weaponIcon.style.borderRadius = "4px";
         weaponIcon.style.display = "none";
         weaponIcon.style.alignItems = "center";
         weaponIcon.style.justifyContent = "center";
-        weaponIcon.innerHTML = `<img src="../icons/blood_pistol.png" style="width: 36px; height: 36px">`;
+        weaponIcon.innerHTML = `<img src="../icons/blood_pistol.png" style="width: 64px; height: 64px">`;
         hud.appendChild(weaponIcon);
 
         document.body.appendChild(hud);
@@ -2152,6 +2169,36 @@ export class TheBargainManager {
                 enemyBullet.destroyBullet(this.gameState.enemyBulletPrimitives, this.gameState.enemyBullets, eb_i);
             } else {
                 eb_i++;
+            }
+        }
+
+        // Update ophane bullets
+        let ob_i = 0;
+        while (ob_i < this.gameState.ophaneBullets.length) {
+            this.gameState.ophaneBullets[ob_i].updateBullet(
+                engineState.physics_time_s,
+                this.gameState.ophaneBulletPrimitives,
+                this.gameState.ophaneBullets,
+                ob_i
+            );
+            ob_i++;
+        }
+
+        // Check ophane bullets against player
+        ob_i = 0;
+        while (ob_i < this.gameState.ophaneBullets.length) {
+            let ophaneBullet = this.gameState.ophaneBullets[ob_i];
+            let bulletPos = ophaneBullet.currentPos();
+            let playerPos = engineState.hypercamera_T.origin();
+            let dist = bulletPos.subtract(playerPos).magnitude();
+            if (dist < 1.0 + ophaneBullet.bulletRadius) {
+                if (this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
+                    this.gameState.playerHealth -= 15;
+                    this.gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                }
+                ophaneBullet.destroyBullet(this.gameState.ophaneBulletPrimitives, this.gameState.ophaneBullets, ob_i);
+            } else {
+                ob_i++;
             }
         }
     }
