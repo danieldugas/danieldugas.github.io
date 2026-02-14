@@ -728,6 +728,7 @@ class GameState {
         this.levelStartTime = null;
         this.enemiesKilled = 0;
         this.levelComplete = false;
+        this.gameOver = false;
         // Debug
         this.pendingTeleport = null;
     }
@@ -856,6 +857,7 @@ export class TheBargainManager {
         this.createDialogOverlay();
         this.createTutorialOverlay();
         this.createLevelCompleteOverlay();
+        this.createGameOverOverlay();
     }
 
     createDebugPanel() {
@@ -1801,6 +1803,120 @@ export class TheBargainManager {
         this.gameState.dialogState = 'levelcomplete';
     }
 
+    createGameOverOverlay() {
+        const canvas = this.scene.mainCanvas;
+        const wrapper = canvas.parentNode;
+
+        const overlay = document.createElement("div");
+        overlay.id = "game_over_overlay";
+        overlay.style.position = "absolute";
+        overlay.style.top = "16px";
+        overlay.style.left = "16px";
+        overlay.style.right = "16px";
+        overlay.style.bottom = "16px";
+        overlay.style.display = "none";
+        overlay.style.zIndex = "2000";
+        overlay.style.cursor = "pointer";
+        overlay.style.boxSizing = "border-box";
+        overlay.style.padding = "20px";
+        overlay.style.flexDirection = "column";
+        overlay.style.justifyContent = "center";
+        overlay.style.backgroundColor = "#0f0505";
+        overlay.style.border = "1px solid #442222";
+        overlay.style.borderRadius = "4px";
+        overlay.style.fontFamily = "'Press Start 2P', monospace";
+        overlay.style.fontSize = "12px";
+        overlay.style.color = "#ccaaaa";
+        overlay.style.lineHeight = "1.6";
+        overlay.style.textShadow = "0 0 8px rgba(150, 50, 50, 0.3)";
+        overlay.style.overflow = "auto";
+
+        // Header row
+        const header = document.createElement("div");
+        header.style.display = "flex";
+        header.style.alignItems = "center";
+        header.style.gap = "12px";
+        header.style.marginBottom = "16px";
+
+        // Skull icon (red X shape using CSS)
+        const icon = document.createElement("div");
+        icon.style.width = "64px";
+        icon.style.height = "64px";
+        icon.style.minWidth = "64px";
+        icon.style.backgroundColor = "#cc2222";
+        icon.style.transform = "rotate(45deg)";
+        icon.style.boxShadow = "0 0 20px rgba(255, 50, 50, 0.5)";
+
+        // Title
+        const title = document.createElement("div");
+        title.style.fontSize = "16px";
+        title.style.color = "#ff4444";
+        title.style.letterSpacing = "3px";
+        title.innerHTML = "GAME OVER";
+
+        header.appendChild(icon);
+        header.appendChild(title);
+
+        // Stats content
+        const stats = document.createElement("div");
+        stats.id = "game_over_stats";
+        stats.style.marginTop = "16px";
+        stats.style.lineHeight = "2.4";
+        stats.innerHTML = "";
+
+        // Continue hint
+        const hint = document.createElement("div");
+        hint.style.fontSize = "11px";
+        hint.style.color = "#554444";
+        hint.style.marginTop = "24px";
+        hint.style.textAlign = "right";
+        hint.innerHTML = "Reload the page to try again...";
+
+        // Content frame
+        const contentFrame = document.createElement("div");
+        contentFrame.style.border = "6px solid #cc4444";
+        contentFrame.style.padding = "20px";
+
+        contentFrame.appendChild(header);
+        contentFrame.appendChild(stats);
+        contentFrame.appendChild(hint);
+        overlay.appendChild(contentFrame);
+        wrapper.appendChild(overlay);
+
+        // Click to close
+        overlay.addEventListener("click", () => {
+            // overlay.style.display = "none";
+            // this.gameState.dialogState = 'none';
+        });
+    }
+
+    showGameOver(engineState) {
+        // Calculate stats
+        const elapsedTime = engineState.physics_time_s - (this.gameState.levelStartTime || 0);
+        const minutes = Math.floor(elapsedTime / 60);
+        const seconds = Math.floor(elapsedTime % 60);
+        const timeStr = String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0');
+
+        const totalEnemies = this.gameState.shadeEnemies.length
+            + this.gameState.crawlerEnemies.length
+            + this.gameState.ophaneEnemies.length;
+        const killed = this.gameState.enemiesKilled;
+
+        const bargainStatus = this.gameState.bargainCompleted ? "Accepted" : "Refused";
+
+        // Populate stats
+        const stats = document.getElementById("game_over_stats");
+        stats.innerHTML =
+            `> Time ........... ${timeStr}<br>` +
+            `> Kills .......... ${killed} / ${totalEnemies}<br>` +
+            `> The Bargain .... ${bargainStatus}`;
+
+        // Show overlay and block input
+        const overlay = document.getElementById("game_over_overlay");
+        overlay.style.display = "flex";
+        this.gameState.dialogState = 'gameover';
+    }
+
     updateDialog(engineState) {
         // Check proximity to bargainer
         if (this.gameState.dialogState === 'none' && !this.gameState.bargainCompleted && this.poIs.bargainerPos) {
@@ -2084,6 +2200,13 @@ export class TheBargainManager {
 
         // Update enemies
         this.updateEnemies(engineState);
+
+        // Check if player HP has reached 0
+        if (!this.gameState.gameOver && !this.gameState.GOD_MODE && this.gameState.playerHealth <= 0) {
+            this.gameState.gameOver = true;
+            this.gameState.playerHealth = 0;
+            this.showGameOver(engineState);
+        }
 
         // Check if player touches end gem
         if (this.gameState.gemState === 'arrived' && !this.gameState.levelComplete && this.endGemPrimitiveIndex !== undefined) {
