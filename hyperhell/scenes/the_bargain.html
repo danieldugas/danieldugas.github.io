@@ -1538,84 +1538,90 @@ function generateDamMetalTexture() {
         return (h & 0x7fffffff) / 0x7fffffff;
     }
 
-    const panelW = 32;  // panel width in u
-    const panelH = 24;  // panel height in v
-    const panelD = 32;  // panel depth in w
-    const seamWidth = 2;
-    const rivetSpacing = 8;
-    const rivetRadius = 1.2;
-
     for (let w = 0; w < WSIZE; w++) {
         for (let v = 0; v < VSIZE; v++) {
             for (let u = 0; u < USIZE; u++) {
                 const index = u + v * USIZE + w * USIZE * VSIZE;
                 const n = hash(u, v, w);
+                const n2 = hash(u * 2 + 11, v * 2 + 17, w * 2 + 23);
+                const nCell = hash(Math.floor(u / 6), Math.floor(v / 6) + 41, Math.floor(w / 6) + 83);
+                const nMacro = hash(Math.floor(u / 18) + 131, Math.floor(v / 18) + 197, Math.floor(w / 18) + 227);
 
-                // Panel seams
-                const uInPanel = u % panelW;
-                const vInPanel = v % panelH;
-                const wInPanel = w % panelD;
-                const isSeamU = uInPanel < seamWidth || uInPanel >= panelW - seamWidth;
-                const isSeamV = vInPanel < seamWidth || vInPanel >= panelH - seamWidth;
-                const isSeamW = wInPanel < seamWidth || wInPanel >= panelD - seamWidth;
-                const isSeam = isSeamU || isSeamV || isSeamW;
+                // Isotropic metal body: no axis-locked seams/rivets.
+                let r = 36 + nCell * 34 + (n - 0.5) * 9;
+                let g = 39 + nCell * 33 + (n2 - 0.5) * 8;
+                let b = 46 + nCell * 37 + (n - 0.5) * 10;
 
-                // Rivet check (rivets along seam edges)
-                let isRivet = false;
-                if (isSeamV && (vInPanel < seamWidth || vInPanel >= panelH - seamWidth)) {
-                    const rivetU = u % rivetSpacing;
-                    const rivetW = w % rivetSpacing;
-                    if (rivetU < rivetRadius * 2 && Math.abs(rivetU - rivetRadius) < rivetRadius) isRivet = true;
-                    if (rivetW < rivetRadius * 2 && Math.abs(rivetW - rivetRadius) < rivetRadius) isRivet = true;
+                // Soft pitting/corrosion.
+                const pit = hash(Math.floor(u / 4) + 307, Math.floor(v / 4) + 401, Math.floor(w / 4) + 503);
+                if (pit > 0.80) {
+                    const p = (pit - 0.80) / 0.20;
+                    r *= (1.0 - p * 0.45);
+                    g *= (1.0 - p * 0.45);
+                    b *= (1.0 - p * 0.40);
                 }
 
-                // Per-panel tint
-                const panelIdU = Math.floor(u / panelW);
-                const panelIdV = Math.floor(v / panelH);
-                const panelIdW = Math.floor(w / panelD);
-                const panelTint = (hash(panelIdU * 7, panelIdV * 13, panelIdW * 19) - 0.5) * 12;
+                // Organic slot field from multiple oriented sine waves (isotropic-ish).
+                const q1 = u * 0.081 + v * 0.056 + w * 0.071;
+                const q2 = -u * 0.063 + v * 0.089 + w * 0.047 + 1.9;
+                const q3 = u * 0.052 - v * 0.074 + w * 0.082 + 0.7;
+                const w1 = Math.abs(Math.sin(q1));
+                const w2 = Math.abs(Math.sin(q2));
+                const w3 = Math.abs(Math.sin(q3));
+                const slotWave = Math.min(w1, Math.min(w2, w3));
 
-                let r, g, b;
-                if (isRivet) {
-                    // Bright rivet head
-                    r = 90 + n * 15; g = 92 + n * 15; b = 98 + n * 15;
-                } else if (isSeam) {
-                    // Dark seam/groove
-                    r = 15 + n * 6; g = 16 + n * 6; b = 18 + n * 6;
-                } else {
-                    // Steel panel surface
-                    const base = 50 + n * 12 + panelTint;
-                    // Brushed metal: streaks along u
-                    const streak = hash(u, Math.floor(v / 2) * 2, Math.floor(w / 2) * 2);
-                    const streakMod = 1.0 + (streak - 0.5) * 0.15;
-                    r = base * 0.92 * streakMod;
-                    g = base * 0.95 * streakMod;
-                    b = base * 1.02 * streakMod;
+                // Sparse patch gating so slots don't fill every wall.
+                const slotPatch = Math.max(0, (nMacro - 0.42) / 0.58);
+                const slotSoft = Math.max(0, (0.17 - slotWave) / 0.17);
+                const slot = slotSoft * slotPatch;
 
-                    // Rust patches
-                    const rust = hash(Math.floor(u / 5) + 400, Math.floor(v / 5) + 400, Math.floor(w / 5) + 400);
-                    if (rust > 0.85) {
-                        const rustStr = (rust - 0.85) / 0.15;
-                        r = r * (1 - rustStr * 0.3) + rustStr * 55;
-                        g *= (1 - rustStr * 0.5);
-                        b *= (1 - rustStr * 0.6);
-                    }
+                // Sinews around slots (fleshy strands hugging the metal tears).
+                const sinewSoft = Math.max(0, (0.30 - slotWave) / 0.30) * (1.0 - slotSoft * 0.85) * slotPatch;
+
+                // Keep slot cores dark and bloody.
+                if (slot > 0) {
+                    const s = slot * slot;
+                    r = r * (1.0 - s * 0.90) + s * (108 + n2 * 20);
+                    g = g * (1.0 - s * 0.96) + s * (9 + n * 4);
+                    b = b * (1.0 - s * 0.97) + s * (7 + n * 3);
                 }
 
-                // Spherical lights
-                const lightSpacing = 48;
-                const lightRadius = 25;
-                const nearestLightU = Math.round(u / lightSpacing) * lightSpacing;
-                const nearestLightW = Math.round(w / lightSpacing) * lightSpacing;
-                const du = u - nearestLightU;
-                const dv = v - VSIZE / 2;
-                const dw = w - nearestLightW;
-                const dist = Math.sqrt(du * du + dv * dv + dw * dw);
-                const lightBright = Math.max(0, 1.0 - dist / lightRadius);
-                const lightIntensity = lightBright * lightBright;
-                r = r * (1.0 + lightIntensity * 1.5);
-                g = g * (1.0 + lightIntensity * 1.4);
-                b = b * (1.0 + lightIntensity * 1.8);
+                // Sinewy tissue tint around slots.
+                if (sinewSoft > 0) {
+                    const t = sinewSoft * sinewSoft;
+                    r = r * (1.0 - t * 0.50) + t * (82 + n * 14);
+                    g = g * (1.0 - t * 0.76) + t * (20 + n2 * 6);
+                    b = b * (1.0 - t * 0.78) + t * (16 + n * 5);
+                }
+
+                // Broad baked lights (top-biased), smooth to reduce aliasing in W slices.
+                const lightSpacing = 56;
+                const lightRadius = 52;
+                const nearestU1 = Math.round(u / lightSpacing) * lightSpacing;
+                const nearestW1 = Math.round(w / lightSpacing) * lightSpacing;
+                const nearestU2 = Math.round((u - lightSpacing * 0.5) / lightSpacing) * lightSpacing + lightSpacing * 0.5;
+                const nearestW2 = Math.round((w - lightSpacing * 0.5) / lightSpacing) * lightSpacing + lightSpacing * 0.5;
+                const lightV1 = VSIZE * 0.98; // top of wall (Z+)
+                const lightV2 = VSIZE * 0.95; // second top-biased fixture
+                const du1 = u - nearestU1, dv1 = v - lightV1, dw1v = (w - nearestW1) * 0.45;
+                const du2 = u - nearestU2, dv2 = v - lightV2, dw2v = (w - nearestW2) * 0.45;
+                const d1 = Math.sqrt(du1 * du1 + dv1 * dv1 + dw1v * dw1v);
+                const d2 = Math.sqrt(du2 * du2 + dv2 * dv2 + dw2v * dw2v);
+                const lb1 = Math.max(0, 1.0 - d1 / lightRadius);
+                const lb2 = Math.max(0, 1.0 - d2 / lightRadius);
+                const li = Math.min(1.0, lb1 * lb1 + lb2 * lb2 * 0.65);
+                r *= (1.0 + li * 1.35);
+                g *= (1.0 + li * 1.30);
+                b *= (1.0 + li * 1.60);
+
+                // Corner attenuation for depth.
+                const vEdge = Math.abs(v - VSIZE / 2) / (VSIZE / 2);
+                const wEdge = Math.abs(w - WSIZE / 2) / (WSIZE / 2);
+                const edge = Math.max(vEdge, wEdge);
+                const ao = 1.0 / (1.0 + 2.4 * edge * edge);
+                r *= ao;
+                g *= ao;
+                b *= ao;
 
                 r = Math.max(0, Math.min(255, Math.round(r)));
                 g = Math.max(0, Math.min(255, Math.round(g)));
@@ -2491,7 +2497,7 @@ if (ROOM3) {
     ]),
     0xff0000
   ));
-  applyTex(objects[objects.length - 1], damCementTex, 1, 1, 1);
+  applyTex(objects[objects.length - 1], metalGrateTex, 1, 1, 1);
   // w6 - blood canals (slanted)
   objects.push(createHyperwall(
     new Transform4D([
