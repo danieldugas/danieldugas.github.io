@@ -117,7 +117,7 @@ class ShadeEnemy {
         // Check own hitbox against player
         const playerRadius = 1.0; // TODO use more precise hitbox
         if (primitive.hitbox.checkBulletCollision(engineState.hypercamera_T.origin(), primitive.pose, playerRadius)) {
-            if (gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
+            if (!gameState.GOD_MODE && gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
                 gameState.playerHealth -= 10;
                 gameState.playerInvulnLastHitTime = engineState.physics_time_s;
                 // Request camstand to smoothly turn toward the shade
@@ -904,6 +904,7 @@ export class TheBargainManager {
         acceptBargainButton.style.fontSize = "11px";
         acceptBargainButton.innerHTML = "Debug: Accept Bargain";
         acceptBargainButton.addEventListener("click", () => {
+            this.gameState.dialogState = 'sealed';
             this.gameState.bargainCompleted = true;
             this.gameState.playerMoveMode = "4D";
             this.gameState.playerEyeMode = "WideOpen->Lidded";
@@ -1583,6 +1584,9 @@ export class TheBargainManager {
     }
 
     showTutorial(zone) {
+        // Ignore tutorials in GOD MODE
+        if (this.gameState.GOD_MODE) return;
+
         this.gameState.tutorialsShown.add(zone.id);
         this.gameState.tutorialActive = true;
         this.gameState.dialogState = 'tutorial';
@@ -2011,9 +2015,22 @@ export class TheBargainManager {
             this.gameState.pendingTeleport = null;
         }
 
-        // First Step callback (debugging)
+        // First Step callback
         if (this.gameState.isFirstStep) {
             this.gameState.isFirstStep = false;
+
+            // DEBUG Remove before flight: debugging quick init
+            // -----
+            if (true) {
+                this.gameState.GOD_MODE = true;
+                document.getElementById('god_mode_checkbox').checked = true;
+                // Bargain accepted
+                this.gameState.bargainCompleted = true;
+                this.gameState.playerMoveMode = "4D";
+                this.gameState.playerEyeMode = "WideOpen->Lidded";
+            }
+            // -----
+
             // Set a few things
             engineState.SENSOR_MODE = 0;
             // Record level start time
