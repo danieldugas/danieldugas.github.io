@@ -430,6 +430,132 @@ function generateMetalPipesTexture() {
     return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
 }
 
+// Corridor 6 dark metal pipes texture
+// Inspired by room2 W- pipes, but darker with edge lighting and vignette.
+function generateCorridor6PipesTexture() {
+    const USIZE = 128;
+    const VSIZE = 96;
+    const WSIZE = 128;
+    const texture = new Uint32Array(USIZE * VSIZE * WSIZE);
+
+    function hash(x, y, z) {
+        let h = ((x * 374761393 + y * 668265263 + z * 1274126177) | 0);
+        h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+        return (h & 0x7fffffff) / 0x7fffffff;
+    }
+
+    const pipePeriod = 5;
+    const vPipePeriod = 4;
+    const pipeRadius = 1.7;
+    const ringWidth = 12;
+    const segLen = 10;
+    const uHalf = USIZE / 2;
+    const vHalf = VSIZE / 2;
+    const wHalf = WSIZE / 2;
+    const maxLinf = Math.max(uHalf, wHalf);
+
+    for (let w = 0; w < WSIZE; w++) {
+        for (let v = 0; v < VSIZE; v++) {
+            for (let u = 0; u < USIZE; u++) {
+                const idx = u + v * USIZE + w * USIZE * VSIZE;
+                const cu = u - uHalf;
+                const cw = w - wHalf;
+                const cv = v - vHalf;
+
+                const linf = Math.max(Math.abs(cu), Math.abs(cw));
+                const ring = Math.floor(linf / ringWidth);
+
+                let perpCoord, axisCoord;
+                if (ring % 2 === 0) {
+                    perpCoord = cw;
+                    axisCoord = cu;
+                } else {
+                    perpCoord = cu;
+                    axisCoord = cw;
+                }
+
+                const pipeIdx = Math.floor((perpCoord + 1000 * pipePeriod) / pipePeriod);
+                const pipePhase = ((perpCoord % pipePeriod) + pipePeriod) % pipePeriod;
+                const perpDist = Math.abs(pipePhase - pipePeriod / 2);
+
+                const vPipeIdx = Math.floor((v + 1000 * vPipePeriod) / vPipePeriod);
+                const vPipePhase = ((v % vPipePeriod) + vPipePeriod) % vPipePeriod;
+                const vPerpDist = Math.abs(vPipePhase - vPipePeriod / 2);
+
+                const combined = Math.sqrt(
+                    (perpDist / pipeRadius) * (perpDist / pipeRadius) +
+                    (vPerpDist / pipeRadius) * (vPerpDist / pipeRadius)
+                );
+
+                const segIdx = Math.floor((axisCoord + 1000 * segLen) / segLen);
+                const segPresent = hash(pipeIdx, segIdx, ring * 13 + vPipeIdx * 17 + 11) > 0.10;
+                const n = hash(u, v, w);
+
+                let r = 6 + n * 4;
+                let g = 7 + n * 4;
+                let b = 10 + n * 5;
+
+                if (combined < 1.0 && segPresent) {
+                    const t = combined;
+                    const shade = Math.cos(t * Math.PI * 0.5);
+                    const shade2 = shade * shade;
+
+                    const base = 18 + shade2 * 90;
+                    r = base * 0.90 + n * 6;
+                    g = base * 0.95 + n * 5;
+                    b = base * 1.05 + n * 4;
+
+                    const posInSeg = ((axisCoord % segLen) + segLen) % segLen;
+                    if (posInSeg < 1.0 || posInSeg > segLen - 1.0) {
+                        r *= 0.55; g *= 0.55; b *= 0.55;
+                    }
+
+                    if (t > 0.76) {
+                        const edgeFade = (t - 0.76) / 0.24;
+                        r *= (1.0 - edgeFade * 0.55);
+                        g *= (1.0 - edgeFade * 0.55);
+                        b *= (1.0 - edgeFade * 0.55);
+                    }
+                }
+
+                // Dark seams between directional rings.
+                const ringPos = linf % ringWidth;
+                if (ringPos < 0.65 || ringPos > ringWidth - 0.65) {
+                    r = r * 0.58 + 4;
+                    g = g * 0.58 + 5;
+                    b = b * 0.58 + 7;
+                }
+
+                // Corridor-style lighting: dark at far edges, subtle highlights near center.
+                const radial = Math.sqrt((cu / uHalf) * (cu / uHalf) + (cw / wHalf) * (cw / wHalf));
+                const vignette = Math.max(0, 1.0 - radial * 0.85);
+                const centerGlow = Math.max(0, 1.0 - radial * 1.35);
+                const topShade = 1.0 - Math.min(1.0, Math.abs(cv) / vHalf) * 0.28;
+                const linfNorm = Math.min(1.0, linf / maxLinf);
+                const edgeDark = 1.0 - linfNorm * 0.55;
+
+                const lightMul = (0.30 + vignette * 0.55) * topShade * edgeDark;
+                r *= lightMul;
+                g *= lightMul;
+                b *= lightMul;
+
+                // Cool metallic highlight on center-facing surfaces.
+                const spec = centerGlow * centerGlow;
+                r += spec * 18;
+                g += spec * 22;
+                b += spec * 30;
+
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+                texture[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    return { texture, texture_info: { USIZE, VSIZE, WSIZE } };
+}
+
 // Falling corridor texture - alternating light/dark rings along u (fall direction)
 // Dark metal at top, reddish rings, lighter metal at bottom, orange glow at entrance
 function generateFallingCorridorTexture() {
@@ -1762,6 +1888,7 @@ const damCementTex = generateDamCementTexture();
 const damMetalTex = generateDamMetalTexture();
 const bloodCanalTex = generateBloodCanalTexture();
 const bloodPoolTex = generateBloodPoolTexture();
+const corridor6PipesTex = generateCorridor6PipesTexture();
 
 // Room 3
 
@@ -2082,6 +2209,15 @@ const C6_WD = c6_yd;
 const c6_c = c6_ref.add(new Vector4D(0, -R3_OUTWL / 2.0, 0, C6_WD/2.0));
 // x+ corridor, hole in -w dir
 createCorridorTubeWithHole(objects, c6_c, new Vector4D(-1,0,0,0), C6_XL, new Vector4D(0,0,0,-1), new Vector4D(0,1,0,0), C6_WD, c6_yd, 0.0, R3_OUTXL, new Vector4D(0,0,1,0), _H, false);
+if (APPLY_TEXTURES) {
+  // Corridor 6 walls: 1a(y+), 1b(y+), 2(x-), 3(y-), 4(x+), 5(endcap)
+  applyTex(objects[objects.length - 6], corridor6PipesTex, 1, 1, 1);
+  applyTex(objects[objects.length - 5], corridor6PipesTex, 1, 1, 1);
+  applyTex(objects[objects.length - 4], corridor6PipesTex, 1, 1, 1);
+  applyTex(objects[objects.length - 3], corridor6PipesTex, 1, 1, 1);
+  applyTex(objects[objects.length - 2], corridor6PipesTex, 1, 1, 1);
+  applyTex(objects[objects.length - 1], corridor6PipesTex, 1, 1, 1);
+}
 
 // Room 4         _
 //          /\       
