@@ -6,18 +6,20 @@ import { createDamned, Hitbox } from '../models/damned.js';
 import { createGem } from '../models/gem.js';
 // TODOs:
 // Jump down / Falling logic [DONE]
-// Lava damage
-// Enemy placements
+// Lava damage [DONE]
+// Enemy placements [DONE]
 // Enemy models [DONE]
 // Visible enemy damage [DONE]
 // Boss healthbar [DONE]
 // Door close [DONE]
 // Dialogue [DONE]
-// Tips
-// Texturing
-// Per room Floor shader
+// Tips [DONE]
+// Texturing [DONE]
+// Per room Floor shader [DONE]
 // Audio
-// You wake up alone. And in horrible pain.
+// Powerups
+// Particles / Glow shaders
+// Clipping bugs
 
 // Custom controls
 //      (3D / 4D upgrade)
