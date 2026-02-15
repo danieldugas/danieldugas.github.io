@@ -2285,7 +2285,7 @@ objects.push(area1Floor);
 // corridor 2 (falling down)
 let c2l = AREA1_ZH;
 let c2c = new Vector4D(R2X, 0, AREA1_ZH / 2.0 + _H, -R2R - C2R / 2.0);
-createCorridorTubeWithHole(objects, c2c, new Vector4D(0,0,-1,0), c2l, new Vector4D(0,0,0,1), new Vector4D(1,0,0,0), C2R, C2R, -c2l / 2.0 + _H / 2.0, _H + 1.0, new Vector4D(0,1,0,0), C2R, true);
+createCorridorTubeWithHole(objects, c2c, new Vector4D(0,0,-1,0), c2l, new Vector4D(0,0,0,1), new Vector4D(1,0,0,0), C2R, C2R, -c2l / 2.0 + _H / 2.0, _H + 2.0, new Vector4D(0,1,0,0), C2R, true);
 if (APPLY_TEXTURES) {
   // Corridor 2 creates 6 walls: 1a, 2, 3, 4, z-bottom, z-top (1b has length <= 0)
   for (let i = 6; i >= 1; i--) {
