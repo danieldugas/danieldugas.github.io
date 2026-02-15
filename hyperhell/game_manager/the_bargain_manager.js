@@ -2271,7 +2271,7 @@ export class TheBargainManager {
 
             // DEBUG Remove before flight: debugging quick init
             // -----
-            if (true) { // NOCOMMIT
+            if (false) {
                 this.gameState.GOD_MODE = true;
                 document.getElementById('god_mode_checkbox').checked = true;
                 // Bargain accepted
