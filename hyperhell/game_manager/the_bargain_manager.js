@@ -964,13 +964,13 @@ export class TheBargainManager {
         acceptBargainButton.style.fontSize = "11px";
         acceptBargainButton.innerHTML = "Debug: Accept Bargain";
         acceptBargainButton.addEventListener("click", () => {
-            this.gameState.dialogState = 'sealed';
+            // this.gameState.dialogState = 'sealed';
             this.gameState.bargainCompleted = true;
             this.gameState.playerMoveMode = "4D";
             this.gameState.playerEyeMode = "WideOpen->Lidded";
-            if (this.poIs.bargainerIndex !== undefined) {
-                this.scene.visibleHyperobjects[this.poIs.bargainerIndex].pose.setTranslation(new Vector4D(0, 0, -10000, 0));
-            }
+            // if (this.poIs.bargainerIndex !== undefined) {
+                // this.scene.visibleHyperobjects[this.poIs.bargainerIndex].pose.setTranslation(new Vector4D(0, 0, -10000, 0));
+            // }
             console.log("Debug: bargain accepted");
         });
         content.appendChild(acceptBargainButton);
@@ -1480,8 +1480,9 @@ export class TheBargainManager {
         choices.innerHTML = "";
 
         const choiceData = [
-            { label: "> Surrender your spleen", action: 'spleen' },
+            // { label: "> Surrender your spleen, eyes and heart", action: 'spleen_eyes_and_heart' },
             { label: "> Surrender your spleen, and eyes", action: 'spleen_and_eyes' },
+            // { label: "> Surrender your spleen", action: 'spleen' },
             { label: "> Refuse", action: 'refuse' },
         ];
 
@@ -1805,6 +1806,7 @@ export class TheBargainManager {
         title.style.fontSize = "16px";
         title.style.color = "#ffdd44";
         title.style.letterSpacing = "3px";
+        title.style.marginLeft = "10px";
         title.innerHTML = "LEVEL COMPLETE";
 
         header.appendChild(icon);
@@ -1823,7 +1825,7 @@ export class TheBargainManager {
         hint.style.color = "#554444";
         hint.style.marginTop = "24px";
         hint.style.textAlign = "right";
-        hint.innerHTML = "click to continue...";
+        hint.innerHTML = "More Levels in the Works...";
 
         // Content frame
         const contentFrame = document.createElement("div");
@@ -1838,8 +1840,8 @@ export class TheBargainManager {
 
         // Click to close
         overlay.addEventListener("click", () => {
-            overlay.style.display = "none";
-            this.gameState.dialogState = 'none';
+            // overlay.style.display = "none";
+            // this.gameState.dialogState = 'none';
         });
     }
 
@@ -1919,6 +1921,7 @@ export class TheBargainManager {
         title.style.fontSize = "16px";
         title.style.color = "#ff4444";
         title.style.letterSpacing = "3px";
+        title.style.marginLeft = "10px";
         title.innerHTML = "GAME OVER";
 
         header.appendChild(icon);
