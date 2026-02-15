@@ -4,6 +4,7 @@ import { createCrawler } from '../models/crawler.js';
 import { createOphane } from '../models/ophane.js';
 import { createDamned, Hitbox } from '../models/damned.js';
 import { createGem } from '../models/gem.js';
+import { AudioManager } from './audio_manager.js';
 // TODOs:
 // Jump down / Falling logic [DONE]
 // Lava damage [DONE]
@@ -34,6 +35,28 @@ import { createGem } from '../models/gem.js';
 
 const liddedCamRot = [-Math.PI / 2.0, 0.1, 40];
 const wideOpenCamRot = [-Math.PI / 2.0, 0.9, 80];
+const AUDIO_ASSETS = {
+    mainMusic: "../audio/main_theme.mp3",
+    bossMusic: "../audio/boss_theme.mp3",
+    sfx: {
+        shoot: "../audio/shoot.mp3",
+        enemyDeath: "../audio/enemy_death.mp3",
+        ophanimDeath: "../audio/ophanim_death.mp3",
+        playerHit: "../audio/player_hit.mp3",
+        playerDeath: "../audio/player_death.mp3",
+        enemyHit: "../audio/enemy_hit.mp3",
+        ophanimHit: "../audio/ophanim_hit.mp3",
+        ophanimHit2: "../audio/ophanim_hit_2.mp3",
+        doorClose: "../audio/door_close.mp3",
+    },
+};
+
+function playGameSfx(gameState, sfxKey, volumeScale = 1.0) {
+    if (!gameState.audioManager) {
+        return;
+    }
+    gameState.audioManager.playSfx(sfxKey, volumeScale);
+}
 
 
 class FiredBullet {
@@ -110,6 +133,7 @@ class ShadeEnemy {
             let playerBullet = gameState.playerBullets[i];
             if (primitive.hitbox.checkBulletCollision(playerBullet.currentPos(), primitive.pose, playerBullet.bulletRadius)) {
                 this.hp -= 10; // hit
+                playGameSfx(gameState, "enemyHit");
                 primitive.animState.damageTakenTime = engineState.physics_time_s;
                 playerBullet.destroyBullet(gameState.bulletPrimitives, gameState.playerBullets, i);
             }
@@ -119,9 +143,10 @@ class ShadeEnemy {
         // Check own hitbox against player
         const playerRadius = 1.0; // TODO use more precise hitbox
         if (primitive.hitbox.checkBulletCollision(engineState.hypercamera_T.origin(), primitive.pose, playerRadius)) {
-            if (!gameState.GOD_MODE && gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
+            if (!gameState.GOD_MODE && gameState.playerHealth > 0 && gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
                 gameState.playerHealth -= 10;
                 gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                playGameSfx(gameState, "playerHit");
                 // Request camstand to smoothly turn toward the shade
                 gameState.forceLookAtPos = primitive.pose.origin();
                 gameState.forceLookAtStartTime = engineState.physics_time_s;
@@ -194,6 +219,7 @@ class ShadeEnemy {
             if (!this.isDead) {
                 this.isDead = true;
                 gameState.enemiesKilled++;
+                playGameSfx(gameState, "enemyDeath");
             }
             primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
         }
@@ -271,6 +297,7 @@ class CrawlerEnemy {
             let playerBullet = gameState.playerBullets[i];
             if (primitive.hitbox && primitive.hitbox.checkBulletCollision(playerBullet.currentPos(), primitive.pose, playerBullet.bulletRadius)) {
                 this.hp -= 10;
+                playGameSfx(gameState, "enemyHit");
                 primitive.animState.damageTakenTime = engineState.physics_time_s;
                 playerBullet.destroyBullet(gameState.bulletPrimitives, gameState.playerBullets, i);
             } else {
@@ -281,9 +308,10 @@ class CrawlerEnemy {
         // Check own hitbox against player
         const playerRadius = 1.0;
         if (primitive.hitbox && primitive.hitbox.checkBulletCollision(engineState.hypercamera_T.origin(), primitive.pose, playerRadius)) {
-            if (gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
+            if (gameState.playerHealth > 0 && gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
                 gameState.playerHealth -= 10;
                 gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                playGameSfx(gameState, "playerHit");
             }
         }
 
@@ -299,6 +327,7 @@ class CrawlerEnemy {
             if (!this.isDead) {
                 this.isDead = true;
                 gameState.enemiesKilled++;
+                playGameSfx(gameState, "enemyDeath");
             }
             primitive.pose.setTranslation(new Vector4D(0, 0, -10000, 0));
             return;
@@ -513,6 +542,8 @@ class OphaneEnemy {
                 // invulnerable during cutscenes
                 if (this.bossState === 'active') {
                     this.hp -= 10;
+                    if (this.hp % 100 === 0) { playGameSfx(gameState, "ophanimHit2"); }
+                    else if (this.hp % 50 === 0) { playGameSfx(gameState, "ophanimHit"); }
                     primitive.animState.damageTakenTime = engineState.physics_time_s;
                 }
                 playerBullet.destroyBullet(gameState.bulletPrimitives, gameState.playerBullets, i);
@@ -524,9 +555,10 @@ class OphaneEnemy {
         // Check own hitbox against player
         const playerRadius = 1.0;
         if (primitive.hitbox && primitive.hitbox.checkBulletCollision(engineState.hypercamera_T.origin(), primitive.pose, playerRadius)) {
-            if (gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
+            if (gameState.playerHealth > 0 && gameState.playerInvulnLastHitTime + gameState.playerInvulnTime < engineState.physics_time_s) {
                 gameState.playerHealth -= 10;
                 gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                playGameSfx(gameState, "playerHit");
             }
         }
 
@@ -535,6 +567,7 @@ class OphaneEnemy {
             if (!this.isDead) {
                 this.isDead = true;
                 gameState.enemiesKilled++;
+                playGameSfx(gameState, "ophanimDeath");
             }
             // Capture death position for gem spawn before teleporting away
             if (gameState.gemState === 'hidden') {
@@ -749,6 +782,8 @@ export class TheBargainManager {
         this.poIs = poIs;
         // State
         this.gameState = new GameState();
+        this.audioManager = new AudioManager(AUDIO_ASSETS);
+        this.gameState.audioManager = this.audioManager;
 
         // Pre-allocate 100 bullets
         // createHypersphere(size, color)
@@ -2115,6 +2150,7 @@ export class TheBargainManager {
             // Phase 1: player enters outer room radius
             if (this.gameState.bossPhase === 0 && distXYW < this.poIs.room6OuterRadius) {
                 this.gameState.bossPhase = 1;
+                this.audioManager.playMusic("boss");
                 for (let i = 0; i < this.gameState.ophaneEnemies.length; i++) {
                     if (this.gameState.ophaneEnemies[i].bossState === 'dormant') {
                         this.gameState.ophaneEnemies[i].startRising(this.gameState, engineState);
@@ -2125,6 +2161,7 @@ export class TheBargainManager {
                     let wall = this.scene.visibleHyperobjects[this.poIs.bossEntranceWallIdx];
                     wall.pose = this.bossEntranceWallOriginalPose;
                     wall.collider.updateParentPose(wall.pose);
+                    this.audioManager.playSfx("doorClose");
                 }
             }
 
@@ -2164,9 +2201,10 @@ export class TheBargainManager {
             let playerPos = engineState.hypercamera_T.origin();
             let dist = bulletPos.subtract(playerPos).magnitude();
             if (dist < 1.0 + enemyBullet.bulletRadius) {
-                if (this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
-                    this.gameState.playerHealth -= 15;
+                if (this.gameState.playerHealth > 0 && this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
+                    this.gameState.playerHealth -= 10;
                     this.gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                    this.audioManager.playSfx("playerHit");
                 }
                 enemyBullet.destroyBullet(this.gameState.enemyBulletPrimitives, this.gameState.enemyBullets, eb_i);
             } else {
@@ -2194,9 +2232,10 @@ export class TheBargainManager {
             let playerPos = engineState.hypercamera_T.origin();
             let dist = bulletPos.subtract(playerPos).magnitude();
             if (dist < 1.0 + ophaneBullet.bulletRadius) {
-                if (this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
-                    this.gameState.playerHealth -= 15;
+                if (this.gameState.playerHealth > 0 && this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
+                    this.gameState.playerHealth -= 10;
                     this.gameState.playerInvulnLastHitTime = engineState.physics_time_s;
+                    this.audioManager.playSfx("playerHit");
                 }
                 ophaneBullet.destroyBullet(this.gameState.ophaneBulletPrimitives, this.gameState.ophaneBullets, ob_i);
             } else {
@@ -2232,7 +2271,7 @@ export class TheBargainManager {
 
             // DEBUG Remove before flight: debugging quick init
             // -----
-            if (false) {
+            if (true) { // NOCOMMIT
                 this.gameState.GOD_MODE = true;
                 document.getElementById('god_mode_checkbox').checked = true;
                 // Bargain accepted
@@ -2246,6 +2285,7 @@ export class TheBargainManager {
             engineState.SENSOR_MODE = 0;
             // Record level start time
             this.gameState.levelStartTime = engineState.physics_time_s;
+            this.audioManager.playMusic("main");
             // Initialize floor height tracking
             this.gameState.previousFloorHeight = engineState.scene.floor_heightmap(
                 engineState.camstand_T.matrix[0][4],
@@ -2275,6 +2315,7 @@ export class TheBargainManager {
         if (!this.gameState.gameOver && !this.gameState.GOD_MODE && this.gameState.playerHealth <= 0) {
             this.gameState.gameOver = true;
             this.gameState.playerHealth = 0;
+            playGameSfx(this.gameState, "playerDeath");
             this.showGameOver(engineState);
         }
 
@@ -2301,6 +2342,7 @@ export class TheBargainManager {
                 let wall = this.scene.visibleHyperobjects[this.poIs.room2MagicWallIdx];
                 wall.pose = this.room2WallOriginalPose;
                 wall.collider.updateParentPose(wall.pose);
+                this.audioManager.playSfx("doorClose");
             }
         }
 
@@ -2511,6 +2553,7 @@ export class TheBargainManager {
                 this.gameState.playerBullets.push(newBullet);
                 this.gameState.bulletCooldownLastFiredTime = engineState.physics_time_s;
                 this.gameState.playerAmmo--;
+                this.audioManager.playSfx("shoot", 0.9);
                 if (this.gameState.playerAmmo <= 0) {
                     this.gameState.playerAmmo = 0;
                     this.gameState.ammoReloading = true;
@@ -2621,10 +2664,11 @@ export class TheBargainManager {
                     this.gameState.lavaTime += dt;
                     this.gameState.burnLevel = Math.max(0.0, Math.min(1.0, this.gameState.burnLevel + dt/ 3.0));
                     // Apply lava damage
-                    if (!this.gameState.GOD_MODE && this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
+                    if (!this.gameState.GOD_MODE && this.gameState.playerHealth > 0 && this.gameState.playerInvulnLastHitTime + this.gameState.playerInvulnTime < engineState.physics_time_s) {
                         if (this.gameState.burnLevel >= 1.0) { this.gameState.playerHealth = 0; }
                         if (this.gameState.burnLevel >= 0.3) {
-                             this.gameState.playerHealth -= 10;
+                            this.gameState.playerHealth -= 10;
+                            playGameSfx(this.gameState, "playerHit");
                             this.gameState.playerInvulnLastHitTime = engineState.physics_time_s;
                             // Force player out of unblink and lock it for 2 seconds
                             if (this.gameState.playerEyeMode === "WideOpen" || this.gameState.playerEyeMode === "Lidded->WideOpen") {
