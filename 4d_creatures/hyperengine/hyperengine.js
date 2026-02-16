@@ -625,14 +625,14 @@ fn clip_vertex(v_behind: Vertex1uvlstex, v_front: Vertex1uvlstex) -> Vertex1uvls
 
 fn add_vertex(v: Vertex1uvlstex) -> u32 {
     let idx = atomicAdd(&tetraCountsBuffer[3], 1u);
-    let n_orig = tetraCountsBuffer[1];
+    let n_orig = atomicLoad(&tetraCountsBuffer[1]);
     vertices1uvlstexBuffer[n_orig + idx] = v;
     return n_orig + idx;
 }
 
 fn add_tetra(i0: u32, i1: u32, i2: u32, i3: u32, flags: u32) {
     let idx = atomicAdd(&tetraCountsBuffer[2], 1u);
-    let n_orig = tetraCountsBuffer[0];
+    let n_orig = atomicLoad(&tetraCountsBuffer[0]);
     tetrasBuffer[n_orig + idx].i0 = i0;
     tetrasBuffer[n_orig + idx].i1 = i1;
     tetrasBuffer[n_orig + idx].i2 = i2;
@@ -774,7 +774,7 @@ fn clip_tetrahedron(
 fn clip_tetras(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let S_near = 0.1;
     let tetra_index = global_id.x;
-    let orig_n_tetras = tetraCountsBuffer[0];
+    let orig_n_tetras = atomicLoad(&tetraCountsBuffer[0]);
     if (tetra_index >= orig_n_tetras) { return; }
 
     let tetra = tetrasBuffer[tetra_index];
