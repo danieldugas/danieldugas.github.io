@@ -33,6 +33,8 @@ import { AudioManager } from './audio_manager.js';
 // Dialogue overlays
 // Game Over 
 
+const DEBUG_MODE = false;
+
 const liddedCamRot = [-Math.PI / 2.0, 0.1, 40];
 const wideOpenCamRot = [-Math.PI / 2.0, 0.9, 80];
 const AUDIO_ASSETS = {
@@ -919,6 +921,7 @@ export class TheBargainManager {
     }
 
     createDebugPanel() {
+        if (!DEBUG_MODE) return;
         // Create container
         const panel = document.createElement("div");
         panel.id = "debug_panel";
@@ -1073,8 +1076,8 @@ export class TheBargainManager {
         // Left icon (player face/status)
         const leftIcon = document.createElement("div");
         leftIcon.id = "hud_left_icon";
-        leftIcon.style.width = "32px";
-        leftIcon.style.height = "32px";
+        leftIcon.style.width = "64px";
+        leftIcon.style.height = "64px";
         leftIcon.style.backgroundColor = "#333";
         leftIcon.style.border = "1px solid #555";
         leftIcon.style.borderRadius = "4px";
@@ -2272,15 +2275,22 @@ export class TheBargainManager {
         if (this.gameState.isFirstStep) {
             this.gameState.isFirstStep = false;
 
+            // Hide loading div
+            document.getElementById('loading-div').style.display = 'none';
+
             // DEBUG Remove before flight: debugging quick init
             // -----
-            if (false) {
+            if (DEBUG_MODE) {
                 this.gameState.GOD_MODE = true;
                 document.getElementById('god_mode_checkbox').checked = true;
                 // Bargain accepted
                 this.gameState.bargainCompleted = true;
                 this.gameState.playerMoveMode = "4D";
                 this.gameState.playerEyeMode = "WideOpen->Lidded";
+            } else {
+                // Hide the help div from hyperengine
+                const help_div = document.getElementById("help-div");
+                if (help_div) { help_div.style.display = "none"; }
             }
             // -----
 
@@ -2625,35 +2635,39 @@ export class TheBargainManager {
         }
 
                 // Debug: collision info
-                if (!document.getElementById("collision_debug")) {
-                    const div = document.createElement("div");
-                    div.id = "collision_debug";
-                    document.body.appendChild(div);
-                    div.style.position = "absolute";
-                    div.style.top = "10px";
-                    div.style.left = "320px";
-                    div.style.color = "rgb(255, 200, 100)";
-                    div.style.fontFamily = "monospace";
-                    div.style.fontSize = "12px";
-                }
-                const collDiv = document.getElementById("collision_debug");
-                if (collidingObjects.length > 0) {
-                    collDiv.innerHTML = `Colliding:<br>` + collidingObjects.join('<br>');
-                } else {
-                    collDiv.innerHTML = `Colliding:<br>(none)`;
+                if (DEBUG_MODE) {
+                    if (!document.getElementById("collision_debug")) {
+                        const div = document.createElement("div");
+                        div.id = "collision_debug";
+                        document.body.appendChild(div);
+                        div.style.position = "absolute";
+                        div.style.top = "10px";
+                        div.style.left = "320px";
+                        div.style.color = "rgb(255, 200, 100)";
+                        div.style.fontFamily = "monospace";
+                        div.style.fontSize = "12px";
+                    }
+                    const collDiv = document.getElementById("collision_debug");
+                    if (collidingObjects.length > 0) {
+                        collDiv.innerHTML = `Colliding:<br>` + collidingObjects.join('<br>');
+                    } else {
+                        collDiv.innerHTML = `Colliding:<br>(none)`;
+                    }
                 }
 
                 // Debug: lava/bridge info
-                if (!document.getElementById("lava_bridge_debug")) {
-                    const div = document.createElement("div");
-                    div.id = "lava_bridge_debug";
-                    document.body.appendChild(div);
-                    div.style.position = "absolute";
-                    div.style.top = "60px";
-                    div.style.left = "320px";
-                    div.style.color = "rgb(255, 200, 100)";
-                    div.style.fontFamily = "monospace";
-                    div.style.fontSize = "12px";
+                if (DEBUG_MODE) {
+                    if (!document.getElementById("lava_bridge_debug")) {
+                        const div = document.createElement("div");
+                        div.id = "lava_bridge_debug";
+                        document.body.appendChild(div);
+                        div.style.position = "absolute";
+                        div.style.top = "60px";
+                        div.style.left = "320px";
+                        div.style.color = "rgb(255, 200, 100)";
+                        div.style.fontFamily = "monospace";
+                        div.style.fontSize = "12px";
+                    }
                 }
                 const px = engineState.camstand_T.matrix[0][4];
                 const py = engineState.camstand_T.matrix[1][4];
@@ -2690,31 +2704,35 @@ export class TheBargainManager {
                     this.gameState.burnLevel = Math.max(0.0, Math.min(1.0, this.gameState.burnLevel - dt/ 3.0));
                 }
                 const lbDiv = document.getElementById("lava_bridge_debug");
-                lbDiv.innerHTML =
-                    `Lava: <span style="color:${onLava ? '#ff4444' : '#88ff88'}">${onLava ? 'YES' : 'no'}</span><br>` +
-                    `Bridge: <span style="color:${onBridge ? '#88ff88' : '#aaaaaa'}">${onBridge ? 'YES' : 'no'}</span><br>` +
-                    `Lava time: <span style="color:${inDangerousLava ? '#ff4444' : '#aaaaaa'}">${this.gameState.lavaTime.toFixed(2)}s</span>`;
+                if (lbDiv) {
+                    lbDiv.innerHTML =
+                        `Lava: <span style="color:${onLava ? '#ff4444' : '#88ff88'}">${onLava ? 'YES' : 'no'}</span><br>` +
+                        `Bridge: <span style="color:${onBridge ? '#88ff88' : '#aaaaaa'}">${onBridge ? 'YES' : 'no'}</span><br>` +
+                        `Lava time: <span style="color:${inDangerousLava ? '#ff4444' : '#aaaaaa'}">${this.gameState.lavaTime.toFixed(2)}s</span>`;
+                }
 
                 // Debug: print the player pose to a div
                 // create div if it doesn't exist
-                if (!document.getElementById("player_pose")) {
-                    const div = document.createElement("div");
-                    div.id = "player_pose";
-                    document.body.appendChild(div);
-                    div.style.position = "absolute";
-                    div.style.top = "10px";
-                    div.style.right = "10px";
-                    div.style.color = "rgb(156, 156, 156)";
-                    div.style.fontFamily = "monospace";
-                    div.style.fontSize = "12px";
-                    console.log("created div");
+                if (DEBUG_MODE) {
+                    if (!document.getElementById("player_pose")) {
+                        const div = document.createElement("div");
+                        div.id = "player_pose";
+                        document.body.appendChild(div);
+                        div.style.position = "absolute";
+                        div.style.top = "10px";
+                        div.style.right = "10px";
+                        div.style.color = "rgb(156, 156, 156)";
+                        div.style.fontFamily = "monospace";
+                        div.style.fontSize = "12px";
+                        console.log("created div");
+                    }
+                    // update div
+                    document.getElementById("player_pose").innerHTML = `Player:<br>`;
+                    document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[0][0].toFixed(2)}, ${engineState.camstand_T.matrix[0][1].toFixed(2)}, ${engineState.camstand_T.matrix[0][2].toFixed(2)}, ${engineState.camstand_T.matrix[0][3].toFixed(2)}, ${engineState.camstand_T.matrix[0][4].toFixed(2)}]<br>`;
+                    document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[1][0].toFixed(2)}, ${engineState.camstand_T.matrix[1][1].toFixed(2)}, ${engineState.camstand_T.matrix[1][2].toFixed(2)}, ${engineState.camstand_T.matrix[1][3].toFixed(2)}, ${engineState.camstand_T.matrix[1][4].toFixed(2)}]<br>`;
+                    document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[2][0].toFixed(2)}, ${engineState.camstand_T.matrix[2][1].toFixed(2)}, ${engineState.camstand_T.matrix[2][2].toFixed(2)}, ${engineState.camstand_T.matrix[2][3].toFixed(2)}, ${engineState.camstand_T.matrix[2][4].toFixed(2)}]<br>`;
+                    document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[3][0].toFixed(2)}, ${engineState.camstand_T.matrix[3][1].toFixed(2)}, ${engineState.camstand_T.matrix[3][2].toFixed(2)}, ${engineState.camstand_T.matrix[3][3].toFixed(2)}, ${engineState.camstand_T.matrix[3][4].toFixed(2)}]<br>`;
                 }
-                // update div
-                document.getElementById("player_pose").innerHTML = `Player:<br>`;
-                document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[0][0].toFixed(2)}, ${engineState.camstand_T.matrix[0][1].toFixed(2)}, ${engineState.camstand_T.matrix[0][2].toFixed(2)}, ${engineState.camstand_T.matrix[0][3].toFixed(2)}, ${engineState.camstand_T.matrix[0][4].toFixed(2)}]<br>`;
-                document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[1][0].toFixed(2)}, ${engineState.camstand_T.matrix[1][1].toFixed(2)}, ${engineState.camstand_T.matrix[1][2].toFixed(2)}, ${engineState.camstand_T.matrix[1][3].toFixed(2)}, ${engineState.camstand_T.matrix[1][4].toFixed(2)}]<br>`;
-                document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[2][0].toFixed(2)}, ${engineState.camstand_T.matrix[2][1].toFixed(2)}, ${engineState.camstand_T.matrix[2][2].toFixed(2)}, ${engineState.camstand_T.matrix[2][3].toFixed(2)}, ${engineState.camstand_T.matrix[2][4].toFixed(2)}]<br>`;
-                document.getElementById("player_pose").innerHTML += `[${engineState.camstand_T.matrix[3][0].toFixed(2)}, ${engineState.camstand_T.matrix[3][1].toFixed(2)}, ${engineState.camstand_T.matrix[3][2].toFixed(2)}, ${engineState.camstand_T.matrix[3][3].toFixed(2)}, ${engineState.camstand_T.matrix[3][4].toFixed(2)}]<br>`;
 
         // Camera, floor, gem, HUD
         this.updateCameraAndFloor(engineState);

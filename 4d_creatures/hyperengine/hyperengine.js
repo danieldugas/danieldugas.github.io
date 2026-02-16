@@ -84,98 +84,101 @@ export async function runHyperengine(scene) {
 
 
     // Add Controls Div
-    let help_div = document.createElement("div");
-    help_div.style.position = "fixed";
-    help_div.style.top = "10px";
-    help_div.style.left = "10px";
-    help_div.style.backgroundColor = "rgba(0,0,0,0.5)";
-    help_div.style.padding = "10px";
-    help_div.style.borderRadius = "5px";
-    help_div.style.fontSize = "12px";
-    help_div.style.color = "#ccc";
-    help_div.style.maxWidth = "300px";
-    document.body.appendChild(help_div);
-    let help_html =
-    `
-    <div id="help-controls" style="color:rgb(156, 156, 156);">
-    WASD: Move hypercamera forwards, sideways<br>
-    Q/E: Move hypercamera in ana, kata directions<br>
-    IJKL: Rotate hypercamera up/down, left/right<br>
-    U/O: Rotate hypercamera in wx plane<br>
-    Y/P: Rotate hypercamera in wy plane<br>
-    Mouse drag: Rotate sensor view<br>
-    Mouse wheel: Zoom<br>
+    if (document.getElementById("help-div") == null) {
+        let help_div = document.createElement("div");
+        help_div.id = "help-div";
+        help_div.style.position = "fixed";
+        help_div.style.top = "10px";
+        help_div.style.left = "10px";
+        help_div.style.backgroundColor = "rgba(0,0,0,0.5)";
+        help_div.style.padding = "10px";
+        help_div.style.borderRadius = "5px";
+        help_div.style.fontSize = "12px";
+        help_div.style.color = "#ccc";
+        help_div.style.maxWidth = "300px";
+        document.body.appendChild(help_div);
+        let help_html =
+        `
+        <div id="help-controls" style="color:rgb(156, 156, 156);">
+        WASD: Move hypercamera forwards, sideways<br>
+        Q/E: Move hypercamera in ana, kata directions<br>
+        IJKL: Rotate hypercamera up/down, left/right<br>
+        U/O: Rotate hypercamera in wx plane<br>
+        Y/P: Rotate hypercamera in wy plane<br>
+        Mouse drag: Rotate sensor view<br>
+        Mouse wheel: Zoom<br>
 
-    <!-- dropdown menu for sensor mode (slice, cutout, full) -->
-    <div id="sensor-mode-dropdown" style="color:rgb(156, 156, 156);">
-    <label for="sensor-mode">Sensor Mode:</label>
-    <select id="sensor-mode">
-        <option value="slice">Slice</option>
-        <option value="cutout">Cutout</option>
-        <option value="full" selected>Full</option>
-        <option value="half">Half</option>
-        <option value="eyeball">Eyeball</option>
-    </select>
-    </div>
+        <!-- dropdown menu for sensor mode (slice, cutout, full) -->
+        <div id="sensor-mode-dropdown" style="color:rgb(156, 156, 156);">
+        <label for="sensor-mode">Sensor Mode:</label>
+        <select id="sensor-mode">
+            <option value="slice">Slice</option>
+            <option value="cutout">Cutout</option>
+            <option value="full" selected>Full</option>
+            <option value="half">Half</option>
+            <option value="eyeball">Eyeball</option>
+        </select>
+        </div>
 
-    <!-- Slider for sensor transparency -->
-    <div id="sensor-transparency-slider" style="color:rgb(156, 156, 156);">
-    <label for="sensor-transparency">Sensor Transparency:</label>
-    <input type="range" id="sensor-transparency" name="sensor-transparency" min="0" max="1" step="0.01" value="1.0">
-    </div>
+        <!-- Slider for sensor transparency -->
+        <div id="sensor-transparency-slider" style="color:rgb(156, 156, 156);">
+        <label for="sensor-transparency">Sensor Transparency:</label>
+        <input type="range" id="sensor-transparency" name="sensor-transparency" min="0" max="1" step="0.01" value="1.0">
+        </div>
 
-    <!-- Checkbox for debugging tetras -->
-    <div id="debug-tetras-checkbox" style="color:rgb(156, 156, 156);">
-    <label for="debug-tetras">Debug Tetras:</label>
-    <input type="checkbox" id="debug-tetras" name="debug-tetras">
-    </div>
+        <!-- Checkbox for debugging tetras -->
+        <div id="debug-tetras-checkbox" style="color:rgb(156, 156, 156);">
+        <label for="debug-tetras">Debug Tetras:</label>
+        <input type="checkbox" id="debug-tetras" name="debug-tetras">
+        </div>
 
-    <!-- Checkbox for auto shake sensor -->
-    <div id="auto-shake-sensor-checkbox" style="color:rgb(156, 156, 156);">
-    <label for="auto-shake-sensor">Auto Shake Sensor:</label>
-    <input type="checkbox" id="auto-shake-sensor" name="auto-shake-sensor">
-    </div>
+        <!-- Checkbox for auto shake sensor -->
+        <div id="auto-shake-sensor-checkbox" style="color:rgb(156, 156, 156);">
+        <label for="auto-shake-sensor">Auto Shake Sensor:</label>
+        <input type="checkbox" id="auto-shake-sensor" name="auto-shake-sensor">
+        </div>
 
 
-    </div>
-    <br>
-    This is the GPU version of <a href="../4d_camera.html">Hypercamera</a>
-    `;
-    help_div.innerHTML = help_html;
-    // update sensor mode
-    document.getElementById("sensor-mode").addEventListener("change", function() {
-        let sensormodefloat = 0.0;
-        if (this.value === "slice") {
-            sensormodefloat = 0.0;
-        } else if (this.value === "cutout") {
-            sensormodefloat = 1.0;
-        } else if (this.value === "half") {
-            sensormodefloat = 2.0;
-        } else if (this.value === "full") {
-            sensormodefloat = 3.0;
-        } else if (this.value === "eyeball") {
-            sensormodefloat = 4.0;
-        } else {
-            console.log("unknown sensor mode");
-        }
-        engineState.SENSOR_MODE = sensormodefloat;
-        console.log(engineState.SENSOR_MODE);
-    });
-    // update sensor transparency
-    document.getElementById("sensor-transparency").addEventListener("input", function() {
-        engineState.SENSOR_ALPHA = parseFloat(this.value);
-        console.log(engineState.SENSOR_ALPHA);
-    });
-    // update debug tetras
-    document.getElementById("debug-tetras").addEventListener("change", function() {
-        engineState.DEBUG_TETRA_COLORS = this.checked;
-        console.log("engineState.DEBUG_TETRA_COLORS:", engineState.DEBUG_TETRA_COLORS);
-    });
-    // update auto shake sensor
-    document.getElementById("auto-shake-sensor").addEventListener("change", function() {
-        engineState.AUTO_SHAKE_SENSOR = this.checked;
-        console.log("engineState.AUTO_SHAKE_SENSOR:", engineState.AUTO_SHAKE_SENSOR);
-    });
+        </div>
+        <br>
+        This is the GPU version of <a href="../4d_camera.html">Hypercamera</a>
+        `;
+        help_div.innerHTML = help_html;
+        // update sensor mode
+        document.getElementById("sensor-mode").addEventListener("change", function() {
+            let sensormodefloat = 0.0;
+            if (this.value === "slice") {
+                sensormodefloat = 0.0;
+            } else if (this.value === "cutout") {
+                sensormodefloat = 1.0;
+            } else if (this.value === "half") {
+                sensormodefloat = 2.0;
+            } else if (this.value === "full") {
+                sensormodefloat = 3.0;
+            } else if (this.value === "eyeball") {
+                sensormodefloat = 4.0;
+            } else {
+                console.log("unknown sensor mode");
+            }
+            engineState.SENSOR_MODE = sensormodefloat;
+            console.log(engineState.SENSOR_MODE);
+        });
+        // update sensor transparency
+        document.getElementById("sensor-transparency").addEventListener("input", function() {
+            engineState.SENSOR_ALPHA = parseFloat(this.value);
+            console.log(engineState.SENSOR_ALPHA);
+        });
+        // update debug tetras
+        document.getElementById("debug-tetras").addEventListener("change", function() {
+            engineState.DEBUG_TETRA_COLORS = this.checked;
+            console.log("engineState.DEBUG_TETRA_COLORS:", engineState.DEBUG_TETRA_COLORS);
+        });
+        // update auto shake sensor
+        document.getElementById("auto-shake-sensor").addEventListener("change", function() {
+            engineState.AUTO_SHAKE_SENSOR = this.checked;
+            console.log("engineState.AUTO_SHAKE_SENSOR:", engineState.AUTO_SHAKE_SENSOR);
+        });
+    }
 
     // Add PDA
     if (scene.floorPreset === 'island') {
@@ -2945,7 +2948,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let lastPhysicsFrameTime = performance.now();
 
     // --- Profiling setup ---
-    const PROFILING = true;
+    const PROFILING = false;
     const PROF_HISTORY = 60;
     let profiling_div, prof_history, prof_frame_count, prof_last_frame_time, prof_gpu_ms;
     let prof_accel_stats = null; // latest accel structure utilization stats

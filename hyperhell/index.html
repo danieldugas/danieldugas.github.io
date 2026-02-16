@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <title>HYPERHELL</title>
+  <style>
+    :root {
+      --title-color: #d20300;
+      --bg-dark: #292929;
+      --bg-mid: #3a3a3a;
+      --bg-light: #4b4b4b;
+      --text: #c4aeae;
+      --accent: #f25f5c;
+      --button-bg: #ff4b4b;
+      --button-border: #980000;
+      --button-text: #6f0000;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Press Start 2P", monospace;
+      image-rendering: pixelated;
+      background-color: var(--bg-dark);
+      background-image: url("./icons/hyperhell_bg.png");
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: cover;
+      display: grid;
+      place-items: center;
+      padding: 2rem 1rem;
+    }
+
+    .hero {
+      width: min(920px, 100%);
+      text-align: center;
+      /* background: rgba(15, 15, 15, 0.78); */
+      /* border: 3px solid #7b7b7b; */
+      /* box-shadow: 0 0 0 3px #1b1b1b, 10px 10px 0 rgba(0, 0, 0, 0.35); */
+      padding: 2rem 1.25rem;
+    }
+
+    h1 {
+      margin: 0 0 0.6rem;
+      font-size: clamp(1.8rem, 6vw, 3.2rem);
+      line-height: 0.95;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-shadow: 4px 4px 0 #101010;
+      color: var(--title-color);
+    }
+
+    .blurb {
+      margin: 0 0 1.4rem;
+      font-size: clamp(0.95rem, 2.4vw, 1.35rem);
+      letter-spacing: 0.04em;
+    }
+
+    .video-wrap {
+      position: relative;
+      width: min(640px, 100%);
+      margin: 0 auto 1.4rem;
+      border: 3px solid #8a8a8a;
+      box-shadow: 0 0 0 2px #111;
+      background: #000;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+    }
+
+    .video-wrap iframe {
+      border: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .play-btn {
+      display: inline-block;
+      margin-top: 0.4rem;
+      text-decoration: none;
+      color: var(--text);
+      background: var(--button-bg);
+      border: 3px solid var(--button-border);
+      padding: 0.9rem 1.2rem;
+      font-size: clamp(0.9rem, 2vw, 1.15rem);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      box-shadow: 4px 4px 0 #121212;
+      transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+      color: var(--button-text);
+    }
+
+    .play-btn:hover {
+      background: #bc4d08;
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 #121212;
+    }
+
+    .play-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 #121212;
+    }
+
+    .warning {
+      display: none;
+      margin-top: 1rem;
+      color: #ffb6b6;
+      background: rgba(130, 0, 0, 0.45);
+      border: 2px solid #f04d4d;
+      padding: 0.7rem 0.9rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main class="hero">
+    <h1>HYPERHELL</h1>
+    <br>
+    <p class="blurb">The first 4 dimensional DOOM-like</p>
+
+    <div class="video-wrap">
+      <iframe
+        src="https://www.youtube.com/embed/5iG1ujk_H5Y?si=d49X7gkCvRlt5Eg7"
+        title="HYPERHELL Gameplay Trailer"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen>
+      </iframe>
+    </div>
+
+    <a class="play-btn" href="./levels/the_bargain.html">Play Demo Online!</a>
+    <p id="webgpu-warning" class="warning" role="status" aria-live="polite"></p>
+  </main>
+
+  <script>
+    async function checkWebGPUCompatibility() {
+      const warning = document.getElementById("webgpu-warning");
+
+      if (!("gpu" in navigator)) {
+        warning.textContent = "WebGPU-compatible GPU and browser are required to play this demo.";
+        warning.style.display = "block";
+        return;
+      }
+
+      try {
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) {
+          warning.textContent = "No compatible WebGPU GPU detected. A compatible GPU is required.";
+          warning.style.display = "block";
+        }
+      } catch (error) {
+        warning.textContent = "WebGPU check failed. A compatible GPU and browser are required.";
+        warning.style.display = "block";
+      }
+    }
+
+    checkWebGPUCompatibility();
+  </script>
+</body>
+</html>
