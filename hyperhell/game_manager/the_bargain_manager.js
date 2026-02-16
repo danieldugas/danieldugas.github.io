@@ -1623,7 +1623,7 @@ export class TheBargainManager {
         gifContainer.style.justifyContent = "center";
         gifContainer.style.marginBottom = "16px";
         gifContainer.style.imageRendering = "pixelated";
-        gifContainer.innerHTML = '<div style="color: #554444; font-size: 10px;">[ GIF ]</div>';
+        gifContainer.innerHTML = '<div style="color: #554444; font-size: 10px;"></div>';
 
         // Continue hint
         const hint = document.createElement("div");
