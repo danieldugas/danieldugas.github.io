@@ -428,9 +428,13 @@ export async function runHyperengine(scene) {
         vertices1uvlstexData[i * 8 + 7] = vertex_object_indices_data[i]; // object index TODO: gpu expects a u32, but this is a f32
     }
     // initialize acceleration structure
-    const TILE_SZ = 2;
+    let TILE_SZ = 2;
+    let MAX_ACCEL_STRUCTURE_DEPTH = 100; // lower reqs less mem but may cause rendering errors
+    if (VOX > 128) {
+        TILE_SZ = 8;
+        MAX_ACCEL_STRUCTURE_DEPTH = 50;
+    }
     const TILE_RES = VOX / TILE_SZ;
-    const MAX_ACCEL_STRUCTURE_DEPTH = 100;
     const MAX_ACCEL_STRUCTURE_SIZE = TILE_RES*TILE_RES*TILE_RES*MAX_ACCEL_STRUCTURE_DEPTH;
     const MAX_LARGE_TETRAS = tetras.length; // large tetras get stored in a separate accel structure
     const LARGE_TETRA_THRESHOLD = VOX * VOX * VOX / 64; // number of voxels required to be a large tetra. Set to VOX*VOX*VOX to disable.
