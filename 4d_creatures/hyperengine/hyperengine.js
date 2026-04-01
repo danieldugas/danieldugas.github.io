@@ -12,7 +12,10 @@ export async function runHyperengine(scene) {
     e.preventDefault();
   });
 
-    const VOX = 96; // 96 128; // Voxel grid size
+    let VOX = 96; // 96 128; // Voxel grid size
+    if (scene.custom_vox_resolution != null) { VOX = scene.custom_vox_resolution; }
+    let PROFILING = false;
+    if (scene.enable_profiling != null) { PROFILING = scene.enable_profiling; }
 
     const PHYSICS_DT = 0.016; // Fixed ~60Hz physics timestep
     
@@ -2606,7 +2609,7 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         if (engineState.SENSOR_MODE === 0.0) {
             rotY = -Math.PI / 2.0;
             rotX = 0.;
-            dist = 50.0;  
+            dist = 50.0 * VOX / 96;
         }
 
         // Camera position (orbit around center at 2,2,2)
@@ -2948,7 +2951,6 @@ fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let lastPhysicsFrameTime = performance.now();
 
     // --- Profiling setup ---
-    const PROFILING = false;
     const PROF_HISTORY = 60;
     let profiling_div, prof_history, prof_frame_count, prof_last_frame_time, prof_gpu_ms;
     let prof_accel_stats = null; // latest accel structure utilization stats
